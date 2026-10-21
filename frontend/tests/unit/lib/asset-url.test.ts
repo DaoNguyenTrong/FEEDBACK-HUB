@@ -13,8 +13,8 @@ describe('resolveAssetUrl', () => {
   })
 
   it('keeps an absolute url as it is', () => {
-    expect(resolveAssetUrl('http://cdn.test/starterkit/public/avatars/a.png')).toBe(
-      'http://cdn.test/starterkit/public/avatars/a.png',
+    expect(resolveAssetUrl('http://cdn.test/feedbackhub/public/avatars/a.png')).toBe(
+      'http://cdn.test/feedbackhub/public/avatars/a.png',
     )
   })
 

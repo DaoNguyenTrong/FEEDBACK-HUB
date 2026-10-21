@@ -9,7 +9,7 @@ export const product: {
   /** Base chapters this product doesn't ship; only chapters marked `hideable` may be listed. */
   hiddenBaseChapters: string[]
 } = {
-  name: 'StarterKit',
+  name: 'FeedbackHub',
   publisher: 'WeatherPlus',
   brand: {
     wordmarkLight: 'weatherplus-wordmark-light.webp',

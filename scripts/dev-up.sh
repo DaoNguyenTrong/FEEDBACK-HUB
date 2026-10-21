@@ -15,7 +15,7 @@ LOG_FILE="$STATE_DIR/api.log"
 # seed-dev refuses to run outside Development; set it here rather than rely on launchSettings.json.
 export ASPNETCORE_ENVIRONMENT=Development
 # Overrides appsettings.json, which is per-machine and may point at another Postgres. These match docker-compose.yml.
-export ConnectionStrings__DefaultConnection="Host=localhost;Port=5433;Database=StarterKit_api;Username=dao;Password=12345aA@"
+export ConnectionStrings__DefaultConnection="Host=localhost;Port=5433;Database=FeedbackHub_api;Username=dao;Password=12345aA@"
 # Vite dev server (5175) and the `vite preview` that Playwright serves (4173) both call this API.
 export CorsSettings__AllowedOrigins__0="http://localhost:5175"
 export CorsSettings__AllowedOrigins__1="http://localhost:4173"
@@ -31,8 +31,8 @@ mkdir -p "$STATE_DIR"
 
 docker compose up -d --wait postgres mailpit seaweedfs
 
-dotnet run --project backend/src/StarterKit.API -- migrate
-dotnet run --project backend/src/StarterKit.API -- seed-dev
+dotnet run --project backend/src/FeedbackHub.API -- migrate
+dotnet run --project backend/src/FeedbackHub.API -- seed-dev
 
 if curl -fsS "$API_URL/api/health" >/dev/null 2>&1; then
   echo "dev-up: API already answers on $API_URL."
@@ -40,7 +40,7 @@ if curl -fsS "$API_URL/api/health" >/dev/null 2>&1; then
 fi
 
 # --no-build: the two runs above already built it. The host switch comes after `--` so dotnet passes it to the app.
-nohup dotnet run --no-build --project backend/src/StarterKit.API -- --urls "$API_URL" >"$LOG_FILE" 2>&1 &
+nohup dotnet run --no-build --project backend/src/FeedbackHub.API -- --urls "$API_URL" >"$LOG_FILE" 2>&1 &
 echo $! >"$PID_FILE"
 
 for _ in $(seq 1 60); do

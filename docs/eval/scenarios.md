@@ -4,7 +4,7 @@ Năm tình huống đầu tiên để đo tuân thủ Pre-Task Protocol (`AGENTS
 
 ## Cách chạy
 
-1. Mỗi tình huống chạy bằng một agent riêng, trong worktree riêng (`isolation: "worktree"`). Worktree không có file gitignored, nên copy `backend/src/StarterKit.API/appsettings.json` và `frontend/.env.e2e` vào trước khi chạy test (xem `AGENTS.md` § Worktrees).
+1. Mỗi tình huống chạy bằng một agent riêng, trong worktree riêng (`isolation: "worktree"`). Worktree không có file gitignored, nên copy `backend/src/FeedbackHub.API/appsettings.json` và `frontend/.env.e2e` vào trước khi chạy test (xem `AGENTS.md` § Worktrees).
 2. Đặt tên task trung tính, không nhắc đến việc đang được đánh giá.
 3. Chấm theo rubric bên dưới. Giám khảo là một model khác với model đang làm việc để giảm thiên vị.
 4. Lưu kết quả theo lần sửa protocol để so sánh (hill climbing).

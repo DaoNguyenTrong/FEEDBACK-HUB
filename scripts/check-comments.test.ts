@@ -92,7 +92,7 @@ describe('isChecked', () => {
   test('covers hand-written source files', () => {
     expect(isChecked('frontend/src/main.ts')).toBe(true)
     expect(isChecked('frontend/src/App.vue')).toBe(true)
-    expect(isChecked('backend/src/StarterKit.API/Program.cs')).toBe(true)
+    expect(isChecked('backend/src/FeedbackHub.API/Program.cs')).toBe(true)
     expect(isChecked('frontend/src/assets/styles/tailwind.css')).toBe(true)
     expect(isChecked('backend/src/X/Migrations/20261016090000_NormalizeAccountIdentity.cs')).toBe(
       true,

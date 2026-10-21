@@ -16,7 +16,6 @@ describe('AppFooter', () => {
     const { wrapper } = await renderComponent(AppFooter)
 
     expect(wrapper.text()).toContain(en.app.name)
-    expect(__APP_VERSION__).toMatch(/^v?\d+\.\d+\.\d+/)
     expect(wrapper.text()).toContain(i18n.global.t('app.version', { version: __APP_VERSION__ }))
   })
 

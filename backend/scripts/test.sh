@@ -6,13 +6,13 @@
 # only the OS scheduler runs the 4 already-built processes concurrently.
 #
 # Measured effect (479 tests, 2026-08-09): 55.8s serial (`dotnet test
-# backend/StarterKit.sln --no-restore -m:1`) -> 29.7s with this script.
+# backend/FeedbackHub.sln --no-restore -m:1`) -> 29.7s with this script.
 #
 # Tests tagged [Trait("Category", "RealData")] read gitignored real source data (an import file,
 # a large reference data set) and are skipped by default — they only change outcome when that data
-# changes. Set STARTERKIT_TEST_REAL_DATA=1 to include them.
+# changes. Set FEEDBACKHUB_TEST_REAL_DATA=1 to include them.
 #
-# STARTERKIT_TEST_COVERAGE=1 also collects coverage (coverlet, Cobertura) into
+# FEEDBACKHUB_TEST_COVERAGE=1 also collects coverage (coverlet, Cobertura) into
 # backend/TestResults/coverage/ — one coverage.cobertura.xml per test project; CI merges them into
 # the run summary with ReportGenerator (see .claude/rules/testing.md § Coverage).
 set -euo pipefail
@@ -20,22 +20,22 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-dotnet build backend/StarterKit.sln --no-restore -m:1
+dotnet build backend/FeedbackHub.sln --no-restore -m:1
 
 projects=(
-  backend/tests/StarterKit.Domain.Tests/StarterKit.Domain.Tests.csproj
-  backend/tests/StarterKit.Application.Tests/StarterKit.Application.Tests.csproj
-  backend/tests/StarterKit.Infrastructure.Tests/StarterKit.Infrastructure.Tests.csproj
-  backend/tests/StarterKit.API.Tests/StarterKit.API.Tests.csproj
+  backend/tests/FeedbackHub.Domain.Tests/FeedbackHub.Domain.Tests.csproj
+  backend/tests/FeedbackHub.Application.Tests/FeedbackHub.Application.Tests.csproj
+  backend/tests/FeedbackHub.Infrastructure.Tests/FeedbackHub.Infrastructure.Tests.csproj
+  backend/tests/FeedbackHub.API.Tests/FeedbackHub.API.Tests.csproj
 )
 
 filter_args=()
-if [[ "${STARTERKIT_TEST_REAL_DATA:-0}" != "1" ]]; then
+if [[ "${FEEDBACKHUB_TEST_REAL_DATA:-0}" != "1" ]]; then
   filter_args=(--filter "Category!=RealData")
 fi
 
 coverage_args=()
-if [[ "${STARTERKIT_TEST_COVERAGE:-0}" == "1" ]]; then
+if [[ "${FEEDBACKHUB_TEST_COVERAGE:-0}" == "1" ]]; then
   coverage_dir="$ROOT_DIR/backend/TestResults/coverage"
   rm -rf "$coverage_dir"
   coverage_args=(--collect "XPlat Code Coverage" --results-directory "$coverage_dir")

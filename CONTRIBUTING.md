@@ -1,4 +1,4 @@
-# Contributing to StarterKit
+# Contributing to FeedbackHub
 
 ## Git Workflow
 

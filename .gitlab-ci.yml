@@ -55,13 +55,13 @@ test:backend:
         - shared/openapi/**/*
         - .gitlab-ci.yml
   variables:
-    STARTERKIT_TEST_COVERAGE: "1" # reported, not gated — .claude/rules/testing.md § Coverage
+    FEEDBACKHUB_TEST_COVERAGE: "1" # reported, not gated — .claude/rules/testing.md § Coverage
   script:
-    - dotnet restore backend/StarterKit.sln
-    - cp backend/src/StarterKit.API/appsettings.Example.json backend/src/StarterKit.API/appsettings.json
+    - dotnet restore backend/FeedbackHub.sln
+    - cp backend/src/FeedbackHub.API/appsettings.Example.json backend/src/FeedbackHub.API/appsettings.json
     - backend/scripts/test.sh
     # A controller/DTO change without a re-export leaves the frontend's generated client stale.
-    - dotnet build backend/src/StarterKit.API/StarterKit.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
+    - dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
     - git diff --exit-code -- shared/openapi/openapi.json || { echo "openapi.json is out of date — run the export and commit it"; exit 1; }
   artifacts:
     when: always

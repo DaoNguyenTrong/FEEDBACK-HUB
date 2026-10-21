@@ -32,7 +32,7 @@ frontend/user-guide/tools/
 # Real secrets — never bake into any image, only the *.Example.json / *.example files are templates.
 # Every pattern here is anchored to the build-context root (the repo root), so a bare
 # `appsettings.json` would only match a file at the repo root — the `**/` prefix is what actually
-# reaches backend/src/StarterKit.API/appsettings.json and frontend/.env*.
+# reaches backend/src/FeedbackHub.API/appsettings.json and frontend/.env*.
 **/appsettings*.json
 !**/appsettings*.Example.json
 

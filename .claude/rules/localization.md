@@ -12,10 +12,10 @@ Both the backend API and the frontend UI support Vietnamese (`vi`, default) and 
 
 | What                          | Location                                                                 |
 |-------------------------------|--------------------------------------------------------------------------|
-| Message text — `vi` (default) | `backend/src/StarterKit.Application/Resources/Messages.resx`             |
-| Message text — `en`           | `backend/src/StarterKit.Application/Resources/Messages.en.resx`          |
-| Domain exception keys         | `backend/src/StarterKit.Domain/Exceptions/DomainMessages.cs`             |
-| Application error keys        | `backend/src/StarterKit.Application/Resources/ApplicationMessages.cs`    |
+| Message text — `vi` (default) | `backend/src/FeedbackHub.Application/Resources/Messages.resx`             |
+| Message text — `en`           | `backend/src/FeedbackHub.Application/Resources/Messages.en.resx`          |
+| Domain exception keys         | `backend/src/FeedbackHub.Domain/Exceptions/DomainMessages.cs`             |
+| Application error keys        | `backend/src/FeedbackHub.Application/Resources/ApplicationMessages.cs`    |
 
 `DomainMessages`/`ApplicationMessages` hold only **keys** (`const string X = nameof(X)`); the text lives in the two `.resx` files (the neutral `Messages.resx` is Vietnamese — `vi` is the default request culture in `Program.cs`). Validation messages are surfaced via DataAnnotations localization from the same files. Whenever you add a key, add its entry to **both** `Messages.resx` and `Messages.en.resx`.
 

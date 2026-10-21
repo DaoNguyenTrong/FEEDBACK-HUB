@@ -68,7 +68,7 @@
     hiddenBaseChapters: string[]
   }
   ```
-  Giá trị trong base: `name: 'StarterKit'`, `publisher: 'WeatherPlus'`, `brand: { wordmarkLight: 'weatherplus-wordmark-light.webp', wordmarkDark: 'weatherplus-wordmark-dark.webp', mark: 'weatherplus-mark.webp' }`, `hiddenBaseChapters: []`.
+  Giá trị trong base: `name: 'FeedbackHub'`, `publisher: 'WeatherPlus'`, `brand: { wordmarkLight: 'weatherplus-wordmark-light.webp', wordmarkDark: 'weatherplus-wordmark-dark.webp', mark: 'weatherplus-mark.webp' }`, `hiddenBaseChapters: []`.
 - Produces: `resolveVersion(): string` (`.vitepress/version.ts`): `git describe --tags --always`, lỗi thì `'unknown'`, giống `resolveAppVersion()` trong `frontend/vite.config.ts:13-22`.
 - Produces: các script của `package.json`: `dev`, `build`, `preview`, `test`, `new-page`, `sync-brand`, `format`, `format:check`. `dev`/`build` trong task này chạy thẳng `vitepress`; Task 2 chèn `sync-brand` vào trước.
 

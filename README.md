@@ -1,4 +1,4 @@
-# StarterKit
+# FeedbackHub
 
 An app starter kit for new web applications: .NET 10 Clean Architecture on the backend, Vue 3 + Vite on the frontend. It ships with the shared foundation most applications need — auth, multi-tenant organizations with per-org RBAC, API keys, audit log, file storage, system settings, notifications — so you can start writing business features right away instead of rebuilding basic infrastructure from scratch.
 
@@ -19,7 +19,7 @@ No global admin role anywhere in the system — outside of an organization ("per
 ## Architecture
 
 ```text
-backend/    .NET 10 API — Domain → Application → Infrastructure → API (src/, tests/, StarterKit.sln)
+backend/    .NET 10 API — Domain → Application → Infrastructure → API (src/, tests/, FeedbackHub.sln)
 frontend/   Vue 3 + Vite dashboard (src/api, src/stores, src/views, ...)
 shared/     docs/ + openapi/ (shared contract — frontend generates its client/types from it)
 plans/      history of plan files from implemented tasks (reference for patterns, not product documentation)
@@ -52,10 +52,10 @@ docker compose up -d
 
 Account verification email is required even in the dev environment — there is no seeder/bypass. Use Mailpit (`http://localhost:8025`) to view the verification email sent out when testing local registration, instead of needing a real SMTP server.
 
-**Monitoring:** the API exposes Prometheus metrics at `/metrics` (`prometheus-net.AspNetCore`). Grafana (`http://localhost:3000`, `admin`/`admin`) comes pre-provisioned with a Prometheus datasource and a "StarterKit API Overview" dashboard (request rate/errors/latency, process CPU/memory, GC) — see `monitoring/`. Since the API isn't containerized, Prometheus reaches it via `host.docker.internal`, which requires running it bound to all interfaces instead of the default loopback-only bind:
+**Monitoring:** the API exposes Prometheus metrics at `/metrics` (`prometheus-net.AspNetCore`). Grafana (`http://localhost:3000`, `admin`/`admin`) comes pre-provisioned with a Prometheus datasource and a "FeedbackHub API Overview" dashboard (request rate/errors/latency, process CPU/memory, GC) — see `monitoring/`. Since the API isn't containerized, Prometheus reaches it via `host.docker.internal`, which requires running it bound to all interfaces instead of the default loopback-only bind:
 
 ```bash
-dotnet run --project backend/src/StarterKit.API --urls http://0.0.0.0:7100
+dotnet run --project backend/src/FeedbackHub.API --urls http://0.0.0.0:7100
 ```
 
 Without this, the Prometheus target reads as `down` and the Grafana dashboard stays empty. Binding to `0.0.0.0` also exposes the API to your LAN while it's running — fine for local monitoring, just don't leave it running unattended.
@@ -64,22 +64,22 @@ Without this, the Prometheus target reads as `down` and the Grafana dashboard st
 
 ```bash
 # Copy the sample config
-cp backend/src/StarterKit.API/appsettings.Example.json backend/src/StarterKit.API/appsettings.json
+cp backend/src/FeedbackHub.API/appsettings.Example.json backend/src/FeedbackHub.API/appsettings.json
 
 # Build — serialized, parallel build is broken in this .NET 10 environment
-dotnet build backend/StarterKit.sln --no-restore -m:1
+dotnet build backend/FeedbackHub.sln --no-restore -m:1
 
 # Apply migrations
-dotnet ef database update --project backend/src/StarterKit.Infrastructure --startup-project backend/src/StarterKit.API
+dotnet ef database update --project backend/src/FeedbackHub.Infrastructure --startup-project backend/src/FeedbackHub.API
 
 # Run API
-dotnet run --project backend/src/StarterKit.API
+dotnet run --project backend/src/FeedbackHub.API
 
 # Test
 backend/scripts/test.sh
 ```
 
-Production: migrations are applied automatically on startup via `Database.MigrateAsync`. Running several API instances? Set `DatabaseSettings__MigrateOnStartup=false` on them and run `dotnet StarterKit.API.dll migrate` once before starting them, so they don't race on the same migration.
+Production: migrations are applied automatically on startup via `Database.MigrateAsync`. Running several API instances? Set `DatabaseSettings__MigrateOnStartup=false` on them and run `dotnet FeedbackHub.API.dll migrate` once before starting them, so they don't race on the same migration.
 
 ### 3. Frontend (`frontend/`)
 
@@ -117,7 +117,7 @@ Whenever you add or change a backend controller route, request/response DTO, or 
 
 ```bash
 # 1. Backend: re-export the spec to shared/openapi/openapi.json (no running server/DB required)
-dotnet build backend/src/StarterKit.API/StarterKit.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
+dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
 
 # 2. Frontend: regenerate src/api/generated/** from the updated spec
 bun run --cwd frontend codegen
@@ -147,7 +147,7 @@ restriction the API already applies (see `Program.cs`).
 ```bash
 # 1. App secrets — same convention as local dev, just bind-mounted into the container instead of
 #    baked into the image. Fill in real ConnectionStrings/JwtSettings/CorsSettings/EmailSettings/...
-cp backend/src/StarterKit.API/appsettings.Example.json backend/src/StarterKit.API/appsettings.json
+cp backend/src/FeedbackHub.API/appsettings.Example.json backend/src/FeedbackHub.API/appsettings.json
 
 # 2. Compose-level vars (Postgres credentials, frontend build arg)
 cp .env.prod.example .env.prod
@@ -159,7 +159,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 Each release tag also publishes both images, versioned from the tag: `ghcr.io/<owner>/<repo>/{backend,frontend}:X.Y.Z` (`:latest` follows the newest stable tag; on GitLab, `$CI_REGISTRY_IMAGE/...`). Build them yourself as above, or point the `api`/`web` services at those images to deploy without building on the server.
 
 Migrations apply automatically on startup (see `DatabaseSettings:MigrateOnStartup` above for several instances). Uploaded files and API logs persist in named volumes
-(`starterkit-api-uploads`, `starterkit-api-logs`); Postgres data in `starterkit-postgres-data`.
+(`feedbackhub-api-uploads`, `feedbackhub-api-logs`); Postgres data in `feedbackhub-postgres-data`.
 
 Deploy notes:
 

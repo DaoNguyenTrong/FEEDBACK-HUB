@@ -11,7 +11,7 @@ Review kiến trúc Clean Architecture theo 4 layers và phát hiện vi phạm.
 ## Layers & Dependency Rule
 
 ```
-StarterKit.Domain (innermost) → StarterKit.Application → StarterKit.Infrastructure → StarterKit.API (outermost)
+FeedbackHub.Domain (innermost) → FeedbackHub.Application → FeedbackHub.Infrastructure → FeedbackHub.API (outermost)
 ```
 
 | Layer          | Cho phép import                     | CẤM import                       |
@@ -41,10 +41,10 @@ Task Progress:
 Đọc các file sau và liệt kê mọi `<ProjectReference>`:
 
 ```
-backend/src/StarterKit.Domain/StarterKit.Domain.csproj
-backend/src/StarterKit.Application/StarterKit.Application.csproj
-backend/src/StarterKit.Infrastructure/StarterKit.Infrastructure.csproj
-backend/src/StarterKit.API/StarterKit.API.csproj
+backend/src/FeedbackHub.Domain/FeedbackHub.Domain.csproj
+backend/src/FeedbackHub.Application/FeedbackHub.Application.csproj
+backend/src/FeedbackHub.Infrastructure/FeedbackHub.Infrastructure.csproj
+backend/src/FeedbackHub.API/FeedbackHub.API.csproj
 ```
 
 So sánh với bảng ở trên. Mọi tham chiếu nằm ngoài cột "Cho phép" là vi phạm CRITICAL.
@@ -71,11 +71,11 @@ Task Progress:
 
 **2.1 Interface Segregation:**
 
-Dùng Serena `find_symbol` với pattern `I*` trong `backend/src/StarterKit.Application` và `backend/src/StarterKit.Infrastructure`, `depth=1` để liệt kê method của từng interface. Interface có hơn 5 method → cân nhắc tách.
+Dùng Serena `find_symbol` với pattern `I*` trong `backend/src/FeedbackHub.Application` và `backend/src/FeedbackHub.Infrastructure`, `depth=1` để liệt kê method của từng interface. Interface có hơn 5 method → cân nhắc tách.
 
 **2.2 Single Responsibility:**
 
-Dùng Serena `find_symbol` với pattern `*Service` trong `backend/src/StarterKit.Application` và `backend/src/StarterKit.Infrastructure`, `include_body=true`. Class có hơn 5 tham số constructor, hoặc hơn 300 dòng, → ghi nhận.
+Dùng Serena `find_symbol` với pattern `*Service` trong `backend/src/FeedbackHub.Application` và `backend/src/FeedbackHub.Infrastructure`, `include_body=true`. Class có hơn 5 tham số constructor, hoặc hơn 300 dòng, → ghi nhận.
 
 **2.3 Vì sao không kiểm tra `using` ở phase này:** `get_symbols_overview` của Serena không trả về câu lệnh `using`. Vi phạm import đã được Phase 1.1 bắt đầy đủ hơn qua `ProjectReference`, nên không cần kiểm tra lại.
 

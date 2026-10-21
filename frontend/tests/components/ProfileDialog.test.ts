@@ -481,7 +481,7 @@ describe('ProfileDialog', () => {
       server.use(
         http.get('*/api/profile', () =>
           HttpResponse.json(
-            makeProfile({ avatarUrl: 'http://cdn.test/starterkit/public/avatars/a.png' }),
+            makeProfile({ avatarUrl: 'http://cdn.test/feedbackhub/public/avatars/a.png' }),
           ),
         ),
       )
@@ -490,7 +490,7 @@ describe('ProfileDialog', () => {
       const { wrapper } = await openDialog()
 
       expect(wrapper.find('[data-testid="profile-avatar"] img').attributes('src')).toBe(
-        'http://cdn.test/starterkit/public/avatars/a.png',
+        'http://cdn.test/feedbackhub/public/avatars/a.png',
       )
       expect(wrapper.find('[data-testid="profile-avatar-remove"]').exists()).toBe(true)
     })
@@ -503,7 +503,7 @@ describe('ProfileDialog', () => {
         http.put('*/api/profile/avatar', async ({ request }) => {
           uploaded = (await request.formData()).get('avatar')
           return HttpResponse.json(
-            makeProfile({ avatarUrl: 'http://cdn.test/starterkit/public/avatars/new.png' }),
+            makeProfile({ avatarUrl: 'http://cdn.test/feedbackhub/public/avatars/new.png' }),
           )
         }),
       )
@@ -515,7 +515,7 @@ describe('ProfileDialog', () => {
 
       expect(uploaded).toBeInstanceOf(File)
       expect(wrapper.find('[data-testid="profile-avatar"] img').attributes('src')).toBe(
-        'http://cdn.test/starterkit/public/avatars/new.png',
+        'http://cdn.test/feedbackhub/public/avatars/new.png',
       )
       expect(successSpy).toHaveBeenCalledWith(en.profile.avatarUpdated)
     })
@@ -526,7 +526,7 @@ describe('ProfileDialog', () => {
       server.use(
         http.put('*/api/profile/avatar', () =>
           HttpResponse.json(
-            makeProfile({ avatarUrl: 'http://cdn.test/starterkit/public/avatars/new.png' }),
+            makeProfile({ avatarUrl: 'http://cdn.test/feedbackhub/public/avatars/new.png' }),
           ),
         ),
         http.delete('*/api/profile/avatar', () => new HttpResponse(null, { status: 204 })),
@@ -537,7 +537,7 @@ describe('ProfileDialog', () => {
 
       await pickFile(wrapper, pngFile())
       await flushPromises()
-      expect(auth.account?.avatarUrl).toBe('http://cdn.test/starterkit/public/avatars/new.png')
+      expect(auth.account?.avatarUrl).toBe('http://cdn.test/feedbackhub/public/avatars/new.png')
 
       await wrapper.get('[data-testid="profile-avatar-remove"]').trigger('click')
       await flushPromises()
@@ -598,7 +598,7 @@ describe('ProfileDialog', () => {
       server.use(
         http.get('*/api/profile', () =>
           HttpResponse.json(
-            makeProfile({ avatarUrl: 'http://cdn.test/starterkit/public/avatars/a.png' }),
+            makeProfile({ avatarUrl: 'http://cdn.test/feedbackhub/public/avatars/a.png' }),
           ),
         ),
       )
