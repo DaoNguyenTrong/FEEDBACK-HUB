@@ -11,19 +11,19 @@ Read this when changing a backend endpoint, request/response DTO, or header cont
 
 ## Current State
 
-`shared/openapi/openapi.json` is the committed source of truth, exported from `backend/src/StarterKit.API`'s OpenAPI document at build time (no running server/DB required). The frontend generates its types and typed request functions from it with `orval` — `frontend/src/api/generated/**` is generated output, never hand-edited, and **gitignored** (same convention as `frontend/src/typings/`): it regenerates automatically via a `postinstall` script on every `bun install`, so it's always freshly derived from whatever `openapi.json` is checked out — no risk of committed-generated-code drifting from its source.
+`shared/openapi/openapi.json` is the committed source of truth, exported from `backend/src/FeedbackHub.API`'s OpenAPI document at build time (no running server/DB required). The frontend generates its types and typed request functions from it with `orval` — `frontend/src/api/generated/**` is generated output, never hand-edited, and **gitignored** (same convention as `frontend/src/typings/`): it regenerates automatically via a `postinstall` script on every `bun install`, so it's always freshly derived from whatever `openapi.json` is checked out — no risk of committed-generated-code drifting from its source.
 
 ### Regenerating after a backend contract change
 
 ```bash
 # 1. Backend: re-export the spec (writes shared/openapi/openapi.json)
-dotnet build backend/src/StarterKit.API/StarterKit.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
+dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
 
 # 2. Frontend: regenerate types + client from the updated spec
 bun run --cwd frontend codegen
 ```
 
-`OpenApiGenerateDocumentsOnBuild` defaults to `false` on this project (see `StarterKit.API.csproj`) — generating the doc costs ~5-9s via a design-time host, so it's opt-in per the command above rather than running on every plain `dotnet build`.
+`OpenApiGenerateDocumentsOnBuild` defaults to `false` on this project (see `FeedbackHub.API.csproj`) — generating the doc costs ~5-9s via a design-time host, so it's opt-in per the command above rather than running on every plain `dotnet build`.
 
 ## How the generated client is wired into the app
 
@@ -44,7 +44,7 @@ Side effects the spec can't express live in the Pinia store that owns the releva
 
 ## Rule: Changing a Backend Endpoint or DTO
 
-Whenever you change a controller route, request/response DTO shape, status code, or error contract in `backend/src/StarterKit.API` or `backend/src/StarterKit.Application`:
+Whenever you change a controller route, request/response DTO shape, status code, or error contract in `backend/src/FeedbackHub.API` or `backend/src/FeedbackHub.Application`:
 
 1. Regenerate (see command above) — this alone updates `frontend/src/api/generated/**` and surfaces any breakage as TypeScript errors at every call site.
 2. If the change affects error responses, remember the frontend maps errors through `ApiError`/`ProblemDetails` (`frontend/src/api/client.ts`) — check `toProblemDetails`/`toApiError` still handle the shape.
@@ -53,4 +53,4 @@ Whenever you change a controller route, request/response DTO shape, status code,
 
 ## Controller Route Casing
 
-All controllers declare an explicit lowercase route (`[Route("api/organizations")]`, not `[Route("api/[controller]")]`) — kept consistent on purpose. ASP.NET Core's routing is case-insensitive so this was never a runtime issue, but the OpenAPI spec captures the *declared* casing verbatim, and codegen reproduces it exactly. A PascalCase-via-`[controller]`-token route would make the generated client send PascalCase paths, inconsistent with every hand-written caller (and test mock) in this codebase, which has always used lowercase. Same reasoning applies to query parameters bound from a shared DTO (e.g. paging `PageNumber`/`PageSize`/`Search`) — `QueryParameterCasingTransformer` (`backend/src/StarterKit.API/OpenApi/`) normalizes the declared casing to camelCase in the spec for the same reason.
+All controllers declare an explicit lowercase route (`[Route("api/organizations")]`, not `[Route("api/[controller]")]`) — kept consistent on purpose. ASP.NET Core's routing is case-insensitive so this was never a runtime issue, but the OpenAPI spec captures the *declared* casing verbatim, and codegen reproduces it exactly. A PascalCase-via-`[controller]`-token route would make the generated client send PascalCase paths, inconsistent with every hand-written caller (and test mock) in this codebase, which has always used lowercase. Same reasoning applies to query parameters bound from a shared DTO (e.g. paging `PageNumber`/`PageSize`/`Search`) — `QueryParameterCasingTransformer` (`backend/src/FeedbackHub.API/OpenApi/`) normalizes the declared casing to camelCase in the spec for the same reason.

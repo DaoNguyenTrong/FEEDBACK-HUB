@@ -9,7 +9,7 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-image=${IMAGE:-starterkit-web:guide-check}
+image=${IMAGE:-feedbackhub-web:guide-check}
 run_id="guide-check-$$"
 network="$run_id"
 api="$run_id-api"

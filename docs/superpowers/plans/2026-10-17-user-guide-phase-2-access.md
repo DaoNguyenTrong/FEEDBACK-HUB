@@ -41,9 +41,9 @@
 ### Task 1: `GET /api/auth/check` (chỉ phiên người dùng)
 
 **Files:**
-- Modify: `backend/src/StarterKit.API/Controllers/AuthController.cs` (thêm action sau `Logout`)
-- Modify: `backend/src/StarterKit.API/Middleware/UserTimeZoneMiddleware.cs:20-21`
-- Modify: `backend/tests/StarterKit.API.Tests/Controllers/AuthControllerTests.cs` (mục `// Check` sau `// Logout`)
+- Modify: `backend/src/FeedbackHub.API/Controllers/AuthController.cs` (thêm action sau `Logout`)
+- Modify: `backend/src/FeedbackHub.API/Middleware/UserTimeZoneMiddleware.cs:20-21`
+- Modify: `backend/tests/FeedbackHub.API.Tests/Controllers/AuthControllerTests.cs` (mục `// Check` sau `// Logout`)
 - Modify: `shared/openapi/openapi.json` (export lại)
 
 **Interfaces:**
@@ -56,10 +56,10 @@
   - `Check_Unauthenticated_ReturnsUnauthorized`: không có gì → 401.
   - `Check_ApiKeyOnly_ReturnsUnauthorized`: dựng như `ApiKeyHeader_AuthenticatesAgainstCombinedPolicy` (seed organization và API key hợp lệ, header `X-Api-Key`) → 401.
   - `Check_WithoutTimeZoneHeader_StillAuthenticatesViaCookie`: `client.DefaultRequestHeaders.Remove("X-TimeZone")`. Có cookie hợp lệ → 204; bỏ cookie → 401.
-- [ ] **Step 2: Chạy, xác nhận đỏ.** `dotnet build backend/StarterKit.sln --no-restore -m:1 && dotnet test backend/tests/StarterKit.API.Tests --no-restore -m:1 --filter "FullyQualifiedName~AuthControllerTests.Check_"` → 5 FAIL (404, riêng ca timezone là 400/404).
+- [ ] **Step 2: Chạy, xác nhận đỏ.** `dotnet build backend/FeedbackHub.sln --no-restore -m:1 && dotnet test backend/tests/FeedbackHub.API.Tests --no-restore -m:1 --filter "FullyQualifiedName~AuthControllerTests.Check_"` → 5 FAIL (404, riêng ca timezone là 400/404).
 - [ ] **Step 3: Implement action và miễn trừ timezone.**
 - [ ] **Step 4: Chạy lại filter** → 5 PASS.
-- [ ] **Step 5: Export OpenAPI rồi chạy toàn bộ backend.** `dotnet build backend/src/StarterKit.API/StarterKit.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true`; `git diff --stat shared/openapi/openapi.json` có thay đổi (path `/api/auth/check`). `bun install --cwd frontend` để sinh lại client. `backend/scripts/test.sh` → toàn bộ PASS.
+- [ ] **Step 5: Export OpenAPI rồi chạy toàn bộ backend.** `dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true`; `git diff --stat shared/openapi/openapi.json` có thay đổi (path `/api/auth/check`). `bun install --cwd frontend` để sinh lại client. `backend/scripts/test.sh` → toàn bộ PASS.
 - [ ] **Step 6: Commit** `feat(auth): add a session-only check endpoint for the user guide gate` (gồm 3 file C# và `shared/openapi/openapi.json`).
 
 ### Task 2: `safeGuideTarget`

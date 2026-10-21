@@ -146,7 +146,7 @@ Bảng chú thích `# / Thành phần` trong hai trang được cập nhật cho
 
 - [ ] **Step 1: Dựng môi trường local:**
   - `docker compose up -d postgres mailpit`;
-  - chạy API (`dotnet run --project backend/src/StarterKit.API`) và app (`bun run --cwd frontend dev`);
+  - chạy API (`dotnet run --project backend/src/FeedbackHub.API`) và app (`bun run --cwd frontend dev`);
   - tạo dữ liệu điều kiện bằng UI hoặc API (đăng ký và xác nhận qua Mailpit, tạo tổ chức, mời thành viên thứ hai, tạo vai trò tuỳ chỉnh, đăng nhập lần hai, có thông báo chưa đọc).
 
   Ghi lại các bước vào README (Task 4).

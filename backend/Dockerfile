@@ -8,18 +8,18 @@ WORKDIR /src
 
 # Copy project files first so `dotnet restore` is cached across builds that only change source.
 COPY backend/Directory.Build.props backend/Directory.Build.props
-COPY backend/src/StarterKit.Domain/StarterKit.Domain.csproj backend/src/StarterKit.Domain/
-COPY backend/src/StarterKit.Application/StarterKit.Application.csproj backend/src/StarterKit.Application/
-COPY backend/src/StarterKit.Infrastructure/StarterKit.Infrastructure.csproj backend/src/StarterKit.Infrastructure/
-COPY backend/src/StarterKit.API/StarterKit.API.csproj backend/src/StarterKit.API/
-RUN dotnet restore backend/src/StarterKit.API/StarterKit.API.csproj
+COPY backend/src/FeedbackHub.Domain/FeedbackHub.Domain.csproj backend/src/FeedbackHub.Domain/
+COPY backend/src/FeedbackHub.Application/FeedbackHub.Application.csproj backend/src/FeedbackHub.Application/
+COPY backend/src/FeedbackHub.Infrastructure/FeedbackHub.Infrastructure.csproj backend/src/FeedbackHub.Infrastructure/
+COPY backend/src/FeedbackHub.API/FeedbackHub.API.csproj backend/src/FeedbackHub.API/
+RUN dotnet restore backend/src/FeedbackHub.API/FeedbackHub.API.csproj
 
 COPY backend/src/ backend/src/
 # Copied last (changes on every commit) so it doesn't invalidate the restore-cache layers above.
 # Only .git's metadata is needed (MinVer runs `git describe` against it) — none of it reaches the
 # final image below, which only copies the published output.
 COPY .git/ .git/
-RUN dotnet publish backend/src/StarterKit.API/StarterKit.API.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish backend/src/FeedbackHub.API/FeedbackHub.API.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
@@ -44,4 +44,4 @@ RUN mkdir -p uploads logs && chown -R $APP_UID:$APP_UID uploads logs
 EXPOSE 8080
 # Base image defaults to root; opt into the non-root "app" user it ships (uid $APP_UID).
 USER $APP_UID
-ENTRYPOINT ["dotnet", "StarterKit.API.dll"]
+ENTRYPOINT ["dotnet", "FeedbackHub.API.dll"]

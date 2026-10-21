@@ -1,7 +1,7 @@
 import { defineConfig } from 'orval'
 
 export default defineConfig({
-  starterKit: {
+  feedbackHub: {
     input: '../shared/openapi/openapi.json',
     output: {
       mode: 'tags-split',

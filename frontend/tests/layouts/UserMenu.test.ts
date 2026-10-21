@@ -55,12 +55,12 @@ describe('UserMenu', () => {
       id: '1',
       name: 'Jane Doe',
       username: 'jane',
-      avatarUrl: 'http://cdn.test/starterkit/public/avatars/a.png',
+      avatarUrl: 'http://cdn.test/feedbackhub/public/avatars/a.png',
     })
 
     const avatar = wrapper.get('[data-testid="user-menu-avatar"]')
     expect(avatar.get('img').attributes('src')).toBe(
-      'http://cdn.test/starterkit/public/avatars/a.png',
+      'http://cdn.test/feedbackhub/public/avatars/a.png',
     )
     expect(avatar.text()).toBe('')
   })

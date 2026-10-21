@@ -1,8 +1,8 @@
 apiVersion: 1
 
 providers:
-  - name: StarterKit
-    folder: StarterKit
+  - name: FeedbackHub
+    folder: FeedbackHub
     type: file
     options:
       path: /var/lib/grafana/dashboards

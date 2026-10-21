@@ -59,17 +59,17 @@ jobs:
           restore-keys: nuget-${{ runner.os }}-
 
       - name: Restore
-        run: dotnet restore backend/StarterKit.sln
+        run: dotnet restore backend/FeedbackHub.sln
 
       - name: Configure appsettings
-        run: cp backend/src/StarterKit.API/appsettings.Example.json backend/src/StarterKit.API/appsettings.json
+        run: cp backend/src/FeedbackHub.API/appsettings.Example.json backend/src/FeedbackHub.API/appsettings.json
 
       # Infrastructure.Tests and API.Tests start Postgres through Testcontainers — the hosted runner's
       # Docker daemon is enough.
       - name: Test
         run: backend/scripts/test.sh
         env:
-          STARTERKIT_TEST_COVERAGE: "1"
+          FEEDBACKHUB_TEST_COVERAGE: "1"
 
       # Reported, not gated — see .claude/rules/testing.md § Coverage. Migrations and compiler-generated classes are filtered out.
       - name: Coverage summary
@@ -80,7 +80,7 @@ jobs:
             -reports:"backend/TestResults/coverage/**/coverage.cobertura.xml" \
             -targetdir:"backend/TestResults/coverage-report" \
             -reporttypes:"MarkdownSummaryGithub;TextSummary" \
-            -classfilters:"-StarterKit.Infrastructure.Migrations.*;-Microsoft.AspNetCore.OpenApi.Generated*;-System.Runtime.CompilerServices*"
+            -classfilters:"-FeedbackHub.Infrastructure.Migrations.*;-Microsoft.AspNetCore.OpenApi.Generated*;-System.Runtime.CompilerServices*"
           cat backend/TestResults/coverage-report/Summary.txt
           cat backend/TestResults/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 
@@ -88,7 +88,7 @@ jobs:
       # no test notices. The export needs no database (see commands.md § OpenAPI Spec Export).
       - name: Check the OpenAPI contract is exported
         run: |
-          dotnet build backend/src/StarterKit.API/StarterKit.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
+          dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
           if ! git diff --exit-code -- shared/openapi/openapi.json; then
             echo "::error file=shared/openapi/openapi.json::openapi.json is out of date — run the export (commands.md § OpenAPI Spec Export) and commit the result."
             exit 1

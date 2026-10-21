@@ -20,6 +20,6 @@ Root cause: Serena runs `typescript` and `vue` as separate language-server proce
 
 ### Gitignored files are invisible to Serena's own search
 
-`ignore_all_files_in_gitignore: true` with `ignored_paths: []` — Serena's file/symbol search skips everything the root `.gitignore` ignores. That is deliberate: it keeps `backend/src/StarterKit.API/appsettings*.json` (real secrets, e.g. the DB connection string) out of every Serena tool, with no hand-maintained list that can drift from `.gitignore`.
+`ignore_all_files_in_gitignore: true` with `ignored_paths: []` — Serena's file/symbol search skips everything the root `.gitignore` ignores. That is deliberate: it keeps `backend/src/FeedbackHub.API/appsettings*.json` (real secrets, e.g. the DB connection string) out of every Serena tool, with no hand-maintained list that can drift from `.gitignore`.
 
 Consequence: the generated frontend directories `frontend/src/typings/` (`auto-imports.d.ts`, `components.d.ts`) and `frontend/src/api/generated/` (the orval client) don't show up in `find_symbol`/`get_symbols_overview` results. Read them with `Read`, or query CodeGraph, when you need their content. If you ever flip `ignore_all_files_in_gitignore` to `false` to expose them, you must first add `ignored_paths` entries replicating the root `.gitignore` — at minimum every `appsettings*.json` pattern — or Serena will read the real secrets.

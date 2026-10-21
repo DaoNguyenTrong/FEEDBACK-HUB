@@ -143,7 +143,7 @@ Chương bị ẩn cũng bị đưa vào `srcExclude`, nên không bị build v�
 
 ```ts
 export const product = {
-  name: 'StarterKit',
+  name: 'FeedbackHub',
   publisher: '…',
   brand: {
     wordmarkLight: 'weatherplus-wordmark-light.webp',

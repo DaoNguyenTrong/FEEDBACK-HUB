@@ -20,7 +20,7 @@ spec=shared/openapi/openapi.json
 before="$(mktemp)"
 trap 'rm -f "$before"' EXIT
 cp "$spec" "$before"
-dotnet build backend/src/StarterKit.API/StarterKit.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
+dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
 if ! cmp -s "$before" "$spec"; then
   echo "$spec was out of date and has been re-exported — review and commit it (commands.md § OpenAPI Spec Export)." >&2
   exit 1

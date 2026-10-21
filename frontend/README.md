@@ -1,4 +1,4 @@
-# StarterKit Frontend
+# FeedbackHub Frontend
 
 Vue 3 + Vite + TypeScript dashboard (auth flow, organization switcher with permission-gated UI for member/role management, in-app + push notifications, responsive layout, design-token theming, i18n en/vi, Vitest + Playwright).
 

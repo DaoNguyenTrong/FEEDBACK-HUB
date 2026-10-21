@@ -14,20 +14,20 @@ Read this file when building, running, or testing either `backend/` or `frontend
 
 ```bash
 # Serialized — parallel build is broken in this .NET 10 environment
-dotnet build backend/StarterKit.sln --no-restore -m:1
+dotnet build backend/FeedbackHub.sln --no-restore -m:1
 
 # Run API
-dotnet run --project backend/src/StarterKit.API
+dotnet run --project backend/src/FeedbackHub.API
 ```
 
 ### EF Core Migrations
 
 ```bash
 # Apply pending migrations
-dotnet ef database update --project backend/src/StarterKit.Infrastructure --startup-project backend/src/StarterKit.API
+dotnet ef database update --project backend/src/FeedbackHub.Infrastructure --startup-project backend/src/FeedbackHub.API
 
 # Add a new migration
-dotnet ef migrations add <MigrationName> --project backend/src/StarterKit.Infrastructure --startup-project backend/src/StarterKit.API
+dotnet ef migrations add <MigrationName> --project backend/src/FeedbackHub.Infrastructure --startup-project backend/src/FeedbackHub.API
 ```
 
 In production, migrations are applied automatically on startup via `Database.MigrateAsync` unless `DatabaseSettings:MigrateOnStartup` is `false` — set it on every instance of a multi-instance deploy, and run the `migrate` command below once first, so instances starting together don't each run the same migration.
@@ -36,18 +36,18 @@ In production, migrations are applied automatically on startup via `Database.Mig
 
 ```bash
 # Apply pending migrations and exit (0 = done) — the deploy step when MigrateOnStartup=false
-dotnet run --project backend/src/StarterKit.API -- migrate
+dotnet run --project backend/src/FeedbackHub.API -- migrate
 # In the production image
-dotnet StarterKit.API.dll migrate
+dotnet FeedbackHub.API.dll migrate
 ```
 
-`Program.cs` hands the arguments to `CliCommands.TryRunAsync` right after `Build()`: a first argument naming a registered `ICliCommand` (`backend/src/StarterKit.API/Commands/`) runs that command with the API's configuration and DI, in a scope of its own, and the process exits with its code — the web host, Hangfire and storage never start. Anything else (no arguments, host switches like `--urls`) starts the API as usual. New seed/import/admin commands implement `ICliCommand`, call Application services (the Infrastructure-only-in-`Program.cs` architecture rule applies to them too), and are added to `CliCommands.All`; exit code 1 means bad usage and prints the usage line.
+`Program.cs` hands the arguments to `CliCommands.TryRunAsync` right after `Build()`: a first argument naming a registered `ICliCommand` (`backend/src/FeedbackHub.API/Commands/`) runs that command with the API's configuration and DI, in a scope of its own, and the process exits with its code — the web host, Hangfire and storage never start. Anything else (no arguments, host switches like `--urls`) starts the API as usual. New seed/import/admin commands implement `ICliCommand`, call Application services (the Infrastructure-only-in-`Program.cs` architecture rule applies to them too), and are added to `CliCommands.All`; exit code 1 means bad usage and prints the usage line.
 
 ### OpenAPI Spec Export
 
 ```bash
 # Writes shared/openapi/openapi.json — no running server/DB required
-dotnet build backend/src/StarterKit.API/StarterKit.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
+dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
 ```
 
 Run after any controller/DTO change, then `bun run --cwd frontend codegen` — why it's opt-in and the full contract-sync workflow: `api-contract.md`.
@@ -60,20 +60,20 @@ The export builds the real host from `Program.cs` inside the `GetDocument.Inside
 backend/scripts/test.sh
 ```
 
-Builds the solution once (serialized, `-m:1` — see Build above), then runs the 4 test projects as independent parallel processes (each still `-m:1` internally, so no process attempts the broken parallel-build path — only the OS scheduler runs them concurrently) — markedly faster than `dotnet test backend/StarterKit.sln --no-restore -m:1` run serially. See `.claude/decisions.md` (2026-08-09) for why.
+Builds the solution once (serialized, `-m:1` — see Build above), then runs the 4 test projects as independent parallel processes (each still `-m:1` internally, so no process attempts the broken parallel-build path — only the OS scheduler runs them concurrently) — markedly faster than `dotnet test backend/FeedbackHub.sln --no-restore -m:1` run serially. See `.claude/decisions.md` (2026-08-09) for why.
 
-`STARTERKIT_TEST_REAL_DATA=1` also runs the `RealData` tests, `STARTERKIT_TEST_COVERAGE=1` collects coverage — see `testing.md`.
+`FEEDBACKHUB_TEST_REAL_DATA=1` also runs the `RealData` tests, `FEEDBACKHUB_TEST_COVERAGE=1` collects coverage — see `testing.md`.
 
 The plain solution-level command still works and is equivalent for correctness — use it if you need a single combined log/trx or are debugging the script itself:
 
 ```bash
-dotnet test backend/StarterKit.sln --no-restore -m:1
+dotnet test backend/FeedbackHub.sln --no-restore -m:1
 ```
 
 For fast local iteration on a single layer, run just that project (skips the other 3 entirely):
 
 ```bash
-dotnet test backend/tests/StarterKit.Domain.Tests --no-restore -m:1
+dotnet test backend/tests/FeedbackHub.Domain.Tests --no-restore -m:1
 ```
 
 Test-project layout, Testcontainers collections and test-host isolation: `testing.md` § Test infrastructure.
