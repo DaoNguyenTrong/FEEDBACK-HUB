@@ -1,0 +1,141 @@
+# node_modules
+node_modules/
+
+# Playwright MCP scratch snapshots/logs
+.playwright-mcp/
+
+# Superpowers scratch (brainstorm mockups, subagent-driven-development workspaces)
+/.superpowers/
+
+# lock files — bun is the only package manager here; bun.lock IS tracked so the Dockerfile's and
+# CI's `bun install --frozen-lockfile` actually pin dependency versions (forks inherit it and update
+# it like any other file). Other managers' lockfiles are ignored to avoid accidental drift.
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# agent tooling
+.codegraph/
+# .serena/project.yml is the shared Serena config (language servers etc.) and IS tracked;
+# cache/, memories/ and project.local.yml are per-machine.
+.serena/*
+!.serena/project.yml
+.codex/*
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+.worktrees/
+__pycache__/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.e2e.example
+!.env.prod.example
+
+# Editor directories and files
+frontend/.vscode/*
+!frontend/.vscode/extensions.json
+.idea
+*.sw?
+
+# OS
+.DS_Store
+
+# ---- frontend/ (Vue 3 + Vite + TypeScript) ----
+dist
+dist-ssr
+coverage
+*.local
+*.tsbuildinfo
+.eslintcache
+frontend/src/typings/
+# user guide (frontend/user-guide/site): VitePress cache and files scripts/sync-brand.ts writes
+frontend/user-guide/site/.vitepress/cache/
+frontend/user-guide/site/src/public/brand/
+**/brand-tokens.generated.css
+# user guide capture tool: the saved browser session (a live refresh token), its env and run output
+frontend/user-guide/tools/.auth/
+frontend/user-guide/tools/.env
+frontend/user-guide/tools/.results/
+
+# orval — regenerated from shared/openapi/openapi.json via `postinstall` / `bun run codegen`
+frontend/src/api/generated/
+
+# Vitest
+__screenshots__/
+
+# Playwright
+/frontend/test-results/
+/frontend/playwright-report/
+
+# Vite
+*.timestamp-*-*.mjs
+
+# runtime config (deploy-time only — see frontend/public/config.example.json)
+/frontend/public/config.json
+
+# ---- backend/ (.NET 10, Clean Architecture) ----
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+
+# Others
+~$*
+*~
+CodeCoverage/
+
+# MSBuild Binary and Structured Log
+*.binlog
+
+# MSTest / NUnit test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+
+# app settings
+appsettings.json
+appsettings.Development.json
+appsettings.Backup.json
+appsettings.Production.json
+appsettings.Staging.json
+
+# local file storage (Storage:BasePath, default "uploads" under the API's content root)
+**/uploads/
+
+# Verification output: stack logs, screenshots and reports from scripts/dev-up.sh and scripts/verify/
+verify-output/
+
+# MinIO AIStor license (per machine)
+minio.license

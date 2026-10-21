@@ -1,0 +1,90 @@
+// --- Base styles ---
+body {
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background-color: var(--color-surface-100);
+  color: var(--color-surface-600);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.dark body {
+  background-color: var(--color-surface-950);
+  color: var(--color-surface-200);
+}
+
+// --- Responsive ---
+// Safari on iOS zooms the page in when an input with text under 16px gains focus (naive renders
+// 14px). `maximum-scale=1` on the viewport would also stop it, but blocks user pinch-zoom too.
+@media (width < 640px) and (pointer: coarse) {
+  .n-input__input-el,
+  .n-input__textarea-el,
+  .n-base-selection-input,
+  .n-base-selection-input-tag__input {
+    font-size: 16px !important;
+  }
+}
+
+// naive's card-preset modal only has `margin: auto`: a `w-full`/`max-w-*` modal touches both edges of a
+// phone screen and clips its rounded corners. Keep 1rem each side (the dialog preset already does).
+.n-modal.n-card {
+  max-width: calc(100vw - 2rem);
+}
+
+// naive's pagination (page items + page-size select) overflows a phone-width container.
+.n-pagination {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+// --- Scrollbar ---
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface-200) transparent;
+}
+
+.dark {
+  scrollbar-color: var(--color-surface-800) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-surface-200);
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: var(--color-surface-300);
+  }
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: var(--color-surface-700);
+
+  &:hover {
+    background-color: var(--color-surface-600);
+  }
+}
+
+// --- Naive UI form-item feedback ---
+// NFormItem reserves the feedback height even when empty, with no theme token to change it;
+// `!important` because naive-ui injects its styles into <head> after this stylesheet.
+.n-form-item-feedback-wrapper {
+  min-height: 0 !important;
+
+  &:not(:empty) {
+    min-height: var(--n-feedback-height) !important;
+  }
+}

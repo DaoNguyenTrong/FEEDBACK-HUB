@@ -1,0 +1,74 @@
+export interface ProblemDetails {
+  status: number
+  title: string
+  detail?: string
+  type?: string
+  code?: string
+  errors?: Record<string, string[]>
+}
+
+export class ApiError extends Error {
+  readonly status: number
+  readonly problem: ProblemDetails
+
+  constructor(problem: ProblemDetails) {
+    super(problem.detail ?? problem.title)
+    this.name = 'ApiError'
+    this.status = problem.status
+    this.problem = problem
+  }
+}
+
+// The generated PagedResultOf*Dto types widen int fields to `number | string` (.NET OpenAPI
+// JS-safe-integer interop); the api layer normalizes to this number-only shape before returning.
+export interface PagedResult<T> {
+  items: T[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export type { HealthResponse } from './generated/model/healthResponse'
+export type { AccountDto as Account } from './generated/model/accountDto'
+export type { LoginResponse as AuthResponse } from './generated/model/loginResponse'
+export type { LoginRequest } from './generated/model/loginRequest'
+export type { RegisterRequest } from './generated/model/registerRequest'
+export type { RegisterResult } from './generated/model/registerResult'
+export type { VerifyEmailRequest } from './generated/model/verifyEmailRequest'
+export type { ResendVerificationRequest } from './generated/model/resendVerificationRequest'
+export type { ExternalLoginRequest } from './generated/model/externalLoginRequest'
+export type { RefreshTokenRequest } from './generated/model/refreshTokenRequest'
+export type { RefreshTokenRequest as LogoutRequest } from './generated/model/refreshTokenRequest'
+export type { ProfileDto } from './generated/model/profileDto'
+export type { UpdateProfileRequest as ProfileUpdateRequest } from './generated/model/updateProfileRequest'
+export type { ChangePasswordRequest } from './generated/model/changePasswordRequest'
+export type { OrganizationDto } from './generated/model/organizationDto'
+export type { OrganizationMemberDto } from './generated/model/organizationMemberDto'
+export type { CreateOrganizationRequest } from './generated/model/createOrganizationRequest'
+export type { AddMemberRequest } from './generated/model/addMemberRequest'
+export type { UpdateMemberRolesRequest } from './generated/model/updateMemberRolesRequest'
+export type { SwitchOrganizationRequest } from './generated/model/switchOrganizationRequest'
+export type { RoleDto } from './generated/model/roleDto'
+export type { PermissionDto } from './generated/model/permissionDto'
+export type { CreateRoleRequest } from './generated/model/createRoleRequest'
+export type { UpdateRoleRequest } from './generated/model/updateRoleRequest'
+export type { NotificationDto as Notification } from './generated/model/notificationDto'
+export type { UnreadCountDto } from './generated/model/unreadCountDto'
+export type { RegisterPushSubscriptionRequest } from './generated/model/registerPushSubscriptionRequest'
+export type { PushSubscriptionStatusResponse } from './generated/model/pushSubscriptionStatusResponse'
+
+// Hand-kept: generated SessionDto.id is `number | string` (same int64-as-string widening as
+// pagination, see PagedResult above) — normalized to plain `number` by auth-api.ts.
+export interface SessionDto {
+  id: number
+  deviceInfo: string | null
+  ipAddress: string | null
+  isPersistent: boolean
+  isCurrent: boolean
+  loginAt: string
+  lastActiveAt: string
+  expiresAt: string
+}

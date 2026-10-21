@@ -1,0 +1,9 @@
+namespace StarterKit.Application.Services.Files;
+
+public sealed record UploadFileRequest(
+    Stream Content,
+    string FileName,
+    string ContentType,
+    long Size,
+    string? Description = null,
+    string? Category = null);

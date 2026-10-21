@@ -1,0 +1,111 @@
+@import 'tailwindcss';
+/* The user guide (frontend/user-guide/) is a separate VitePress site with its own styles. */
+@source not "../../../user-guide";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tailwind v4's preflight gives <button> `cursor: default`; restored once, as the v4 upgrade guide
+   suggests. In `base`, so any `cursor-*` utility still wins. */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@theme {
+  /* Brand violet, one hue (258°) throughout. 600/700/800 are the light-mode
+     primary/hover/pressed in naive-theme.ts. */
+  --color-accent-50: #f5f0fe;
+  --color-accent-100: #e7ddfd;
+  --color-accent-200: #cfbcfb;
+  --color-accent-300: #ac8cf8;
+  --color-accent-400: #895bf5;
+  --color-accent-500: #7842f5;
+  --color-accent-600: #6428f4;
+  --color-accent-700: #5017d3;
+  --color-accent-800: #4418aa;
+  --color-accent-900: #31176d;
+  --color-accent-950: #1d0f3d;
+
+  /* Secondary accent for Naive UI's `successColor` only — keep it off
+     interactive elements so it doesn't compete with the primary. */
+  --color-leaf-50: #f8fbf2;
+  --color-leaf-100: #e7f1d6;
+  --color-leaf-200: #cfe3ac;
+  --color-leaf-300: #b0d078;
+  --color-leaf-400: #91bd44;
+  --color-leaf-500: #739735;
+  --color-leaf-600: #5b772a;
+  --color-leaf-700: #4b6223;
+  --color-leaf-800: #3f521d;
+  --color-leaf-900: #36451c;
+  --color-leaf-950: #1c240f;
+
+  /* Primary (bridged, auto-switches light/dark below) — light default */
+  --color-primary-50: var(--color-accent-50);
+  --color-primary-100: var(--color-accent-100);
+  --color-primary-200: var(--color-accent-200);
+  --color-primary-300: var(--color-accent-300);
+  --color-primary-400: var(--color-accent-400);
+  --color-primary-500: var(--color-accent-500);
+  --color-primary-600: var(--color-accent-600);
+  --color-primary-700: var(--color-accent-700);
+  --color-primary-800: var(--color-accent-800);
+  --color-primary-900: var(--color-accent-900);
+  --color-primary-950: var(--color-accent-950);
+
+  /* Surface (bridged, auto-switches light/dark below) — light default.
+     50-300 are the sky-blue page tones (100 = app body), 400-950 a slate
+     ramp for text and borders. */
+  --color-surface-0: #ffffff;
+  --color-surface-50: #eef7fe;
+  --color-surface-100: #daeefd;
+  --color-surface-200: #c9e2f5;
+  --color-surface-300: #b3cde3;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
+  --color-surface-950: #020617;
+
+  /* One fill for Button secondary, Tag, Input and Select (naive-theme.ts). */
+  --fill-color: var(--color-surface-200);
+}
+
+.dark {
+  /* Primary — dark mode. Only 200 differs: it is the step `dark:` variants
+     use, and it must equal naive-theme.ts's dark primaryColor. */
+  --color-primary-50: var(--color-accent-50);
+  --color-primary-100: var(--color-accent-100);
+  --color-primary-200: #a27aff;
+  --color-primary-300: var(--color-accent-300);
+  --color-primary-400: var(--color-accent-400);
+  --color-primary-500: var(--color-accent-500);
+  --color-primary-600: var(--color-accent-600);
+  --color-primary-700: var(--color-accent-700);
+  --color-primary-800: var(--color-accent-800);
+  --color-primary-900: var(--color-accent-900);
+  --color-primary-950: var(--color-accent-950);
+
+  /* Surface — dark mode. 600/700/800 share the navy hue of 900/950: the
+     hover and fill states built on them would otherwise flash violet-grey
+     against the body/card. */
+  --color-surface-0: #e2e1e6;
+  --color-surface-50: #dad9de;
+  --color-surface-100: #ceccd4;
+  --color-surface-200: #b8b6c0;
+  --color-surface-300: #a5a2b0;
+  --color-surface-400: #8f8b9d;
+  --color-surface-500: #79758a;
+  --color-surface-600: #555a75;
+  --color-surface-700: #3a3f58;
+  --color-surface-800: #262a3d;
+  --color-surface-900: #1e2235;
+  --color-surface-950: #121527;
+
+  /* Shared control fill — see the light-mode definition. */
+  --fill-color: var(--color-surface-800);
+}
