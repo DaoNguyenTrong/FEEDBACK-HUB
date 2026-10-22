@@ -27,13 +27,15 @@ Quy tắc hiện có trong `.claude/rules/` viết cho ứng dụng nội bộ d
 | Ngôn ngữ email cho khách | Văn bản backend theo culture của request, mặc định `vi` (`localization.md`); chưa entity nào lưu ngôn ngữ người nhận | Email gửi từ Hangfire không có request. Cần lưu ngôn ngữ của người nhận và render theo đó | TECH04, TECH05 |
 | Danh sách endpoint ẩn danh | `authentication.md` liệt kê từng endpoint `[AllowAnonymous]` | Controller widget đầu tiên làm danh sách lỗi thời. Nên chuyển thành quy tắc "được ghim bằng test" | TECH02 |
 | Token SignalR cho app | JWT chỉ đọc từ header hoặc cookie | Client Flutter thường gửi token qua query string `access_token` khi nối `/hubs` | TECH05 (khi làm SDK Flutter) |
+| Quyền gán vai trò | Ai có quyền quản lý thành viên gán được mọi vai trò, kể cả Owner và cho chính mình (`OrganizationMembershipService.ValidateRoleIdsAsync`) | PRD-00 cấm leo quyền: chỉ Chủ sở hữu gán được Owner, không ai cấp được quyền mình không có | TECH00 |
+| Danh sách file | `GET /api/files` trả mọi file của tổ chức cho mọi thành viên; chỉ thao tác ghi cần `files.manage` (`FilesController`) | Nếu ảnh chụp của feedback lưu thành `StoredFile`, người báo xem được ảnh feedback của người khác, trái phạm vi xem của PRD-00 | TECH00, TECH02 |
 | Kiểm thử nhúng widget | E2E không chạy trong CI và chỉ phủ đăng nhập, phiên (`testing.md`) | Chưa có tầng test cho loader và iframe khác origin, vốn là đường nhận feedback chính | TECH02 |
 
 ## Danh mục
 
 | Mã | Module | PRD | Trạng thái | Phiên bản | appsec |
 |---|---|---|---|---|---|
-| TECH00 | Nền tảng: mô hình sản phẩm, quyền theo sản phẩm, đa tổ chức, chuyển design system mới vào frontend | PRD00 | Chưa bắt đầu | — | — |
+| TECH00 | Nền tảng: mô hình sản phẩm, quyền theo sản phẩm, đa tổ chức, chuyển design system mới vào frontend | PRD00 | Chưa bắt đầu | — | Bắt buộc |
 | TECH01 | Quản lý sản phẩm | PRD01 | Chưa bắt đầu | — | — |
 | TECH02 | Thu thập feedback (widget web), định danh, chế độ khách | PRD02 | Chưa bắt đầu | — | Bắt buộc |
 | TECH03 | Xử lý feedback | PRD03 | Chưa bắt đầu | — | — |
