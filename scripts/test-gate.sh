@@ -50,6 +50,10 @@ temp_files+=("$before")
 cp "$spec" "$before"
 # The export dies without appsettings.json (CorsSettings); the tests pin the example's keys as env vars and don't.
 # An existing file is per-machine and never touched: noclobber creates the copy only if no file is there.
+if [[ ! -f "$example_settings" ]]; then
+  echo "test-gate: $example_settings is missing — restore it from git (git checkout -- $example_settings)." >&2
+  exit 1
+fi
 if (set -C && cat "$example_settings" >"$appsettings") 2>/dev/null; then
   temp_appsettings=1
   echo "test-gate: $appsettings missing — using a temporary copy of appsettings.Example.json."
