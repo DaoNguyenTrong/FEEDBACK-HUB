@@ -3,11 +3,13 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs'
@@ -73,6 +75,7 @@ function runGate(root: string) {
     stderr: proc.stderr.toString(),
     exportSaw: read('export-saw')?.trim() ?? null,
     config: read(CONFIG),
+    backendTestsRan: existsSync(join(root, 'backend-tests-ran')),
   }
 }
 
@@ -127,12 +130,47 @@ describe('test-gate.sh temporary appsettings.json', () => {
     expect(result.config).toBeNull()
   })
 
-  test('creates no file and fails when appsettings.Example.json is missing', () => {
-    const result = runGate(layout({ example: false }))
+  test('creates no file and fails before the backend tests when appsettings.Example.json is missing', () => {
+    const result = runGate(layout({ example: false, backendTests: 'touch backend-tests-ran' }))
     expect(result.code).not.toBe(0)
     expect(result.stderr).toContain(EXAMPLE)
     expect(result.config).toBeNull()
+    expect(result.backendTestsRan).toBe(false)
   })
+
+  test('runs with its own appsettings.json when appsettings.Example.json is missing', () => {
+    const root = layout({ example: false, config: OWN_JSON })
+    const path = join(root, CONFIG)
+    utimesSync(path, new Date('2020-01-01T00:00:00Z'), new Date('2020-01-01T00:00:00Z'))
+    const before = statSync(path)
+    const result = runGate(root)
+    const after = statSync(path)
+    expect(result.code).toBe(0)
+    expect(result.exportSaw).toBe('other')
+    expect(result.stderr).not.toContain(EXAMPLE)
+    expect(result.config).toBe(OWN_JSON)
+    expect([after.ino, after.mtimeMs, after.size]).toEqual([
+      before.ino,
+      before.mtimeMs,
+      before.size,
+    ])
+  })
+
+  test.each([
+    ['present', true],
+    ['missing', false],
+  ])(
+    'fails before the backend tests on a dangling appsettings.json symlink, example %s',
+    (_, example) => {
+      const root = layout({ example, backendTests: 'touch backend-tests-ran' })
+      symlinkSync('missing-target.json', join(root, CONFIG))
+      const result = runGate(root)
+      expect(result.code).not.toBe(0)
+      expect(result.stderr).toContain(`${CONFIG} is a symlink to a missing file`)
+      expect(result.backendTestsRan).toBe(false)
+      expect(lstatSync(join(root, CONFIG)).isSymbolicLink()).toBe(true)
+    },
+  )
 
   test.each([
     ['INT', 130],

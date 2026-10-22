@@ -11,6 +11,18 @@ example_settings=backend/src/FeedbackHub.API/appsettings.Example.json
 appsettings=backend/src/FeedbackHub.API/appsettings.json
 temp_appsettings=0
 
+# The OpenAPI export needs a readable appsettings.json, copied from the example when absent; without one it can
+# only fail, so stop before the slow steps. A dangling symlink is unusable and also blocks the noclobber copy.
+if [[ -L "$appsettings" && ! -e "$appsettings" ]]; then
+  echo "test-gate: $appsettings is a symlink to a missing file — fix its target or remove it." >&2
+  exit 1
+fi
+if [[ ! -f "$example_settings" && ! -f "$appsettings" ]]; then
+  echo "test-gate: $example_settings and $appsettings are both missing — restore the example from git" \
+    "(git checkout -- $example_settings) or create your own $appsettings." >&2
+  exit 1
+fi
+
 # Deletes the temporary appsettings.json only while it still equals the example: a gitignored file
 # the developer wrote meanwhile has no other copy. Must return 0 — it runs under set -e.
 remove_temp_appsettings() {
@@ -50,10 +62,6 @@ temp_files+=("$before")
 cp "$spec" "$before"
 # The export dies without appsettings.json (CorsSettings); the tests pin the example's keys as env vars and don't.
 # An existing file is per-machine and never touched: noclobber creates the copy only if no file is there.
-if [[ ! -f "$example_settings" ]]; then
-  echo "test-gate: $example_settings is missing — restore it from git (git checkout -- $example_settings)." >&2
-  exit 1
-fi
 if (set -C && cat "$example_settings" >"$appsettings") 2>/dev/null; then
   temp_appsettings=1
   echo "test-gate: $appsettings missing — using a temporary copy of appsettings.Example.json."
