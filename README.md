@@ -1,10 +1,16 @@
 # FeedbackHub
 
-An app starter kit for new web applications: .NET 10 Clean Architecture on the backend, Vue 3 + Vite on the frontend. It ships with the shared foundation most applications need — auth, multi-tenant organizations with per-org RBAC, API keys, audit log, file storage, system settings, notifications — so you can start writing business features right away instead of rebuilding basic infrastructure from scratch.
+A hub that collects bug reports and feature requests from your products and tracks each one until it is closed. Instead of a chat message with no screenshot and no idea which device it came from, every report arrives with what IT needs to reproduce it.
 
-This is **not** a finished product — no business features are baked in. Remove/replace whatever you don't need and add your own domain on top of this foundation.
+- **Embeddable web widget** — a loader script plus an iframe served by the Hub. It captures an annotatable screenshot, device, browser and screen details, the URL, console errors, failed requests and data the host product passes in, without leaking the host page's tokens or cookies. Colleagues and testers are recognised from their Hub session; customers can report as guests (optionally anonymous) and follow their report through a private link.
+- **Hub inbox** — each product has one or more owners who are notified (in-app, email, web push), triage, assign, comment (internal or to the reporter) and move feedback through its lifecycle: *Mới → Đã tiếp nhận → Đang xử lý → In review → Đã xử lý → Đóng*, plus *Cần thêm thông tin*, *Từ chối* and *Trùng lặp* (working names from [the core design](docs/superpowers/specs/2026-10-21-feedback-hub-core-design.md); PRD-00 will fix them).
+- **Multi-tenant** — several organizations share one Hub with separate data; an account can belong to several organizations with a different role in each.
+- **Satisfaction surveys** — periodic survey rounds with optionally anonymous answers and results ([surveys design](docs/superpowers/specs/2026-10-21-feedback-hub-surveys-design.md)).
+- **Later:** a Flutter SDK, connectors (Plane, GitHub, GitLab) and AI triage.
 
-## Already Included
+**Status:** requirements stage. Each module gets a PRD (`docs/prd/`), a UI design and a technical design (`docs/tech/`) before it is built — see [the lifecycle](docs/process/lifecycle.md) and [per-module progress](docs/process/progress.md). No FeedbackHub-specific feature is implemented yet; the code today is the platform foundation below.
+
+## Platform Foundation (already built)
 
 - **Auth**: email + password register/login (JWT access + refresh token, refresh token stored as a SHA-256 hash), mandatory email verification via SMTP, Google + Microsoft login (credential flow / MSAL popup), session management (list/revoke by device).
 - **Profile**: self-service profile (get/update) and change password for the current account. There is no account CRUD/admin surface — accounts are created only via registration, and removed only by leaving/being removed from every organization.
@@ -12,18 +18,19 @@ This is **not** a finished product — no business features are baked in. Remove
 - **ApiKey**, **AuditLog**, **Files** (local disk, provider pluggable via `IStorageProvider`), **SystemSettings**: all four require an active organization *and* the specific permission for it — there is no personal/org-less access and no global admin bypass.
 - **Notifications**: in-app (REST + real-time via SignalR), email, and optional Web Push (Firebase Cloud Messaging) — channels fan out through a Hangfire background job.
 
-No global admin role anywhere in the system — outside of an organization ("personal" context) an account only has auth/profile/organization endpoints; add authorization as your specific application needs on top of the permission catalog.
+No global admin role exists yet — outside of an organization ("personal" context) an account only has auth/profile/organization endpoints. FeedbackHub's own roles (*Quản trị*, *Phụ trách*, *Viewer*, *Người báo*, *Khách*) and the system-level admin that surveys need will be defined in PRD-00 and PRD-07; until then the working draft is the role table in [the core design](docs/superpowers/specs/2026-10-21-feedback-hub-core-design.md).
 
 ## Architecture
 
 ```text
 backend/    .NET 10 API — Domain → Application → Infrastructure → API (src/, tests/, FeedbackHub.sln)
 frontend/   Vue 3 + Vite dashboard (src/api, src/stores, src/views, ...)
-shared/     docs/ + openapi/ (shared contract — frontend generates its client/types from it)
-plans/      history of plan files from implemented tasks (reference for patterns, not product documentation)
+shared/     openapi/ (shared contract — frontend generates its client/types from it)
+docs/       process/ (lifecycle, progress), prd/ (requirements), tech/ (technical designs), superpowers/ (specs/ early designs, plans/ implementation plans), feature-map.md
+plans/      history of plan files from the starter-kit era (reference for patterns, not product documentation; new plans go in docs/superpowers/plans/)
 ```
 
-For layer/rule details for each part, see `AGENTS.md` and `.claude/rules/`.
+For layer/rule details for each part, see `AGENTS.md` and `.claude/rules/`. Work is done by Claude Code agents per stage (`.claude/agents/`); `AGENTS.md` § Software Lifecycle says who does what.
 
 ## Tech Stack
 
@@ -89,7 +96,8 @@ bun run --cwd frontend dev            # dev server
 bun run --cwd frontend build          # type-check + production build
 bun run --cwd frontend test:run       # unit tests (vitest)
 bun run --cwd frontend test:e2e:install && bun run --cwd frontend test:e2e   # e2e (playwright)
-bun run --cwd frontend format         # prettier — there is no ESLint config in this project
+bun run --cwd frontend format         # prettier
+bun run --cwd frontend lint:boundaries   # ESLint, import-boundary rules only
 ```
 
 ### 4. Try the Registration Flow
@@ -106,7 +114,7 @@ bun install   # run at the repo root (not --cwd frontend) — wires up git hooks
 
 Hooks installed:
 
-- **pre-commit**: blocks direct commits to `main` (release only happens via `gh pr merge` — see the `git-release` skill; bypass with `git commit --no-verify` for tooling that legitimately needs it); blocks staged changes containing unresolved merge-conflict markers (`<<<<<<<`/`=======`/`>>>>>>>`); runs `secretlint` on all staged files (catches known secret *formats* — private keys, GitHub/Slack/npm tokens; it does **not** catch arbitrary custom secrets like a hardcoded `JwtSettings:SecretKey` or `DB_PASSWORD=...` — keep those in the gitignored `appsettings.json`, not in source); runs `prettier --write` on staged `frontend/src/**` files (same scope as `bun run --cwd frontend format`). Backend files aren't formatted by a hook; C# style rules in the root `.editorconfig` that are set to `error` fail `dotnet build` instead.
+- **pre-commit**: blocks direct commits to `main` (release only happens via `gh pr merge` — see the `git-release` skill; bypass with `git commit --no-verify` for tooling that legitimately needs it); blocks staged changes containing unresolved merge-conflict markers (`<<<<<<<`/`=======`/`>>>>>>>`); runs `secretlint` on all staged files (catches known secret *formats* — private keys, GitHub/Slack/npm tokens; it does **not** catch arbitrary custom secrets like a hardcoded `JwtSettings:SecretKey` or `DB_PASSWORD=...` — keep those in the gitignored `appsettings.json`, not in source); runs `prettier --write` on staged `frontend/src/**`, `frontend/e2e/**` and `frontend/user-guide/tools/**` files, and on the user guide's own files with its pinned prettier; checks comment length (`scripts/check-comments.ts`). Backend files aren't formatted by a hook; C# style rules in the root `.editorconfig` that are set to `error` fail `dotnet build` instead.
 - **commit-msg**: enforces Conventional Commits (`feat:`, `fix:`, `docs:`, ... — see CONTRIBUTING.md) via commitlint.
 
 ### Updating the API Contract
@@ -128,9 +136,9 @@ bun run --cwd frontend codegen
 
 ### CI
 
-Every PR into `dev`/`main`/`release/**` and every push to `dev` runs the test gate (`.github/workflows/ci.yml` → `test.yml`): backend tests plus an OpenAPI-export drift check, frontend formatting, type-check and unit tests. The release pipeline runs the same gate: a `v*` tag runs the tests, builds and pushes the production images, then creates the release (`.github/workflows/release.yml`; `.gitlab-ci.yml` is the same pipeline for a fork on GitLab). Protect `v*` tags — whoever can push one publishes images.
+Every PR into `dev`/`main`/`release/**` and every push to `dev` runs the test gate (`.github/workflows/ci.yml` → `test.yml`) in four jobs: `comments` (script tests and the comment-length check, always runs), `backend` (tests plus an OpenAPI-export drift check), `frontend` (formatting, type-check, import-boundary lint and unit tests) and `guide` (the user guide's format check, tests and build). CI runs only the jobs whose parts a change touches and counts a skipped job as passing. The release pipeline runs the same gate: a `v*` tag runs the tests, builds and pushes the production images, then creates the release (`.github/workflows/release.yml`; `.gitlab-ci.yml` is the same pipeline for a fork on GitLab). Protect `v*` tags — whoever can push one publishes images.
 
-For full details, see `.claude/rules/commands.md`.
+For full details, see `.claude/reference/ci-and-git-hooks.md`.
 
 ## Production (Docker)
 
@@ -201,7 +209,9 @@ Not included yet (fine for a first deploy, revisit before scaling): TLS terminat
 - Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - Security policy / reporting a vulnerability: [SECURITY.md](SECURITY.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
-- Key architecture decisions: [.claude/decisions.md](.claude/decisions.md)
+- How work flows from idea to release: [docs/process/lifecycle.md](docs/process/lifecycle.md)
+- Requirements (PRDs): [docs/prd/README.md](docs/prd/README.md) · Technical designs: [docs/tech/README.md](docs/tech/README.md)
+- Platform-wide architecture decisions: [.claude/decisions.md](.claude/decisions.md) (module decisions live in each technical design)
 - End-user guide (Hướng dẫn sử dụng, VitePress, served at `/guide/`): [frontend/user-guide/README.md](frontend/user-guide/README.md)
 
 ## License
