@@ -59,11 +59,16 @@ Only when steps 1–4 pass:
 gh pr merge <number> --merge
 ```
 
-Use `--merge` to match the repo's existing merge commits. Never pass `--admin`, `--auto` or `--delete-branch` here.
+Use `--merge` to match the repo's existing merge commits. Never pass `--admin`, `--auto` or `--delete-branch` here. Then delete the merged branch, remote first and only once it is inside `dev`, then local:
+
+```bash
+git fetch --prune origin && git merge-base --is-ancestor origin/<headRefName> origin/dev && git push origin --delete <headRefName>
+git switch dev && git pull --ff-only origin dev && git branch -d <headRefName>
+```
 
 ### 6. Finish
 
-Print the merge commit and the PR URL. Remind the user to run `/git-sync` on any other branch that was based on `dev`, and to delete the local branch once it is no longer needed.
+Print the merge commit and the PR URL. Print the deleted branch name. Remind the user to run `/git-sync` on any other branch that was based on `dev`.
 
 ## Rules
 
