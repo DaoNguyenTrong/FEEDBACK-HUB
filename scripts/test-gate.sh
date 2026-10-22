@@ -7,22 +7,33 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# One EXIT trap for every temp file; INT/TERM exit through it, so Ctrl-C cleans up too.
+example_settings=backend/src/FeedbackHub.API/appsettings.Example.json
+appsettings=backend/src/FeedbackHub.API/appsettings.json
+temp_appsettings=0
+
+# Deletes the temporary appsettings.json only while it still equals the example: a gitignored file
+# the developer wrote meanwhile has no other copy. Must return 0 — it runs under set -e.
+remove_temp_appsettings() {
+  ((temp_appsettings)) || return 0
+  temp_appsettings=0
+  if [[ ! -e "$appsettings" && ! -L "$appsettings" ]]; then return 0; fi
+  if [[ -f "$appsettings" && ! -L "$appsettings" ]] && cmp -s "$example_settings" "$appsettings"; then
+    rm -f -- "$appsettings"
+  else
+    echo "test-gate: kept $appsettings — it changed after the gate copied it there, so it may be your own config." >&2 || true
+  fi
+}
+
+# One EXIT trap for every temp file; HUP/INT/TERM exit through it, so a closed terminal or Ctrl-C cleans up too.
 temp_files=()
-cleanup() { if ((${#temp_files[@]})); then rm -f -- "${temp_files[@]}"; fi; }
+cleanup() {
+  remove_temp_appsettings
+  if ((${#temp_files[@]})); then rm -f -- "${temp_files[@]}"; fi
+}
 trap cleanup EXIT
+trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-
-# CI copies the example config before the backend jobs; the OpenAPI export dies without it
-# (CorsSettings). An existing appsettings.json is per-machine — never touched, only a missing one
-# gets a copy, removed on exit.
-appsettings=backend/src/FeedbackHub.API/appsettings.json
-if [[ ! -e "$appsettings" && ! -L "$appsettings" ]]; then
-  echo "test-gate: $appsettings missing — using a temporary copy of appsettings.Example.json."
-  temp_files+=("$appsettings")
-  cp backend/src/FeedbackHub.API/appsettings.Example.json "$appsettings"
-fi
 
 # Comment length (.claude/rules/comments.md) — seconds, so it fails fast.
 bun test scripts/
@@ -37,7 +48,14 @@ spec=shared/openapi/openapi.json
 before="$(mktemp)"
 temp_files+=("$before")
 cp "$spec" "$before"
+# The export dies without appsettings.json (CorsSettings); the tests pin the example's keys as env vars and don't.
+# An existing file is per-machine and never touched: noclobber creates the copy only if no file is there.
+if (set -C && cat "$example_settings" >"$appsettings") 2>/dev/null; then
+  temp_appsettings=1
+  echo "test-gate: $appsettings missing — using a temporary copy of appsettings.Example.json."
+fi
 dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
+remove_temp_appsettings
 if ! cmp -s "$before" "$spec"; then
   echo "$spec was out of date and has been re-exported — review and commit it (commands.md § OpenAPI Spec Export)." >&2
   exit 1
