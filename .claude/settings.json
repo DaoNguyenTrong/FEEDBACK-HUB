@@ -1,5 +1,9 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh *)"
+    ],
     "deny": [
       "Bash(git add -A)",
       "Bash(git add .)",
@@ -7,10 +11,6 @@
       "Bash(git commit --no-verify:*)",
       "Bash(git push --force:*)",
       "Bash(git push -f:*)"
-    ],
-    "ask": [
-      "Bash(git push:*)",
-      "Bash(git merge:*)"
     ]
   },
   "enabledPlugins": {
