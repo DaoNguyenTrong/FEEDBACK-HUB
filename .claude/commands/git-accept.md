@@ -2,7 +2,7 @@
 description: Merge the current branch's docs-only PR into dev when the gate passes (required CI green, agent review without blocking findings, docs-only scope)
 ---
 
-Merge a docs-only pull request into `dev` through a gate. This command is the only merge path that does not need the user's explicit order; any other merge (code, hotfix, release) needs one (`AGENTS.md` § Commits). The gate runs on the client, so it is not a hard control: it only enforces the process.
+Merge a docs-only pull request into `dev` through a gate. This is the merge path for docs-only PRs; other PRs into `dev` go through the `pr-reviewer` agent, and any merge outside `dev` (hotfix, release) needs the user's explicit order (`AGENTS.md` § Commits). The gate runs on the client, so it is not a hard control: it only enforces the process.
 
 ## Steps
 
@@ -14,6 +14,8 @@ gh pr view --json number,state,baseRefName,headRefName,url,title
 
 Stop unless `state` is `OPEN`, `baseRefName` is `dev`, and `headRefName` starts with `feature/`, `fix/` or `chore/`. Report which condition failed.
 
+Then check the branch is rebased onto the latest `dev` (one PR at a time, `docs/process/lifecycle.md`): `git fetch origin dev && git merge-base --is-ancestor origin/dev origin/<headRefName>` must exit 0; otherwise stop and ask for a rebase.
+
 ### 2. Scope gate
 
 ```bash
@@ -22,11 +24,11 @@ gh pr view <number> --json files --jq '.files[].path'
 
 Check each path in turn, in this order:
 
-1. Under `.claude/` or `.github/` → fail, even when it ends in `.md` (rules and agent prompts change the process, so they are reviewed by hand).
+1. Under `.claude/` or `.github/`, or `AGENTS.md`, or under `docs/process/` → fail, even when it ends in `.md` (rules, agent prompts and the process itself are reviewed by the user).
 2. Under `docs/`, or ends in `.md` → pass.
 3. Anything else → fail.
 
-Any failing path → stop and report the first offending file. Code, workflows, rules, settings and anything touching auth are merged by hand.
+Any failing path → stop and report the first offending file. Code goes through `pr-reviewer`; workflows, rules, settings, process documents and anything touching auth need the user.
 
 ### 3. CI gate
 
@@ -65,7 +67,7 @@ Print the merge commit and the PR URL. Remind the user to run `/git-sync` on any
 
 ## Rules
 
-- Never merge a PR that touches a path outside `*.md` and `docs/**`
+- Never merge a PR with a path that fails the scope gate in step 2
 - Never bypass a failed gate with `--admin` or by editing the checks
-- Never force push
+- Never force push (rebasing the branch is the author's step, before this command)
 - If any step fails, stop and report which gate failed and why

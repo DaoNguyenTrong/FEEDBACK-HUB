@@ -27,7 +27,7 @@ bun run --cwd frontend codegen
 
 ## How the generated client is wired into the app
 
-There is no hand-written `{resource}-api.ts` wrapper layer — views/components/composables call `frontend/src/api/generated/**` (`mode: 'tags-split'`, one file per controller tag, each exporting a `get*()` factory e.g. `getOrganizations()` → `{ organizationsGetMine, organizationsCreate, ... }`) directly. All generated requests route through `frontend/src/api/mutator.ts`, a thin wrapper around the existing `apiClient` axios instance — so every generated call automatically gets `apiClient`'s interceptors (auth headers, locale, the 401-refresh-and-retry queue) for free, no per-call special-casing needed.
+There is no hand-written `{resource}-api.ts` wrapper layer — views/components/composables call `frontend/src/api/generated/**` (`mode: 'tags-split'`, one file per controller tag, each exporting a `get*()` factory e.g. `getOrganizations()` → `{ organizationsGetMine, organizationsCreate, ... }`) directly. All generated requests route through `frontend/src/api/mutator.ts`, a thin wrapper around the existing `apiClient` axios instance — so every generated call automatically gets `apiClient`'s behaviour (auth cookies via `withCredentials`, the `X-TimeZone` and `X-CSRF-Protection` headers, locale, the 401-refresh-and-retry queue) for free, no per-call special-casing needed.
 
 Side effects the spec can't express live in the Pinia store that owns the relevant state, not at the call site:
 
@@ -48,7 +48,7 @@ Whenever you change a controller route, request/response DTO shape, status code,
 
 1. Regenerate (see command above) — this alone updates `frontend/src/api/generated/**` and surfaces any breakage as TypeScript errors at every call site.
 2. If the change affects error responses, remember the frontend maps errors through `ApiError`/`ProblemDetails` (`frontend/src/api/client.ts`) — check `toProblemDetails`/`toApiError` still handle the shape.
-3. If the change affects headers (`X-TimeZone`, `X-Api-Key`, `Authorization`/`access_token` cookie — see `authentication.md`; the active organization is the JWT `org_id` claim, not a header), check `frontend/src/api/client.ts` still sends them correctly (headers aren't part of the generated contract, they're applied by `apiClient`'s interceptors).
+3. If the change affects headers (`X-TimeZone`, `X-CSRF-Protection`, `X-Api-Key`, `Authorization`/`access_token` cookie — see `authentication.md`; the active organization is the JWT `org_id` claim, not a header), check `frontend/src/api/client.ts` still sends them correctly (headers aren't part of the generated contract, they're applied by `apiClient`'s interceptors).
 4. If a new controller/resource needs cross-cutting side effects on success (analogous to `setAuth`), add them as a Pinia store action wrapping the generated call — don't reintroduce a per-resource `{resource}-api.ts` wrapper file.
 
 ## Controller Route Casing
