@@ -31,6 +31,7 @@ bun run --cwd frontend prettier --check --experimental-cli src/ e2e/
 # worktree has none, and vue-tsc fails without it.
 bun run --cwd frontend build-only
 bun run --cwd frontend type-check
+bun run --cwd frontend lint:boundaries
 bun run --cwd frontend test:run
 
 # The user guide: formatting, unit + content integrity tests, and a build that fails on dead links.
