@@ -629,7 +629,11 @@ function checkGh(args: string[]): string | null {
       (isLong(o, 'admin', false) ||
         isLong(o, 'auto', false) ||
         isLong(o, 'delete-branch', false) ||
-        isShort(o, 'd')),
+        isLong(o, 'squash', false) ||
+        isLong(o, 'rebase', false) ||
+        isShort(o, 'd') ||
+        isShort(o, 's') ||
+        isShort(o, 'r')),
   )
   return bypass ? REASON.ghMerge : null
 }
