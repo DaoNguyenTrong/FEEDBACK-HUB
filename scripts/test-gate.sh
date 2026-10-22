@@ -7,6 +7,23 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+# One EXIT trap for every temp file; INT/TERM exit through it, so Ctrl-C cleans up too.
+temp_files=()
+cleanup() { if ((${#temp_files[@]})); then rm -f -- "${temp_files[@]}"; fi; }
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# CI copies the example config before the backend jobs; the OpenAPI export dies without it
+# (CorsSettings). An existing appsettings.json is per-machine — never touched, only a missing one
+# gets a copy, removed on exit.
+appsettings=backend/src/FeedbackHub.API/appsettings.json
+if [[ ! -e "$appsettings" && ! -L "$appsettings" ]]; then
+  echo "test-gate: $appsettings missing — using a temporary copy of appsettings.Example.json."
+  temp_files+=("$appsettings")
+  cp backend/src/FeedbackHub.API/appsettings.Example.json "$appsettings"
+fi
+
 # Comment length (.claude/rules/comments.md) — seconds, so it fails fast.
 bun test scripts/
 bun scripts/check-comments.ts
@@ -18,7 +35,7 @@ backend/scripts/test.sh
 # re-run but not committed yet still passes locally.
 spec=shared/openapi/openapi.json
 before="$(mktemp)"
-trap 'rm -f "$before"' EXIT
+temp_files+=("$before")
 cp "$spec" "$before"
 dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
 if ! cmp -s "$before" "$spec"; then
