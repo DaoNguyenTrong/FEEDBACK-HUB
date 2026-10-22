@@ -4,7 +4,7 @@
 |---|---|
 | Mã | `PRD00` (tiền tố cho mọi mã trong tài liệu này) |
 | Trạng thái | Draft |
-| Phiên bản | 0.3 |
+| Phiên bản | 0.4 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-10-22 |
 | Phụ thuộc | Không có (mọi PRD khác phụ thuộc PRD này) |
@@ -23,7 +23,7 @@ FeedbackHub thay kênh đó bằng một widget gắn vào từng sản phẩm v
 
 - **Mục tiêu**:
   - Mọi PRD, thiết kế và tài liệu kỹ thuật dùng cùng một bộ thuật ngữ, vai trò, quyền và trạng thái.
-  - Mỗi người chỉ thấy và làm đúng phần việc của vai trò mình; dữ liệu của tổ chức này không bao giờ lộ sang tổ chức khác. Ngoại lệ có chủ đích duy nhất ở cấp hệ thống: admin hệ thống (BR-21).
+  - Mỗi người chỉ thấy và làm đúng phần việc của vai trò mình; dữ liệu của tổ chức này không bao giờ lộ sang tổ chức khác, kể cả với admin hệ thống (BR-21).
   - Một tài khoản làm việc được ở nhiều tổ chức, với vai trò khác nhau ở mỗi nơi.
   - Vòng đời feedback rõ ràng cho cả IT lẫn người báo: luôn biết feedback đang ở đâu và ai đang giữ bước tiếp theo.
 - **Không phải mục tiêu**:
@@ -33,7 +33,7 @@ FeedbackHub thay kênh đó bằng một widget gắn vào từng sản phẩm v
   - Đổi cơ chế đăng nhập, đăng ký, phiên của nền tảng.
 - **Phản mục tiêu** (chạy đúng nhưng vẫn là thất bại nếu):
   - Người báo hoặc khách thấy được feedback của người khác.
-  - Thành viên của tổ chức này thấy dữ liệu của tổ chức kia. Việc admin hệ thống thấy mọi tổ chức là ngoại lệ có chủ đích (BR-21), không bao giờ là đường để thành viên một tổ chức thấy dữ liệu tổ chức khác (BR-22).
+  - Thành viên của tổ chức này, hay admin hệ thống, thấy dữ liệu bên trong một tổ chức mình không là thành viên (BR-21, BR-22).
   - Quyền admin hệ thống cấp được từ bên trong Hub (BR-20).
   - Một thao tác bị chặn trên giao diện nhưng vẫn làm được khi gọi thẳng vào hệ thống.
   - Báo lỗi qua widget phiền hơn nhắn Zalo.
@@ -52,7 +52,7 @@ FeedbackHub thay kênh đó bằng một widget gắn vào từng sản phẩm v
 |---|---|
 | Hub | Ứng dụng web FeedbackHub nơi thành viên tổ chức xem, xử lý và theo dõi feedback. |
 | Tài khoản | Tài khoản đăng nhập Hub của một người. Một tài khoản thuộc được nhiều tổ chức. |
-| Tổ chức | Một công ty hoặc đơn vị dùng Hub. Dữ liệu (sản phẩm, feedback, nhãn, vai trò) của mỗi tổ chức tách biệt hoàn toàn với các tổ chức khác; chỉ admin hệ thống thấy được mọi tổ chức (BR-21). |
+| Tổ chức | Một công ty hoặc đơn vị dùng Hub. Dữ liệu (sản phẩm, feedback, nhãn, vai trò) của mỗi tổ chức tách biệt hoàn toàn với các tổ chức khác; admin hệ thống chỉ thấy tên và số thành viên của mỗi tổ chức (BR-21). |
 | Thành viên | Tài khoản đang hoạt động trong một tổ chức. Thành viên bị gỡ khỏi tổ chức không còn là thành viên. |
 | Tổ chức đang làm việc | Tổ chức mà phiên làm việc của người dùng đang ở trong đó. Mỗi phiên có tối đa một tổ chức đang làm việc; người dùng tự chuyển được. |
 | Vai trò tổ chức | Gói quyền gán cho thành viên trong một tổ chức. Nền tảng có sẵn ba vai trò hệ thống: *Chủ sở hữu* (Owner, có mọi quyền), *Admin*, *Member*; tổ chức tạo thêm vai trò riêng từ một danh mục quyền cố định. |
@@ -87,9 +87,7 @@ FeedbackHub thay kênh đó bằng một widget gắn vào từng sản phẩm v
 | Feedback của tôi | Màn hình người báo xem feedback mình đã gửi. Chi tiết: PRD04. |
 | Tổng quan | Màn hình số liệu theo sản phẩm. Chi tiết: PRD06. |
 | Danh sách cần chú ý | Các feedback chưa được xử lý lần đầu sau 24 giờ lịch (§2). |
-| Admin hệ thống | Người vận hành Hub, đứng trên mọi tổ chức, có toàn quyền và thấy toàn bộ hệ thống (BR-21); do người vận hành máy chủ chỉ định (BR-20). Chạy khảo sát (PRD07). |
-| Tư cách admin hệ thống | Trạng thái khi admin hệ thống làm việc trong một tổ chức mình không là thành viên; Hub luôn hiện rõ trạng thái này (BR-49). |
-| Nhật ký admin hệ thống | Bản ghi của một tổ chức về mỗi lần admin hệ thống vào tổ chức đó: ai, lúc nào, tổ chức nào. Chủ sở hữu và Quản trị của tổ chức xem được (BR-48). |
+| Admin hệ thống | Người vận hành Hub, đứng ngoài mọi tổ chức, do người vận hành máy chủ chỉ định (BR-20). Chỉ có quyền cấp hệ thống: xem danh sách tổ chức (tên, số thành viên), chạy khảo sát (PRD07), vô hiệu và kích hoạt lại tổ chức; không truy cập dữ liệu bên trong tổ chức nào (BR-21). |
 | Đợt khảo sát | Một lần khảo sát hài lòng về Hub do admin hệ thống mở cho các tổ chức được chọn. Chi tiết: PRD07. |
 
 ### 3.2 Vai trò
@@ -101,55 +99,55 @@ FeedbackHub thay kênh đó bằng một widget gắn vào từng sản phẩm v
 | **Viewer** | Theo sản phẩm | Thành viên được gán Viewer cho một sản phẩm | Mọi feedback của các sản phẩm mình được gán, kể cả bình luận nội bộ, và Tổng quan của các sản phẩm đó; chỉ đọc | Spec lõi §5; quyết định 2026-10-22 |
 | **Người báo** | Tổ chức | Mọi thành viên của tổ chức, với feedback do chính mình gửi | Chỉ feedback chính mình gửi | Spec lõi §5 |
 | **Khách** | Không thuộc tổ chức | Người không có tài khoản trong tổ chức sở hữu sản phẩm, kể cả người đã đăng nhập Hub nhưng thuộc tổ chức khác | Chỉ feedback mình gửi, qua link riêng | Spec lõi §5, §9 |
-| **Admin hệ thống** | Hệ thống | Người vận hành Hub, do người vận hành máy chủ chỉ định, không cấp được qua Hub (BR-20) | Mọi tổ chức và toàn bộ dữ liệu của chúng (sản phẩm, feedback, thành viên, khảo sát), với toàn quyền (BR-21); không tính là Chủ sở hữu, không làm Phụ trách hay người được giao ở tổ chức mình không là thành viên (BR-50) | Spec khảo sát §3; quyết định 2026-10-22 |
+| **Admin hệ thống** | Hệ thống | Người vận hành Hub, do người vận hành máy chủ chỉ định, không cấp được qua Hub (BR-20) | Danh sách mọi tổ chức (tên, số thành viên) và khảo sát (PRD07); vô hiệu, kích hoạt lại tổ chức (BR-49). Không thấy sản phẩm, feedback, thành viên hay cài đặt của tổ chức nào (BR-21). Ở tổ chức đã thêm họ làm thành viên, họ làm việc đúng như thành viên đó (BR-53) | Spec khảo sát §3; quyết định 2026-10-22 |
 
-Quy tắc kết hợp vai trò: §6 (BR-01 đến BR-08, BR-18 đến BR-22, BR-47 đến BR-50).
+Quy tắc kết hợp vai trò: §6 (BR-01 đến BR-08, BR-18 đến BR-22, BR-49, BR-52, BR-53).
 
 ### 3.3 Ma trận quyền
 
-Ký hiệu: **✓** được làm · **—** không được · **R** chỉ xem · **?n** chưa quyết, xem câu hỏi mở số *n* (đề xuất ghi trong câu hỏi). "Của mình" = feedback chính người đó gửi. Quản trị có mọi quyền của Phụ trách trên mọi sản phẩm của tổ chức. **BR-19** ở một ô: thao tác đi theo quyền quản lý thành viên của nền tảng, không theo vai trò ở cột; **BR-52** ở một ô: tương tự, theo quyền quản lý tổ chức của nền tảng. Admin hệ thống có mọi quyền của mọi vai trò tổ chức ở mọi tổ chức (BR-21), trừ các giới hạn ở BR-50; các ô **—** ở cột này là thao tác gắn với danh tính người gửi feedback, không phải quyền. Cột Admin hệ thống mô tả admin hệ thống ở tổ chức mình không là thành viên; admin hệ thống đồng thời là thành viên: câu hỏi mở 34.
+Ký hiệu: **✓** được làm · **—** không được · **R** chỉ xem · **?n** chưa quyết, xem câu hỏi mở số *n* (đề xuất ghi trong câu hỏi). "Của mình" = feedback chính người đó gửi. Quản trị có mọi quyền của Phụ trách trên mọi sản phẩm của tổ chức. **BR-19** ở một ô: thao tác đi theo quyền quản lý thành viên của nền tảng, không theo vai trò ở cột; **BR-52** ở một ô: tương tự, theo quyền quản lý tổ chức của nền tảng. Cột Admin hệ thống chỉ ghi quyền cấp hệ thống (BR-21): ở mọi tổ chức họ không là thành viên, admin hệ thống không thấy và không làm được gì bên trong tổ chức. Ở tổ chức đã thêm họ làm thành viên, họ có đúng quyền của vai trò mình ở đó như mọi thành viên, không theo cột này (BR-53). Ô ghi "như mọi tài khoản" hoặc "như mọi thành viên" là thao tác đi theo tài khoản hoặc tư cách thành viên của người đó, không phải quyền admin hệ thống.
 
 | Thao tác | Quản trị | Phụ trách | Viewer | Người báo | Khách | Admin hệ thống |
 |---|---|---|---|---|---|---|
 | **Hệ thống** | | | | | | |
 | Cấp, bỏ quyền admin hệ thống | — | — | — | — | — | — (chỉ người vận hành máy chủ, BR-20) |
+| Xem danh sách mọi tổ chức của Hub: tên, số thành viên (BR-21) | — | — | — | — | — | ✓ |
 | **Tổ chức** | | | | | | |
-| Tạo tổ chức mới (mọi tài khoản đã xác minh email, BR-23) | ✓ | ✓ | ✓ | ✓ | ✓ nếu có tài khoản Hub | ✓ |
-| Thêm, gỡ thành viên tổ chức, đổi vai trò tổ chức | BR-19 | BR-19 | BR-19 | BR-19 | — | ✓ |
-| Gửi, thu hồi lời mời qua email | BR-19 | BR-19 | BR-19 | BR-19 | — | ✓ |
-| Chuyển tổ chức đang làm việc (giữa các tổ chức mình là thành viên) | ✓ | ✓ | ✓ | ✓ | — | ✓, và vào mọi tổ chức khác, kể cả tổ chức bị vô hiệu, qua mục *Mọi tổ chức* (BR-49) |
+| Tạo tổ chức mới (mọi tài khoản đã xác minh email, BR-23) | ✓ | ✓ | ✓ | ✓ | ✓ nếu có tài khoản Hub | như mọi tài khoản |
+| Thêm, gỡ thành viên tổ chức, đổi vai trò tổ chức | BR-19 | BR-19 | BR-19 | BR-19 | — | — (kể cả tự thêm mình, BR-53) |
+| Gửi, thu hồi lời mời qua email | BR-19 | BR-19 | BR-19 | BR-19 | — | — |
+| Chuyển tổ chức đang làm việc (giữa các tổ chức mình là thành viên) | ✓ | ✓ | ✓ | ✓ | — | như mọi tài khoản (BR-53); không vào được tổ chức mình không là thành viên |
 | Vô hiệu tổ chức | BR-52 | BR-52 | BR-52 | BR-52 | — | ✓ (BR-49) |
-| Kích hoạt lại tổ chức đã vô hiệu | ?35 | ?35 | ?35 | ?35 | — | ✓ (BR-49) |
-| Xem nhật ký admin hệ thống của tổ chức (BR-48) | ✓ | — | — | — | — | ✓ |
+| Kích hoạt lại tổ chức đã vô hiệu | — | — | — | — | — | ✓ (BR-49) |
 | **Sản phẩm** | | | | | | |
-| Tạo, sửa sản phẩm và cấu hình widget | ✓ | — | — | — | — | ✓ |
-| Gán, bỏ Phụ trách và Viewer | ✓ | — | — | — | — | ✓ cho thành viên; không tự gán mình khi không là thành viên (BR-50) |
+| Tạo, sửa sản phẩm và cấu hình widget | ✓ | — | — | — | — | — |
+| Gán, bỏ Phụ trách và Viewer | ✓ | — | — | — | — | — |
 | **Feedback: xem** | | | | | | |
-| Xem hộp feedback | ✓ mọi sản phẩm | ✓ sản phẩm được gán | ✓ sản phẩm được gán | — | — | ✓ mọi tổ chức |
-| Xem chi tiết feedback, ảnh, file | ✓ | ✓ | R | R của mình | R của mình, qua link riêng | ✓ |
-| Xem ngữ cảnh kỹ thuật | ✓ | ✓ | R | R của mình | — | ✓ |
-| Xem ưu tiên, người được giao, lịch sử giao việc và đổi ưu tiên | ✓ | ✓ | R | — | — | ✓ |
-| Xem trạng thái và lịch sử đổi trạng thái | ✓ | ✓ | R | R của mình | R của mình | ✓ |
-| Xem bình luận gửi người báo | ✓ | ✓ | R | R của mình | R của mình | ✓ |
-| Xem bình luận nội bộ | ✓ | ✓ | R | — | — | ✓ |
-| Xem đầy đủ email, điện thoại của khách (BR-38) | ✓ ở chi tiết; danh sách che | ✓ ở chi tiết; danh sách che | — (chỉ bản che) | — | — | ✓ ở chi tiết; danh sách che |
-| Xem Tổng quan | ✓ | ✓ | R sản phẩm được gán | — | — | ✓ |
-| Xem "Feedback của tôi" | ✓ | ✓ | ✓ | ✓ | — | — |
+| Xem hộp feedback | ✓ mọi sản phẩm | ✓ sản phẩm được gán | ✓ sản phẩm được gán | — | — | — |
+| Xem chi tiết feedback, ảnh, file | ✓ | ✓ | R | R của mình | R của mình, qua link riêng | — |
+| Xem ngữ cảnh kỹ thuật | ✓ | ✓ | R | R của mình | — | — |
+| Xem ưu tiên, người được giao, lịch sử giao việc và đổi ưu tiên | ✓ | ✓ | R | — | — | — |
+| Xem trạng thái và lịch sử đổi trạng thái | ✓ | ✓ | R | R của mình | R của mình | — |
+| Xem bình luận gửi người báo | ✓ | ✓ | R | R của mình | R của mình | — |
+| Xem bình luận nội bộ | ✓ | ✓ | R | — | — | — |
+| Xem đầy đủ email, điện thoại của khách (BR-38) | ✓ ở chi tiết; danh sách che | ✓ ở chi tiết; danh sách che | — (chỉ bản che) | — | — | — |
+| Xem Tổng quan | ✓ | ✓ | R sản phẩm được gán | — | — | — |
+| Xem "Feedback của tôi" | ✓ | ✓ | ✓ | ✓ | — | như mọi thành viên (BR-53) |
 | **Feedback: thao tác** | | | | | | |
-| Gửi feedback qua widget | ✓ | ✓ | ✓ | ✓ mọi sản phẩm của tổ chức | ✓ khi sản phẩm bật chế độ khách | — (gửi theo tư cách tài khoản, BR-06) |
-| Đổi trạng thái, giữa mọi trạng thái (§3.4, BR-25) | ✓ | ✓ | — | chỉ hai thao tác dưới | chỉ hai thao tác dưới | ✓ |
-| Kết thúc In review (đạt / chưa đạt) | ✓ | ✓ | — | ✓ của mình | ✓ của mình, qua link riêng | ✓ |
-| Mở lại khi *Đã xử lý* | ✓ | ✓ | — | ✓ của mình, kèm lý do | ✓ của mình, qua link riêng, kèm lý do | ✓ |
-| Đổi loại, ưu tiên, nhãn | ✓ | ✓ | — | — | — | ✓ |
-| Giao việc | ✓ | ✓ | — | — | — | ✓ cho Phụ trách của sản phẩm; không giao cho chính mình khi không là thành viên (BR-50) |
-| Đánh dấu trùng lặp | ✓ | ✓ | — | — | — | ✓ |
-| Viết bình luận nội bộ | ✓ | ✓ | — | — | — | ✓ |
-| Viết bình luận gửi người báo | ✓ | ✓ | — | — | — | ✓ (tên hiển thị: BR-08) |
-| Bình luận, bổ sung trên feedback của mình (trừ khi *Đóng* / *Từ chối* / *Trùng lặp*) | — | — | — | ✓ | ✓ qua link riêng | — |
-| Thu hồi link riêng của khách | ✓ | ✓ | — | — | — | ✓ |
+| Gửi feedback qua widget | ✓ | ✓ | ✓ | ✓ mọi sản phẩm của tổ chức | ✓ khi sản phẩm bật chế độ khách | như mọi tài khoản (BR-06) |
+| Đổi trạng thái, giữa mọi trạng thái (§3.4, BR-25) | ✓ | ✓ | — | chỉ hai thao tác dưới | chỉ hai thao tác dưới | — |
+| Kết thúc In review (đạt / chưa đạt) | ✓ | ✓ | — | ✓ của mình | ✓ của mình, qua link riêng | — |
+| Mở lại khi *Đã xử lý* | ✓ | ✓ | — | ✓ của mình, kèm lý do | ✓ của mình, qua link riêng, kèm lý do | — |
+| Đổi loại, ưu tiên, nhãn | ✓ | ✓ | — | — | — | — |
+| Giao việc | ✓ | ✓ | — | — | — | — |
+| Đánh dấu trùng lặp | ✓ | ✓ | — | — | — | — |
+| Viết bình luận nội bộ | ✓ | ✓ | — | — | — | — |
+| Viết bình luận gửi người báo | ✓ | ✓ | — | — | — | — |
+| Bình luận, bổ sung trên feedback của mình (trừ khi *Đóng* / *Từ chối* / *Trùng lặp*) | — | — | — | ✓ | ✓ qua link riêng | như mọi tài khoản |
+| Thu hồi link riêng của khách | ✓ | ✓ | — | — | — | — |
 | **Khảo sát** (PRD07) | | | | | | |
-| Tạo, mở, đóng đợt khảo sát; xem kết quả | — | — | — | — | — | ✓ |
-| Trả lời khảo sát | ✓ | ✓ | ✓ | ✓ | — | — |
+| Tạo, mở, đóng đợt khảo sát; chọn tổ chức nhận; xem kết quả | — | — | — | — | — | ✓ |
+| Trả lời khảo sát | ✓ | ✓ | ✓ | ✓ | — | như mọi thành viên của tổ chức được chọn (BR-53) |
 
 ### 3.4 Vòng đời trạng thái
 
@@ -196,18 +194,20 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-US-10 | Phụ trách | xem lịch sử ai đổi gì, lúc nào | truy vết khi có tranh cãi hay nhầm lẫn | Must |
 | PRD00-US-11 | admin hệ thống | có vai trò riêng đứng trên các tổ chức | chạy khảo sát hài lòng trên nhiều tổ chức (PRD07) | Should |
 | PRD00-US-12 | chủ sản phẩm FeedbackHub | có chỉ số thành công định nghĩa một lần | mọi màn hình số liệu tính giống nhau | Should |
-| PRD00-US-13 | admin hệ thống | thấy và làm được mọi việc trong mọi tổ chức | vận hành và hỗ trợ toàn bộ Hub | Should |
+| PRD00-US-13 | ~~Removed~~ (2026-10-22) | ~~thấy và làm được mọi việc trong mọi tổ chức~~ | ~~vận hành và hỗ trợ toàn bộ Hub~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. Thay bằng US-17 | — |
 | PRD00-US-14 | người quản lý thành viên của tổ chức | mời đồng nghiệp, tester chưa có tài khoản qua email | họ bắt đầu dùng widget mà không phải tự đăng ký rồi chờ được thêm | Should |
 | PRD00-US-15 | Phụ trách | feedback đã xử lý tự đóng khi không ai mở lại | hộp feedback không tích tụ feedback *Đã xử lý* | Should |
-| PRD00-US-16 | Quản trị của một tổ chức | biết khi nào admin hệ thống vào tổ chức mình và họ đã thay đổi gì | tin tưởng dùng chung Hub dù có người toàn quyền ở cấp hệ thống | Should |
+| PRD00-US-16 | ~~Removed~~ (2026-10-22) | ~~biết khi nào admin hệ thống vào tổ chức mình và họ đã thay đổi gì~~ | ~~tin tưởng dùng chung Hub dù có người toàn quyền ở cấp hệ thống~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — |
+| PRD00-US-17 | admin hệ thống | xem danh sách các tổ chức (tên, số thành viên), vô hiệu và kích hoạt lại tổ chức | vận hành Hub mà không chạm vào dữ liệu bên trong tổ chức nào | Should |
+| PRD00-US-18 | người quản lý thành viên của tổ chức | thêm admin hệ thống làm thành viên khi cần họ giúp, và họ chỉ làm được đúng vai trò mình gán | nhận hỗ trợ mà không phải mở dữ liệu cho người ngoài tổ chức | Should |
 
 ## 5. Yêu cầu chức năng
 
 | Mã | Yêu cầu | Story | Ưu tiên |
 |---|---|---|---|
-| PRD00-FR-01 | Hệ thống phải gắn mọi sản phẩm, feedback, nhãn và vai trò theo sản phẩm với đúng một tổ chức, và không cho ai ngoài tổ chức đó xem hay sửa chúng, trừ các ngoại lệ ghi trong ma trận quyền (khách qua link riêng; admin hệ thống theo BR-21). | US-07 | Must |
+| PRD00-FR-01 | Hệ thống phải gắn mọi sản phẩm, feedback, nhãn và vai trò theo sản phẩm với đúng một tổ chức, và không cho ai ngoài tổ chức đó xem hay sửa chúng, trừ ngoại lệ khách qua link riêng ghi trong ma trận quyền; admin hệ thống không phải ngoại lệ (BR-21). | US-07 | Must |
 | PRD00-FR-02 | Hệ thống phải cho một tài khoản là thành viên của nhiều tổ chức, với vai trò tổ chức và vai trò theo sản phẩm riêng ở từng tổ chức. | US-01 | Must |
-| PRD00-FR-03 | Hệ thống phải cho mỗi phiên làm việc có tối đa một tổ chức đang làm việc, và cho người dùng chuyển sang tổ chức khác mình là thành viên mà không phải đăng nhập lại (admin hệ thống vào thêm được mọi tổ chức khác: FR-41). | US-01 | Must |
+| PRD00-FR-03 | Hệ thống phải cho mỗi phiên làm việc có tối đa một tổ chức đang làm việc, và cho người dùng chuyển sang tổ chức khác mình là thành viên mà không phải đăng nhập lại. | US-01 | Must |
 | PRD00-FR-04 | Hệ thống phải giới hạn hộp feedback, quản lý sản phẩm, Tổng quan và "Feedback của tôi" vào dữ liệu của tổ chức đang làm việc. | US-01, US-07 | Must |
 | PRD00-FR-05 | Hệ thống phải cho Quản trị thấy mọi sản phẩm và feedback của tổ chức mà không cần được gán vào sản phẩm. | US-02 | Must |
 | PRD00-FR-06 | Hệ thống phải cho Quản trị gán một thành viên làm Phụ trách hoặc Viewer của từng sản phẩm, và bỏ gán. | US-02 | Must |
@@ -225,7 +225,7 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-FR-18 | Hệ thống phải yêu cầu gắn một feedback gốc cùng sản phẩm khi chuyển feedback sang *Trùng lặp*. | US-08 | Must |
 | PRD00-FR-19 | Hệ thống phải ghi vào lịch sử mọi thay đổi trạng thái và thuộc tính của feedback: ai, lúc nào, từ giá trị nào sang giá trị nào. | US-10 | Must |
 | PRD00-FR-20 | Hệ thống phải chặn người báo và khách bình luận khi feedback ở *Đóng*, *Từ chối* hoặc *Trùng lặp*, và cho họ biết cần gửi feedback mới nếu muốn trao đổi tiếp. | US-05, US-06 | Must |
-| PRD00-FR-21 | Hệ thống phải có vai trò admin hệ thống tách khỏi mọi tổ chức, có mọi quyền mà bất kỳ vai trò tổ chức nào có, ở mọi tổ chức, mà không cần là thành viên (BR-21), trừ các giới hạn ở BR-50, cộng với các quyền khảo sát trong ma trận quyền. | US-11, US-13 | Should |
+| PRD00-FR-21 | Hệ thống phải có vai trò admin hệ thống tách khỏi mọi tổ chức, chỉ với các quyền cấp hệ thống ghi ở cột Admin hệ thống của ma trận quyền (danh sách tổ chức, khảo sát, vô hiệu và kích hoạt lại tổ chức), và không cho vai trò này xem hay thao tác trên bất kỳ dữ liệu nào bên trong tổ chức (BR-21). | US-11, US-17 | Should |
 | PRD00-FR-22 | Hệ thống phải cho người báo chọn loại feedback khi gửi, và cho Phụ trách, Quản trị sửa loại sau đó. | US-03, US-05 | Must |
 | PRD00-FR-23 | Hệ thống phải có quyền Quản trị FeedbackHub trong danh mục quyền cố định, luôn có ở Chủ sở hữu, có sẵn ở vai trò Admin, không có ở Member, và cho tổ chức đưa quyền này vào vai trò tự tạo. | US-02 | Must |
 | PRD00-FR-24 | Hệ thống phải cho mọi tài khoản đã xác minh email tạo tổ chức mới và trở thành Chủ sở hữu của tổ chức đó. | US-01 | Must |
@@ -234,7 +234,7 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-FR-27 | Hệ thống phải yêu cầu lý do khi chuyển feedback sang *Từ chối* và lưu lý do thành bình luận gửi người báo. | US-05, US-06, US-08 | Must |
 | PRD00-FR-28 | Hệ thống phải yêu cầu người báo và khách ghi lý do ngắn khi mở lại, và lưu lý do thành bình luận gửi người báo. | US-05, US-06 | Must |
 | PRD00-FR-29 | Hệ thống phải xử lý việc gỡ một thành viên khỏi tổ chức theo BR-30: giữ feedback họ đã gửi, bỏ vai trò theo sản phẩm, đưa feedback giao cho họ về *Chưa giao*, chặn họ xem và nhận thông báo của tổ chức. | US-07 | Must |
-| PRD00-FR-30 | Hệ thống phải ngừng nhận feedback qua widget, vô hiệu link riêng và chặn chuyển vào tổ chức khi tổ chức bị vô hiệu (BR-31), trừ admin hệ thống (BR-49). | US-07 | Must |
+| PRD00-FR-30 | Hệ thống phải ngừng nhận feedback qua widget, vô hiệu link riêng và chặn mọi người chuyển vào tổ chức khi tổ chức bị vô hiệu (BR-31). | US-07 | Must |
 | PRD00-FR-31 | Hệ thống phải hiện trang chào cho tài khoản chưa thuộc tổ chức nào, với lựa chọn tạo tổ chức hoặc chờ được thêm, và không hiện hộp feedback hay "Feedback của tôi". | US-01 | Must |
 | PRD00-FR-32 | Hệ thống phải báo feedback mới cho Quản trị của tổ chức khi sản phẩm chưa có Phụ trách nào. | US-02 | Must |
 | PRD00-FR-33 | Hệ thống phải che email và số điện thoại của khách trong danh sách, chỉ hiện đầy đủ ở màn hình chi tiết cho người có quyền theo BR-38. | US-03, US-04 | Must |
@@ -242,12 +242,14 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-FR-35 | Hệ thống phải chặn chuyển sang *Cần thêm thông tin* với feedback của khách không để email, kèm giải thích. | US-08 | Must |
 | PRD00-FR-36 | Hệ thống phải không cho gửi qua widget khi người dùng đã đăng nhập Hub, không thuộc tổ chức sở hữu sản phẩm và sản phẩm tắt chế độ khách, kèm lời giải thích và gợi ý liên hệ người quản lý sản phẩm. | US-06 | Must |
 | PRD00-FR-37 | Hệ thống phải trả về cùng một thông báo "không tìm thấy" khi người không có quyền mở một feedback hay sản phẩm, như khi nó không tồn tại. | US-07 | Must |
-| PRD00-FR-38 | Hệ thống phải không cho cấp hay bỏ quyền admin hệ thống từ bên trong Hub; chỉ người vận hành máy chủ chỉ định được. | US-07, US-13 | Must |
-| PRD00-FR-39 | Hệ thống phải ghi mọi thay đổi admin hệ thống làm trên feedback của một tổ chức vào lịch sử như mọi thay đổi khác, với người thực hiện hiện là "<tên> (Admin hệ thống)" cho mọi thành viên xem được lịch sử; tổ chức không tắt được việc ghi này (BR-47). | US-13, US-16 | Must |
-| PRD00-FR-40 | Hệ thống phải ghi mỗi lần admin hệ thống vào một tổ chức vào nhật ký admin hệ thống của tổ chức đó (ai, lúc nào, tổ chức nào), và cho Chủ sở hữu, Quản trị của tổ chức xem nhật ký này (BR-48). | US-16 | Must |
-| PRD00-FR-41 | Hệ thống phải cho admin hệ thống chọn mọi tổ chức của Hub trong bộ chọn tổ chức, kể cả tổ chức bị vô hiệu (gắn nhãn), và luôn hiện rõ khi họ đang làm việc ở tư cách admin hệ thống trong tổ chức mình không là thành viên (BR-49). | US-13 | Should |
-| PRD00-FR-42 | Hệ thống phải cho admin hệ thống vô hiệu và kích hoạt lại bất kỳ tổ chức nào (BR-49). | US-13 | Should |
-| PRD00-FR-43 | Hệ thống phải không tính admin hệ thống là Chủ sở hữu của tổ chức, và không cho admin hệ thống làm Phụ trách hay người được giao ở tổ chức mình không là thành viên (BR-50). | US-02, US-13 | Must |
+| PRD00-FR-38 | Hệ thống phải không cho cấp hay bỏ quyền admin hệ thống từ bên trong Hub; chỉ người vận hành máy chủ chỉ định được. | US-07, US-11 | Must |
+| PRD00-FR-39 | ~~Removed~~ (2026-10-22) — ~~ghi thay đổi của admin hệ thống trên feedback vào lịch sử với nhãn riêng (BR-47)~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — | — |
+| PRD00-FR-40 | ~~Removed~~ (2026-10-22) — ~~ghi mỗi lần admin hệ thống vào một tổ chức vào nhật ký riêng của tổ chức (BR-48)~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — | — |
+| PRD00-FR-41 | ~~Removed~~ (2026-10-22) — ~~cho admin hệ thống vào mọi tổ chức qua bộ chọn tổ chức, với dấu hiệu tư cách admin hệ thống (BR-49 cũ)~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. Danh sách tổ chức của admin hệ thống: FR-44 | — | — |
+| PRD00-FR-42 | Hệ thống phải cho admin hệ thống vô hiệu và kích hoạt lại bất kỳ tổ chức nào, và khi kích hoạt lại thì đưa tổ chức về như trước khi vô hiệu (BR-49). | US-17 | Should |
+| PRD00-FR-43 | ~~Removed~~ (2026-10-22) — ~~giới hạn quyền của admin hệ thống trong tổ chức mình không là thành viên (BR-50)~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — | — |
+| PRD00-FR-44 | Hệ thống phải cho admin hệ thống xem danh sách mọi tổ chức của Hub, mỗi tổ chức với tên, số thành viên hiện tại và dấu hiệu đã vô hiệu nếu có; danh sách không hiện thành viên, sản phẩm hay feedback nào (BR-21, BR-49). | US-17 | Should |
+| PRD00-FR-45 | Hệ thống phải xử lý admin hệ thống được một tổ chức thêm làm thành viên đúng như mọi thành viên khác của tổ chức đó: quyền theo vai trò được gán, tên thường trong lịch sử và bình luận, không nhãn hay nhật ký riêng (BR-53). | US-18 | Must |
 
 ## 6. Quy tắc nghiệp vụ
 
@@ -260,7 +262,7 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-BR-05 | Người được giao phải là một trong các Phụ trách của sản phẩm. | FR-06, FR-14 |
 | PRD00-BR-06 | Gửi qua widget: là thành viên của tổ chức sở hữu sản phẩm → gửi với tư cách người báo, không cần chuyển tổ chức trước. Đã đăng nhập Hub nhưng không thuộc tổ chức đó → gửi với tư cách khách, tên và email điền sẵn từ tài khoản, không thấy gì bên trong tổ chức đó. | FR-11 |
 | PRD00-BR-07 | Người báo và khách thấy: mô tả, ảnh, file mình đã gửi (gắn nhãn "Bạn đã gửi"); trạng thái và lịch sử đổi trạng thái; bình luận gửi người báo. Không thấy: ưu tiên, người được giao, lịch sử giao việc và đổi ưu tiên, bình luận nội bộ. Ngữ cảnh kỹ thuật: BR-39. | FR-09, FR-10 |
-| PRD00-BR-08 | Tên người trả lời hiện cho người báo là thành viên: tên thật của người IT. Hiện cho khách: "Đội hỗ trợ <tên sản phẩm>". Khi người trả lời là admin hệ thống: người báo là thành viên thấy "<tên> (Admin hệ thống)", khách vẫn thấy "Đội hỗ trợ <tên sản phẩm>". Áp dụng cả cho lý do *Từ chối*, *chưa đạt* vì chúng lưu thành bình luận gửi người báo. | FR-09, FR-10 |
+| PRD00-BR-08 | Tên người trả lời hiện cho người báo là thành viên: tên thật của người IT. Hiện cho khách: "Đội hỗ trợ <tên sản phẩm>". Áp dụng cả cho lý do *Từ chối*, *chưa đạt* vì chúng lưu thành bình luận gửi người báo. | FR-09, FR-10 |
 | PRD00-BR-09 | Người báo chỉ có hai thao tác đổi trạng thái: kết thúc In review trên feedback của mình, và mở lại khi feedback của mình đang ở *Đã xử lý*. Khách có đúng hai thao tác đó trên trang link riêng. | FR-14, FR-16, FR-17 |
 | PRD00-BR-10 | Bước In review không bắt buộc: Phụ trách có thể chuyển thẳng *Đang xử lý* → *Đã xử lý*. | FR-14, FR-16 |
 | PRD00-BR-11 | Kết thúc In review với *chưa đạt* phải có lý do; lý do được lưu thành bình luận gửi người báo. | FR-16 |
@@ -273,8 +275,8 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-BR-18 | Thành viên là Quản trị khi một trong các vai trò tổ chức của họ có quyền Quản trị FeedbackHub. Chủ sở hữu luôn có quyền này; vai trò Admin có sẵn mặc định; Member không có; tổ chức đưa được quyền này vào vai trò tự tạo. | FR-23 |
 | PRD00-BR-19 | Thêm, gỡ thành viên, đổi vai trò tổ chức, gửi và thu hồi lời mời đi theo quyền quản lý thành viên sẵn có của nền tảng, không theo quyền Quản trị FeedbackHub. | FR-23, FR-25 |
 | PRD00-BR-20 | Quyền admin hệ thống chỉ do người vận hành máy chủ Hub chỉ định. Không ai cấp hay bỏ được quyền này từ bên trong Hub, kể cả Chủ sở hữu của một tổ chức hay chính admin hệ thống. | FR-38 |
-| PRD00-BR-21 | Admin hệ thống có toàn quyền và thấy toàn bộ hệ thống: ở mọi tổ chức, có mọi quyền mà bất kỳ vai trò tổ chức nào có (Chủ sở hữu, Quản trị, Phụ trách), không cần là thành viên, trừ các giới hạn ở BR-50. Họ thấy và thao tác được trên sản phẩm, feedback, thành viên và khảo sát của mọi tổ chức. Đây là đường truy cập xuyên tổ chức **có chủ đích**, ngoại lệ duy nhất ở cấp hệ thống cho việc tách biệt dữ liệu; nền tảng hiện có không có admin cấp hệ thống và không có đường vượt quyền nào. Các thao tác gắn với danh tính người gửi (gửi feedback như người báo, "Feedback của tôi", bình luận như người báo, trả lời khảo sát) không thuộc quyền này: admin hệ thống làm các việc đó theo tư cách tài khoản của mình như mọi người. | FR-01, FR-21 |
-| PRD00-BR-22 | Quyền của admin hệ thống không mở thêm đường nào để thành viên một tổ chức thấy dữ liệu của tổ chức khác. | FR-01, FR-21 |
+| PRD00-BR-21 | Admin hệ thống chỉ có quyền ở cấp hệ thống: xem danh sách mọi tổ chức của Hub với tên và số thành viên; tạo, mở, đóng đợt khảo sát, chọn tổ chức nhận và xem kết quả (chi tiết: PRD07); vô hiệu và kích hoạt lại tổ chức (BR-49). Admin hệ thống không thấy và không thao tác được trên sản phẩm, feedback, thành viên hay cài đặt của bất kỳ tổ chức nào; họ mở feedback hay sản phẩm của tổ chức thì thấy "không tìm thấy" như mọi người ngoài tổ chức (BR-45). Không có đường truy cập xuyên tổ chức nào, kể cả cho admin hệ thống. Thông tin về người trả lời khảo sát mà admin hệ thống thấy trong kết quả do PRD07 quy định; ngoài đó admin hệ thống không thấy thành viên của tổ chức. Các thao tác gắn với tài khoản (tạo tổ chức, gửi feedback qua widget, trả lời khảo sát khi là thành viên của tổ chức được chọn) admin hệ thống làm như mọi tài khoản. | FR-01, FR-21, FR-44 |
+| PRD00-BR-22 | Quyền của admin hệ thống không mở thêm đường nào để bất kỳ ai, kể cả chính admin hệ thống, thấy dữ liệu bên trong một tổ chức mình không là thành viên. | FR-01, FR-21 |
 | PRD00-BR-23 | Mọi tài khoản đã xác minh email tự tạo được tổ chức và trở thành Chủ sở hữu của tổ chức đó. | FR-24 |
 | PRD00-BR-24 | Lời mời gửi tới một email chưa có tài khoản, kèm vai trò tổ chức đã chọn. Người nhận đăng ký xong thì vào thẳng tổ chức với vai trò đó. Lời mời hết hạn sau 7 ngày và thu hồi được trước khi được dùng; lời mời hết hạn hoặc đã thu hồi không đưa ai vào tổ chức. Ai gửi và thu hồi: người có quyền quản lý thành viên (BR-19), vì mời là một cách thêm thành viên; Quản trị không có quyền đó thì không gửi, không thu hồi được. Ai dùng được lời mời: BR-51. | FR-25 |
 | PRD00-BR-25 | Phụ trách và Quản trị chuyển được feedback giữa mọi trạng thái, kể cả mở lại từ *Đóng*, *Từ chối*, *Trùng lặp*; sơ đồ §3.4 là luồng chính, không phải ràng buộc cứng. Các ràng buộc riêng vẫn áp dụng: *Trùng lặp* cần feedback gốc (FR-18), *Từ chối* cần lý do (BR-28), *Cần thêm thông tin* bị chặn với khách không để email (BR-43). | FR-14 |
@@ -283,7 +285,7 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-BR-28 | Chuyển sang *Từ chối* phải có lý do; lý do được lưu thành bình luận gửi người báo. | FR-27 |
 | PRD00-BR-29 | Người báo hoặc khách mở lại phải ghi một câu lý do ngắn; lý do được lưu thành bình luận gửi người báo, như *chưa đạt*. | FR-28 |
 | PRD00-BR-30 | Thành viên bị gỡ khỏi tổ chức: feedback họ đã gửi giữ nguyên, tên hiện kèm "(đã rời tổ chức)"; họ mất quyền xem và không nhận thông báo của tổ chức; vai trò theo sản phẩm của họ bị bỏ; feedback đang giao cho họ về *Chưa giao*. | FR-29 |
-| PRD00-BR-31 | Tổ chức bị vô hiệu: widget của mọi sản phẩm báo tạm ngừng nhận feedback; link riêng của khách báo hết hiệu lực; không ai chuyển vào tổ chức đó được, trừ admin hệ thống (BR-49). | FR-30 |
+| PRD00-BR-31 | Tổ chức bị vô hiệu: widget của mọi sản phẩm báo tạm ngừng nhận feedback; link riêng của khách báo hết hiệu lực; không ai chuyển vào tổ chức đó được, kể cả Chủ sở hữu và admin hệ thống. Chỉ admin hệ thống kích hoạt lại được (BR-49). | FR-30 |
 | PRD00-BR-32 | Tài khoản chưa thuộc tổ chức nào mở Hub thì thấy trang chào: tạo tổ chức (BR-23) hoặc chờ được thêm; không có hộp feedback hay "Feedback của tôi". | FR-31 |
 | PRD00-BR-33 | Viewer xem được bình luận nội bộ, chỉ đọc. | FR-07, FR-08 |
 | PRD00-BR-34 | Viewer xem được Tổng quan, chỉ với các sản phẩm mình được gán. | FR-07 |
@@ -299,18 +301,19 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-BR-44 | Tỉ lệ từng vào *Cần thêm thông tin* = số feedback gửi trong kỳ đã từng vào *Cần thêm thông tin* ÷ số feedback gửi trong kỳ. Trung vị chỉ áp dụng cho thời gian đến lần xử lý đầu tiên. Kỳ đo mặc định 30 ngày gần nhất, đổi được trên Tổng quan. | §2, PRD06 |
 | PRD00-BR-45 | Người không có quyền mở một feedback hay sản phẩm (khác tổ chức, sản phẩm không được gán, feedback của người khác) luôn thấy "không tìm thấy", giống hệt khi nó không tồn tại, để không lộ là nó có tồn tại. | FR-37 |
 | PRD00-BR-46 | Người đã đăng nhập Hub, không thuộc tổ chức sở hữu sản phẩm, và sản phẩm tắt chế độ khách: widget không cho gửi, báo sản phẩm này chỉ nhận feedback từ thành viên của tổ chức, kèm gợi ý liên hệ người quản lý sản phẩm. | FR-36 |
-| PRD00-BR-47 | Mọi thay đổi admin hệ thống làm trên feedback của một tổ chức (trạng thái, thuộc tính, giao việc…) được ghi vào lịch sử như mọi thay đổi khác. Người thực hiện hiện là "<tên> (Admin hệ thống)" cho mọi thành viên xem được lịch sử. Tổ chức không tắt được việc ghi này. Thay đổi trên thành viên, vai trò, sản phẩm, cài đặt tổ chức hiện cho tổ chức ở đâu: câu hỏi mở 33. Khách thấy tên gì trong lịch sử trạng thái: câu hỏi mở 37. | FR-19, FR-39 |
-| PRD00-BR-48 | Mỗi lần admin hệ thống vào một tổ chức, tức là bắt đầu làm việc với dữ liệu của tổ chức đó (chuyển vào tổ chức, hoặc mở đường dẫn tới dữ liệu của tổ chức), một mục được ghi vào nhật ký admin hệ thống của tổ chức: ai, lúc nào, tổ chức nào. Chủ sở hữu và Quản trị của tổ chức xem được nhật ký này; vai trò khác không. Tổ chức không tắt được việc ghi. Sửa, xoá mục nhật ký và thời gian giữ: câu hỏi mở 36. | FR-40 |
-| PRD00-BR-49 | Bộ chọn tổ chức của admin hệ thống có thêm mục *Mọi tổ chức* liệt kê mọi tổ chức của Hub; tổ chức bị vô hiệu gắn nhãn. Admin hệ thống vào được cả tổ chức bị vô hiệu. Khi admin hệ thống làm việc trong tổ chức mình không là thành viên, Hub luôn hiện rõ họ đang ở tư cách admin hệ thống. Admin hệ thống vô hiệu và kích hoạt lại được mọi tổ chức. Ai khác kích hoạt lại được và điều gì trở lại sau khi kích hoạt: câu hỏi mở 35. | FR-03, FR-30, FR-41, FR-42 |
-| PRD00-BR-50 | Admin hệ thống không được tính là Chủ sở hữu: tổ chức vẫn phải luôn có ít nhất một Chủ sở hữu là thành viên, kể cả khi admin hệ thống gỡ thành viên hay đổi vai trò. Ở tổ chức mình không là thành viên, admin hệ thống không làm Phụ trách hay người được giao (trừ khi được thêm làm thành viên), nhưng vẫn gán Phụ trách, Viewer và giao việc cho thành viên khác được. | FR-06, FR-14, FR-43 |
+| PRD00-BR-47 | ~~Removed~~ (2026-10-22) — ~~thay đổi của admin hệ thống trên feedback hiện với nhãn riêng trong lịch sử~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. Admin hệ thống không thay đổi được feedback nào nếu không là thành viên; khi là thành viên: BR-53 | — |
+| PRD00-BR-48 | ~~Removed~~ (2026-10-22) — ~~nhật ký mỗi lần admin hệ thống vào một tổ chức~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — |
+| PRD00-BR-49 | Admin hệ thống vô hiệu và kích hoạt lại được mọi tổ chức. Chỉ admin hệ thống kích hoạt lại được: Chủ sở hữu và thành viên không vào được tổ chức đã vô hiệu (BR-31), muốn kích hoạt lại thì liên hệ admin hệ thống. Kích hoạt lại đưa tổ chức về như trước khi vô hiệu: thành viên vào lại được và giữ nguyên vai trò tổ chức và vai trò theo sản phẩm, widget nhận feedback lại, link riêng của khách còn hạn hoạt động lại. Trong danh sách tổ chức của admin hệ thống, tổ chức đã vô hiệu được đánh dấu, để admin hệ thống biết tổ chức nào cần kích hoạt lại. | FR-30, FR-42, FR-44 |
+| PRD00-BR-50 | ~~Removed~~ (2026-10-22) — ~~admin hệ thống không tính là Chủ sở hữu, không làm Phụ trách hay người được giao ở tổ chức mình không là thành viên~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. Admin hệ thống không thao tác được gì bên trong tổ chức mình không là thành viên (BR-21) | — |
 | PRD00-BR-51 | Lời mời chỉ dùng được bởi tài khoản có đúng email được mời. Người khác mở lời mời (đăng ký bằng email khác, hoặc đang đăng nhập tài khoản có email khác) thấy báo lời mời không dành cho mình và không được đưa vào tổ chức. | FR-25 |
 | PRD00-BR-52 | Vô hiệu tổ chức đi theo quyền quản lý tổ chức sẵn có của nền tảng, không theo quyền Quản trị FeedbackHub. Admin hệ thống vô hiệu được mọi tổ chức (BR-49). | FR-30, FR-42 |
+| PRD00-BR-53 | Muốn admin hệ thống giúp bên trong một tổ chức, tổ chức thêm họ làm thành viên như mọi tài khoản (người có quyền quản lý thành viên, BR-19); admin hệ thống không tự thêm mình được. Ở tổ chức đó họ làm việc thuần tuý như thành viên ấy: quyền theo vai trò tổ chức và vai trò theo sản phẩm được gán, lịch sử và bình luận ghi tên như mọi thành viên, không có nhãn hay nhật ký riêng. Quyền admin hệ thống không cộng thêm quyền nào bên trong tổ chức. | FR-02, FR-21, FR-45 |
 
 ## 7. Tiêu chí nghiệm thu
 
 | Mã | Yêu cầu | Cho trước (Given) | Khi (When) | Thì (Then) |
 |---|---|---|---|---|
-| PRD00-AC-01 | FR-01, FR-37 | Tổ chức X có sản phẩm P; tài khoản A chỉ là thành viên tổ chức Y, không phải admin hệ thống | A mở đường dẫn trực tiếp tới một feedback của P | Hệ thống báo "không tìm thấy"; không hiện tiêu đề, tên sản phẩm hay bất kỳ nội dung nào của feedback |
+| PRD00-AC-01 | FR-01, FR-37 | Tổ chức X có sản phẩm P; tài khoản A chỉ là thành viên tổ chức Y | A mở đường dẫn trực tiếp tới một feedback của P | Hệ thống báo "không tìm thấy"; không hiện tiêu đề, tên sản phẩm hay bất kỳ nội dung nào của feedback |
 | PRD00-AC-02 | FR-01 | Hai tổ chức X và Y cùng có sản phẩm tên "App Bán hàng" | Quản trị của X mở danh sách sản phẩm | Chỉ thấy sản phẩm của X |
 | PRD00-AC-03 | FR-02 | Tài khoản A là Quản trị ở X và chỉ là thành viên thường ở Y | A làm việc ở Y | A không thấy màn hình quản lý sản phẩm của Y và không xem được feedback của sản phẩm Y mà A không được gán |
 | PRD00-AC-04 | FR-03 | A là thành viên của X và Y, đang làm việc ở X | A chọn Y trong bộ chọn tổ chức | Hub chuyển sang Y mà không bắt đăng nhập lại; tên Y hiện ở vị trí tổ chức đang làm việc |
@@ -351,15 +354,15 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-AC-39 | FR-19 | Phụ trách H xem lịch sử F | H tìm cách sửa hoặc xoá một mục lịch sử | Không có thao tác nào; gửi trực tiếp bị từ chối |
 | PRD00-AC-40 | FR-20 | F của người báo R ở *Từ chối* | R mở F | Ô bình luận bị khoá, kèm lời nhắn gửi feedback mới nếu muốn trao đổi tiếp |
 | PRD00-AC-41 | FR-20 | F của khách K ở *Đóng* | K mở link riêng | K không bình luận được, thấy lời nhắn tương tự |
-| PRD00-AC-42 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên của tổ chức X~~ | ~~S mở đường dẫn tới một feedback của X~~ | ~~Bị từ chối~~ — thay bằng AC-46 theo quyết định câu hỏi mở 2 |
+| PRD00-AC-42 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên của tổ chức X~~ | ~~S mở đường dẫn tới một feedback của X~~ | ~~Bị từ chối~~ — thay bằng AC-46 theo quyết định câu hỏi mở 2 (v0.2); AC-46 bị bỏ ở v0.4, hành vi này nay ở AC-121 |
 | PRD00-AC-43 | FR-21 | Q là Quản trị của X, không phải admin hệ thống | Q tìm cách mở kết quả một đợt khảo sát | Bị từ chối vì không đủ quyền |
 | PRD00-AC-44 | FR-22 | Người báo R gửi feedback chọn loại *Lỗi* | Phụ trách đổi loại sang *Tính năng* | Loại đổi; lịch sử có mục đổi loại; R thấy loại mới |
 | PRD00-AC-45 | FR-22 | R gửi feedback | R mở widget | R chọn được đúng ba loại: *Lỗi*, *Tính năng*, *Góp ý* |
-| PRD00-AC-46 | FR-21 | S là admin hệ thống, không là thành viên của tổ chức X; F là feedback của X có ưu tiên, người được giao và bình luận nội bộ | S mở F | S thấy toàn bộ F: nội dung, ảnh, file, ngữ cảnh kỹ thuật, ưu tiên, người được giao, bình luận nội bộ, lịch sử |
-| PRD00-AC-47 | FR-21 | S là admin hệ thống; X có 20 sản phẩm và 30 thành viên | S xem sản phẩm và thành viên của X | S thấy cả 20 sản phẩm và 30 thành viên của X |
-| PRD00-AC-48 | FR-21 | S là admin hệ thống, không là thành viên X; F của X ở *Mới* | S chuyển F sang *Đã tiếp nhận* | F ở *Đã tiếp nhận*; lịch sử có mục mới cho thay đổi này, người thực hiện hiện là "<tên S> (Admin hệ thống)" |
-| PRD00-AC-49 | FR-21 | S là admin hệ thống, không là thành viên X; M là thành viên của X | S gỡ M khỏi X | M không còn là thành viên X; BR-30 áp dụng cho M |
-| PRD00-AC-50 | FR-21, FR-01 | S là admin hệ thống đã mở feedback của X; A là Quản trị của Y, không thuộc X | A dùng Hub ở Y | A không thấy bất kỳ dữ liệu nào của X |
+| PRD00-AC-46 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên của tổ chức X; F là feedback của X có ưu tiên, người được giao và bình luận nội bộ~~ | ~~S mở F~~ | ~~S thấy toàn bộ F: nội dung, ảnh, file, ngữ cảnh kỹ thuật, ưu tiên, người được giao, bình luận nội bộ, lịch sử~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-47 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống; X có 20 sản phẩm và 30 thành viên~~ | ~~S xem sản phẩm và thành viên của X~~ | ~~S thấy cả 20 sản phẩm và 30 thành viên của X~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-48 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X; F của X ở *Mới*~~ | ~~S chuyển F sang *Đã tiếp nhận*~~ | ~~F ở *Đã tiếp nhận*; lịch sử có mục mới cho thay đổi này, người thực hiện hiện là "<tên S> (Admin hệ thống)"~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-49 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X; M là thành viên của X~~ | ~~S gỡ M khỏi X~~ | ~~M không còn là thành viên X; BR-30 áp dụng cho M~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-50 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống đã mở feedback của X; A là Quản trị của Y, không thuộc X~~ | ~~A dùng Hub ở Y~~ | ~~A không thấy bất kỳ dữ liệu nào của X~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
 | PRD00-AC-51 | FR-38 | O là Chủ sở hữu của X | O tìm cách cấp quyền admin hệ thống cho một thành viên | Không có thao tác nào như vậy trong Hub; gửi trực tiếp bị từ chối |
 | PRD00-AC-52 | FR-38 | S là admin hệ thống | S tìm cách cấp quyền admin hệ thống cho tài khoản khác qua Hub | Không có thao tác nào như vậy; gửi trực tiếp bị từ chối |
 | PRD00-AC-53 | FR-23 | X có vai trò tự tạo "Trưởng IT" có quyền Quản trị FeedbackHub; M có vai trò đó, không được gán sản phẩm nào | M mở hộp feedback | M thấy feedback của mọi sản phẩm X như một Quản trị |
@@ -382,7 +385,7 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-AC-70 | FR-29, FR-37 | M vừa bị gỡ khỏi X | M mở đường dẫn tới F1 mình từng gửi, và có feedback mới ở P | M thấy "không tìm thấy"; M không nhận thông báo nào của X |
 | PRD00-AC-71 | FR-30 | Tổ chức X bị vô hiệu; P thuộc X | Một người mở widget của P | Widget báo tạm ngừng nhận feedback; không gửi được |
 | PRD00-AC-72 | FR-30 | Tổ chức X bị vô hiệu; khách K có link riêng của G thuộc X | K mở link | Trang báo link hết hiệu lực; không hiện nội dung G |
-| PRD00-AC-73 | FR-30 | Tổ chức X bị vô hiệu; A là thành viên X và Y, không phải admin hệ thống | A mở bộ chọn tổ chức | Không chuyển được vào X |
+| PRD00-AC-73 | FR-30 | Tổ chức X bị vô hiệu; A là thành viên X và Y | A mở bộ chọn tổ chức | Không chuyển được vào X |
 | PRD00-AC-74 | FR-31 | A có tài khoản Hub, chưa thuộc tổ chức nào | A mở Hub | A thấy trang chào với lựa chọn tạo tổ chức hoặc chờ được thêm; không có hộp feedback hay "Feedback của tôi" |
 | PRD00-AC-75 | FR-32 | Sản phẩm P của X chưa có Phụ trách | Một người báo gửi feedback vào P | Quản trị của X được báo có feedback mới |
 | PRD00-AC-76 | FR-32 | P vừa được gán Phụ trách H | Có feedback mới ở P | Quản trị không nhận thông báo theo BR-35 cho feedback mới này của P |
@@ -403,39 +406,55 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-AC-91 | FR-09 | R là người báo của F | R mở F | R thấy ngữ cảnh kỹ thuật của F, chỉ đọc |
 | PRD00-AC-92 | FR-10 | Khách K gửi G | K mở link riêng của G | Không có ngữ cảnh kỹ thuật nào trên trang |
 | PRD00-AC-93 | FR-22 | R vừa gửi F | Phụ trách mở F | Ưu tiên hiện "chưa đặt"; chọn được *Cao*, *Trung bình*, *Thấp* |
-| PRD00-AC-94 | FR-39 | S là admin hệ thống, không là thành viên X; S đổi ưu tiên của F thuộc X từ *Thấp* sang *Cao* | H, Phụ trách của sản phẩm, mở lịch sử của F | Có mục đổi ưu tiên *Thấp* → *Cao*, người thực hiện hiện là "<tên S> (Admin hệ thống)" |
-| PRD00-AC-95 | FR-39 | O là Chủ sở hữu của X | O tìm cách tắt việc ghi thay đổi của admin hệ thống vào lịch sử | Không có thiết lập nào như vậy; gửi trực tiếp bị từ chối |
-| PRD00-AC-96 | FR-40 | S là admin hệ thống, không là thành viên X, đang làm việc ở tổ chức khác | S chuyển vào X | Nhật ký admin hệ thống của X có mục mới: S, thời điểm vào, X |
-| PRD00-AC-97 | FR-40 | S là admin hệ thống, không là thành viên X, đang không làm việc ở X | S mở đường dẫn trực tiếp tới feedback F của X | S thấy F (AC-46); nhật ký admin hệ thống của X có mục mới cho lần vào này |
-| PRD00-AC-98 | FR-40 | S đã vào X và Y; Q là Quản trị của X, không thuộc Y | Q mở nhật ký admin hệ thống | Q thấy các lần S vào X; không thấy mục nào của Y |
-| PRD00-AC-99 | FR-40 | Chưa admin hệ thống nào từng vào X; Q là Quản trị của X | Q mở nhật ký admin hệ thống | Thấy trạng thái trống cho biết chưa có admin hệ thống nào vào tổ chức |
-| PRD00-AC-100 | FR-40, FR-12 | H là Phụ trách ở X, không phải Quản trị | H tìm cách mở nhật ký admin hệ thống, rồi gửi yêu cầu xem trực tiếp, không qua màn hình | Không có màn hình nhật ký cho H; yêu cầu trực tiếp bị từ chối vì không đủ quyền |
-| PRD00-AC-101 | FR-41 | S là admin hệ thống; Hub có X đang hoạt động và Z bị vô hiệu, S không là thành viên của cả hai | S mở bộ chọn tổ chức | Có mục *Mọi tổ chức* liệt kê cả X và Z; Z gắn nhãn đã vô hiệu |
-| PRD00-AC-102 | FR-41 | Như trên | S chọn Z | S vào được Z và thấy dữ liệu của Z |
-| PRD00-AC-103 | FR-41 | S là admin hệ thống, đang làm việc ở X mà S không là thành viên | S mở bất kỳ màn hình nào của X | Màn hình hiện rõ S đang ở tư cách admin hệ thống |
-| PRD00-AC-104 | FR-41 | A là thành viên của X, không phải admin hệ thống | A mở bộ chọn tổ chức | Không có mục *Mọi tổ chức*; chỉ có các tổ chức A là thành viên (AC-05) |
+| PRD00-AC-94 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X; S đổi ưu tiên của F thuộc X từ *Thấp* sang *Cao*~~ | ~~H, Phụ trách của sản phẩm, mở lịch sử của F~~ | ~~Có mục đổi ưu tiên *Thấp* → *Cao*, người thực hiện hiện là "<tên S> (Admin hệ thống)"~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-95 | ~~Removed~~ (2026-10-22) | ~~O là Chủ sở hữu của X~~ | ~~O tìm cách tắt việc ghi thay đổi của admin hệ thống vào lịch sử~~ | ~~Không có thiết lập nào như vậy; gửi trực tiếp bị từ chối~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-96 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X, đang làm việc ở tổ chức khác~~ | ~~S chuyển vào X~~ | ~~Nhật ký admin hệ thống của X có mục mới: S, thời điểm vào, X~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-97 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X, đang không làm việc ở X~~ | ~~S mở đường dẫn trực tiếp tới feedback F của X~~ | ~~S thấy F (AC-46); nhật ký admin hệ thống của X có mục mới cho lần vào này~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-98 | ~~Removed~~ (2026-10-22) | ~~S đã vào X và Y; Q là Quản trị của X, không thuộc Y~~ | ~~Q mở nhật ký admin hệ thống~~ | ~~Q thấy các lần S vào X; không thấy mục nào của Y~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-99 | ~~Removed~~ (2026-10-22) | ~~Chưa admin hệ thống nào từng vào X; Q là Quản trị của X~~ | ~~Q mở nhật ký admin hệ thống~~ | ~~Thấy trạng thái trống cho biết chưa có admin hệ thống nào vào tổ chức~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-100 | ~~Removed~~ (2026-10-22) | ~~H là Phụ trách ở X, không phải Quản trị~~ | ~~H tìm cách mở nhật ký admin hệ thống, rồi gửi yêu cầu xem trực tiếp, không qua màn hình~~ | ~~Không có màn hình nhật ký cho H; yêu cầu trực tiếp bị từ chối vì không đủ quyền~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-101 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống; Hub có X đang hoạt động và Z bị vô hiệu, S không là thành viên của cả hai~~ | ~~S mở bộ chọn tổ chức~~ | ~~Có mục *Mọi tổ chức* liệt kê cả X và Z; Z gắn nhãn đã vô hiệu~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-102 | ~~Removed~~ (2026-10-22) | ~~Như trên~~ | ~~S chọn Z~~ | ~~S vào được Z và thấy dữ liệu của Z~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-103 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, đang làm việc ở X mà S không là thành viên~~ | ~~S mở bất kỳ màn hình nào của X~~ | ~~Màn hình hiện rõ S đang ở tư cách admin hệ thống~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-104 | ~~Removed~~ (2026-10-22) | ~~A là thành viên của X, không phải admin hệ thống~~ | ~~A mở bộ chọn tổ chức~~ | ~~Không có mục *Mọi tổ chức*; chỉ có các tổ chức A là thành viên (AC-05)~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
 | PRD00-AC-105 | FR-42 | S là admin hệ thống; X đang hoạt động, có sản phẩm P | S vô hiệu X | X bị vô hiệu; widget của P báo tạm ngừng nhận feedback (BR-31) |
-| PRD00-AC-106 | FR-42 | S là admin hệ thống; Z đang bị vô hiệu | S kích hoạt lại Z | Z hết trạng thái vô hiệu; bộ chọn tổ chức của S không còn gắn nhãn đã vô hiệu cho Z |
+| PRD00-AC-106 | FR-42 | S là admin hệ thống; Z đang bị vô hiệu | S kích hoạt lại Z | Z hết trạng thái vô hiệu; danh sách tổ chức của S không còn đánh dấu Z đã vô hiệu |
 | PRD00-AC-107 | FR-30, FR-12 | M là thành viên X không có quyền quản lý tổ chức của nền tảng (BR-52) | M gửi yêu cầu vô hiệu X trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; X vẫn hoạt động |
-| PRD00-AC-108 | FR-43 | S là admin hệ thống, không là thành viên X; P là sản phẩm của X | S tìm cách gán chính mình làm Phụ trách của P | Không có thao tác đó; gửi trực tiếp bị từ chối, S không thành Phụ trách của P |
-| PRD00-AC-109 | FR-43 | S là admin hệ thống, không là thành viên X; H là Phụ trách của P | S mở danh sách chọn người được giao cho feedback F của P | S không có trong danh sách; H có |
-| PRD00-AC-110 | FR-43 | Như trên | S giao F cho H | F được giao cho H; lịch sử ghi "<tên S> (Admin hệ thống)" là người giao |
-| PRD00-AC-111 | FR-43 | S là admin hệ thống, không là thành viên X; M là thành viên X | S gán M làm Phụ trách của P | M là Phụ trách của P |
-| PRD00-AC-112 | FR-43 | X có đúng một Chủ sở hữu là O; S là admin hệ thống, không là thành viên X | S tìm cách gỡ O khỏi X hoặc bỏ vai trò Chủ sở hữu của O | Bị từ chối vì tổ chức phải còn ít nhất một Chủ sở hữu là thành viên; O vẫn là Chủ sở hữu |
-| PRD00-AC-113 | FR-09 | S là admin hệ thống; F là feedback của người báo R, thành viên X | S viết một bình luận gửi người báo trên F | R thấy bình luận với tên "<tên S> (Admin hệ thống)" |
-| PRD00-AC-114 | FR-10 | S là admin hệ thống; G là feedback của khách K ở sản phẩm "App Bán hàng" | S viết một bình luận gửi người báo trên G | K thấy bình luận với tên "Đội hỗ trợ App Bán hàng"; không thấy tên S |
+| PRD00-AC-108 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X; P là sản phẩm của X~~ | ~~S tìm cách gán chính mình làm Phụ trách của P~~ | ~~Không có thao tác đó; gửi trực tiếp bị từ chối, S không thành Phụ trách của P~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-109 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X; H là Phụ trách của P~~ | ~~S mở danh sách chọn người được giao cho feedback F của P~~ | ~~S không có trong danh sách; H có~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-110 | ~~Removed~~ (2026-10-22) | ~~Như trên~~ | ~~S giao F cho H~~ | ~~F được giao cho H; lịch sử ghi "<tên S> (Admin hệ thống)" là người giao~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-111 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X; M là thành viên X~~ | ~~S gán M làm Phụ trách của P~~ | ~~M là Phụ trách của P~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-112 | ~~Removed~~ (2026-10-22) | ~~X có đúng một Chủ sở hữu là O; S là admin hệ thống, không là thành viên X~~ | ~~S tìm cách gỡ O khỏi X hoặc bỏ vai trò Chủ sở hữu của O~~ | ~~Bị từ chối vì tổ chức phải còn ít nhất một Chủ sở hữu là thành viên; O vẫn là Chủ sở hữu~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-113 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống; F là feedback của người báo R, thành viên X~~ | ~~S viết một bình luận gửi người báo trên F~~ | ~~R thấy bình luận với tên "<tên S> (Admin hệ thống)"~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
+| PRD00-AC-114 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống; G là feedback của khách K ở sản phẩm "App Bán hàng"~~ | ~~S viết một bình luận gửi người báo trên G~~ | ~~K thấy bình luận với tên "Đội hỗ trợ App Bán hàng"; không thấy tên S~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
 | PRD00-AC-115 | FR-25 | Q là Quản trị của X nhưng không có quyền quản lý thành viên | Q tìm cách gửi hoặc thu hồi lời mời | Không có thao tác nào; gửi trực tiếp bị từ chối |
 | PRD00-AC-116 | FR-25 | N có quyền quản lý thành viên ở X, không phải Quản trị | N gửi lời mời tới email của B với vai trò Member | Lời mời được gửi; B nhận email mời |
 | PRD00-AC-117 | FR-25 | N đã gửi lời mời tới B, B chưa dùng | N thu hồi lời mời | Lời mời hết hiệu lực; B mở thì thấy như AC-59 |
 | PRD00-AC-118 | FR-25 | Lời mời gửi tới b@congty.vn bị chuyển tiếp cho C | C mở lời mời và đăng ký bằng c@gmail.com | C không vào X; hệ thống báo lời mời không dành cho C |
 | PRD00-AC-119 | FR-25 | Lời mời gửi tới b@congty.vn; C đang đăng nhập Hub bằng tài khoản có email khác | C mở lời mời | C không vào X; hệ thống báo lời mời không dành cho C |
 | PRD00-AC-120 | FR-22 | Người dùng đặt giao diện Hub sang tiếng Anh | Mở một feedback có loại và ưu tiên | Loại hiện là Bug, Feature hoặc Feedback; ưu tiên hiện là High, Medium hoặc Low |
+| PRD00-AC-121 | FR-01, FR-21, FR-37 | S là admin hệ thống, không là thành viên của tổ chức X; F là feedback của X | S mở đường dẫn trực tiếp tới F | Hệ thống báo "không tìm thấy", giống hệt khi F không tồn tại; không hiện tiêu đề, tên sản phẩm hay bất kỳ nội dung nào của F |
+| PRD00-AC-122 | FR-21, FR-12 | S là admin hệ thống, không là thành viên X | S gửi yêu cầu xem danh sách thành viên của X trực tiếp, không qua màn hình | Bị từ chối; không có tên thành viên nào của X được trả về |
+| PRD00-AC-123 | FR-21, FR-12 | S là admin hệ thống, không là thành viên X; F của X ở *Mới* | S gửi yêu cầu đổi trạng thái F trực tiếp, không qua màn hình | Bị từ chối; F vẫn ở *Mới*, lịch sử không có mục mới |
+| PRD00-AC-124 | FR-44 | Hub có X (12 thành viên, đang hoạt động) và Z (đã vô hiệu); S là admin hệ thống, không là thành viên của cả hai | S mở danh sách tổ chức | Thấy X và Z, mỗi tổ chức với tên và số thành viên; Z được đánh dấu đã vô hiệu; không hiện tên thành viên, sản phẩm hay feedback nào |
+| PRD00-AC-125 | FR-44 | X có 12 thành viên trong danh sách của S | Người có quyền quản lý thành viên gỡ một thành viên khỏi X | Lần tải tiếp theo, danh sách của S hiện X có 11 thành viên |
+| PRD00-AC-126 | FR-44, FR-12 | O là Chủ sở hữu của X, không phải admin hệ thống | O gửi yêu cầu xem danh sách mọi tổ chức trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; không tổ chức nào được liệt kê |
+| PRD00-AC-127 | FR-44 | Hub chưa có tổ chức nào; S là admin hệ thống | S mở danh sách tổ chức | Thấy trạng thái trống cho biết Hub chưa có tổ chức nào |
+| PRD00-AC-128 | FR-42 | Z bị vô hiệu; trước đó M là thành viên Z với vai trò Admin và là Phụ trách sản phẩm P của Z | S kích hoạt lại Z, rồi M chọn Z trong bộ chọn tổ chức | M vào được Z, vẫn có vai trò Admin và vẫn là Phụ trách của P |
+| PRD00-AC-129 | FR-42 | Z bị vô hiệu; P thuộc Z | S kích hoạt lại Z, rồi một người báo mở widget của P | Widget nhận feedback như trước khi vô hiệu |
+| PRD00-AC-130 | FR-42 | Z bị vô hiệu; khách K có link riêng của G thuộc Z, link còn hạn | S kích hoạt lại Z, rồi K mở link | K thấy G như trước khi vô hiệu |
+| PRD00-AC-131 | FR-42, FR-12 | Z bị vô hiệu; O là Chủ sở hữu của Z, không phải admin hệ thống | O gửi yêu cầu kích hoạt lại Z trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; Z vẫn bị vô hiệu |
+| PRD00-AC-132 | FR-45 | S là admin hệ thống; X thêm S làm thành viên với vai trò Member và gán S làm Phụ trách của P | S chuyển feedback F của P từ *Mới* sang *Đã tiếp nhận* | F ở *Đã tiếp nhận*; lịch sử ghi tên S như mọi thành viên, không kèm nhãn nào |
+| PRD00-AC-133 | FR-45 | Như trên; F là feedback của người báo R, thành viên X | S viết một bình luận gửi người báo trên F | R thấy bình luận với tên thật của S như mọi người IT (BR-08), không kèm nhãn nào |
+| PRD00-AC-134 | FR-45, FR-37 | Như trên; Q là sản phẩm khác của X, S không được gán vào Q | S mở đường dẫn trực tiếp tới một feedback của Q | Hệ thống báo "không tìm thấy"; quyền admin hệ thống không mở thêm gì |
+| PRD00-AC-135 | FR-45, FR-12 | S là admin hệ thống, không là thành viên X | S gửi yêu cầu tự thêm mình làm thành viên X trực tiếp, không qua màn hình | Bị từ chối; S không thành thành viên X |
+| PRD00-AC-136 | FR-21, FR-12 | S là admin hệ thống, không là thành viên X; X có 20 sản phẩm | S gửi yêu cầu xem danh sách sản phẩm của X trực tiếp, không qua màn hình | Bị từ chối; không có tên sản phẩm nào của X được trả về |
 
 ## 8. Trạng thái và trường hợp biên
 
 - **Không có tổ chức**: tài khoản chưa thuộc tổ chức nào (ví dụ chỉ từng gửi với tư cách khách) mở Hub → trang chào (BR-32, AC-74).
 - **Thành viên bị gỡ khỏi tổ chức** khi đang là người báo, Phụ trách hoặc người được giao → BR-30 (AC-69, AC-70). Nếu họ là Phụ trách duy nhất của một sản phẩm, sản phẩm đó trở thành chưa có Phụ trách (BR-35).
-- **Tổ chức bị vô hiệu** (nền tảng đã có thao tác này): widget tạm ngừng, link riêng hết hiệu lực, không ai chuyển vào được (BR-31). Riêng admin hệ thống vẫn vào được, và vô hiệu, kích hoạt lại được (BR-49, AC-102, AC-106). Ai khác kích hoạt lại được và điều gì trở lại sau khi kích hoạt: câu hỏi mở 35.
+- **Tổ chức bị vô hiệu** (nền tảng đã có thao tác này): widget tạm ngừng, link riêng hết hiệu lực, không ai chuyển vào được, kể cả Chủ sở hữu và admin hệ thống (BR-31). Chỉ admin hệ thống kích hoạt lại được; kích hoạt lại đưa tổ chức về như trước (BR-49, AC-106, AC-128–131). Các mốc thời gian (tự đóng 7 ngày, hạn lời mời, hạn link riêng) trong lúc tổ chức bị vô hiệu: câu hỏi mở 40.
 - **Quyền bị thu hồi** (bỏ gán sản phẩm, đổi vai trò tổ chức) có hiệu lực ở thao tác tiếp theo của người đó, theo cơ chế sẵn có của nền tảng (trong vài giây); không cần đăng xuất (AC-12).
 - **Sản phẩm không có Phụ trách**: không ai được giao được; feedback mới báo cho Quản trị của tổ chức (BR-35).
 - **Một người là người báo và cũng là Phụ trách** của cùng sản phẩm: được làm mọi thao tác của Phụ trách trên feedback mình gửi; ở "Feedback của tôi" vẫn thấy feedback đó.
@@ -444,9 +463,8 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 - **Lời mời hết hạn hoặc đã thu hồi**: không đưa ai vào tổ chức (BR-24, AC-58, AC-59).
 - **Lời mời bị chuyển tiếp** hoặc mở bởi tài khoản có email khác email được mời: không đưa người đó vào tổ chức, báo lời mời không dành cho họ (BR-51, AC-118, AC-119).
 - **Feedback ở *Đã xử lý* bị mở lại rồi quay về *Đã xử lý***: 7 ngày tự đóng tính lại từ lần vào *Đã xử lý* gần nhất (BR-27).
-- **Admin hệ thống làm việc trong tổ chức mình không là thành viên**: vào qua mục *Mọi tổ chức*, Hub luôn hiện rõ tư cách admin hệ thống (BR-49); không làm Phụ trách hay người được giao (BR-50); thay đổi trên feedback hiện "<tên> (Admin hệ thống)" trong lịch sử (BR-47); mỗi lần vào được ghi vào nhật ký admin hệ thống (BR-48). Dấu vết của thay đổi trên thành viên, vai trò, sản phẩm, cài đặt tổ chức: câu hỏi mở 33.
-- **Admin hệ thống đồng thời là thành viên của tổ chức**: làm việc theo tư cách nào, có nhãn và có ghi nhật ký không: câu hỏi mở 34.
-- **Tổ chức chỉ còn một Chủ sở hữu**: admin hệ thống cũng không gỡ được Chủ sở hữu đó hay bỏ vai trò của họ (BR-50, AC-112).
+- **Admin hệ thống và tổ chức mình không là thành viên**: không vào được, không thấy gì bên trong; mở feedback hay sản phẩm thì thấy "không tìm thấy" (BR-21, AC-121–123, AC-136).
+- **Admin hệ thống được tổ chức thêm làm thành viên**: làm việc thuần tuý như thành viên đó, theo vai trò được gán, không nhãn, không nhật ký riêng (BR-53, AC-132–134). Quyền cấp hệ thống của họ (BR-21) không phụ thuộc tổ chức đang làm việc.
 - **20 sản phẩm** trở lên mỗi tổ chức: bộ chọn sản phẩm, hộp feedback và phân quyền phải dùng tốt (theo canvas đã duyệt). Chưa có giới hạn tối đa nào được quyết.
 - **Sửa đồng thời** (hai Phụ trách đổi trạng thái cùng lúc): thuộc PRD03.
 - **Feedback gốc bị chuyển khỏi *Đã xử lý*** sau khi đã báo cho các bản trùng: thuộc PRD03.
@@ -455,12 +473,13 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 
 | Trường | Ý nghĩa | Bắt buộc | Giới hạn | Ai được sửa |
 |---|---|---|---|---|
-| Tên tổ chức | Tên hiển thị của tổ chức | Có | Không để trống (nền tảng đã có) | Người có quyền quản lý tổ chức (nền tảng); admin hệ thống |
+| Tên tổ chức | Tên hiển thị của tổ chức; admin hệ thống thấy trong danh sách tổ chức (FR-44) | Có | Không để trống (nền tảng đã có) | Người có quyền quản lý tổ chức (nền tảng) |
 | Định danh ngắn của tổ chức | Mã viết thường, duy nhất toàn Hub | Có | Duy nhất (nền tảng đã có) | Như trên |
-| Vai trò tổ chức của thành viên | Một hoặc nhiều vai trò tổ chức | Có, ít nhất một | Tổ chức luôn còn ít nhất một Chủ sở hữu là thành viên (nền tảng đã có; admin hệ thống không tính là Chủ sở hữu, BR-50); Chủ sở hữu luôn có quyền Quản trị FeedbackHub | Người có quyền quản lý thành viên (BR-19); admin hệ thống |
-| Trạng thái tổ chức | Đang hoạt động hoặc đã vô hiệu | Có | Mặc định đang hoạt động | Vô hiệu: người có quyền quản lý tổ chức (BR-52), admin hệ thống; kích hoạt lại: admin hệ thống (BR-49), người khác: câu hỏi mở 35 |
-| Lời mời | Email được mời, vai trò tổ chức, thời điểm gửi | Có email và vai trò | Hết hạn sau 7 ngày; thu hồi được trước khi dùng; chỉ tài khoản có đúng email được mời dùng được (BR-51) | Người có quyền quản lý thành viên (BR-19); admin hệ thống |
-| Vai trò theo sản phẩm | Phụ trách hoặc Viewer, cho một thành viên ở một sản phẩm | Không | Tối đa một vai trò mỗi người mỗi sản phẩm | Quản trị; admin hệ thống |
+| Vai trò tổ chức của thành viên | Một hoặc nhiều vai trò tổ chức | Có, ít nhất một | Tổ chức luôn còn ít nhất một Chủ sở hữu (nền tảng đã có); Chủ sở hữu luôn có quyền Quản trị FeedbackHub | Người có quyền quản lý thành viên (BR-19) |
+| Số thành viên của tổ chức | Số thành viên hiện tại, hiện trong danh sách tổ chức của admin hệ thống (FR-44) | Tự tính | Không kèm tên thành viên | Không ai |
+| Trạng thái tổ chức | Đang hoạt động hoặc đã vô hiệu | Có | Mặc định đang hoạt động | Vô hiệu: người có quyền quản lý tổ chức (BR-52), admin hệ thống; kích hoạt lại: chỉ admin hệ thống (BR-49) |
+| Lời mời | Email được mời, vai trò tổ chức, thời điểm gửi | Có email và vai trò | Hết hạn sau 7 ngày; thu hồi được trước khi dùng; chỉ tài khoản có đúng email được mời dùng được (BR-51) | Người có quyền quản lý thành viên (BR-19) |
+| Vai trò theo sản phẩm | Phụ trách hoặc Viewer, cho một thành viên ở một sản phẩm | Không | Tối đa một vai trò mỗi người mỗi sản phẩm | Quản trị |
 | Mã feedback | `FB-<số>` | Tự sinh | Tăng dần, không trùng trong tổ chức | Không ai |
 | Loại | Lỗi / Tính năng / Góp ý | Có | Đúng ba giá trị | Người báo khi gửi; Phụ trách, Quản trị sau đó |
 | Ưu tiên | Cao / Trung bình / Thấp | Không | Mặc định chưa đặt | Phụ trách, Quản trị |
@@ -469,10 +488,7 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | Lý do mở lại | Lý do người báo hoặc khách mở lại, hiện thành bình luận gửi người báo | Có khi mở lại | Một câu ngắn, không để trống | Người báo, khách |
 | Feedback gốc | Feedback mà bản trùng gắn vào | Có khi trạng thái là *Trùng lặp* | Cùng sản phẩm với bản trùng | Phụ trách, Quản trị |
 | Email, điện thoại của khách | Thông tin liên hệ khách để lại | Không | Danh sách luôn che; chi tiết theo BR-38 | Khách khi gửi |
-| Mục lịch sử | Ai, lúc nào, trường nào, từ → đến | Tự sinh | Không sửa, không xoá; thay đổi của admin hệ thống ghi tên kèm "(Admin hệ thống)" (BR-47) | Không ai |
-| Mục nhật ký admin hệ thống | Admin hệ thống nào, lúc nào, vào tổ chức nào | Tự sinh | Tổ chức không tắt được việc ghi (BR-48); sửa, xoá và thời gian giữ: câu hỏi mở 36 | Câu hỏi mở 36 |
-
-Mọi ô "Phụ trách, Quản trị" ở bảng trên cũng gồm admin hệ thống (BR-21).
+| Mục lịch sử | Ai, lúc nào, trường nào, từ → đến | Tự sinh | Không sửa, không xoá | Không ai |
 
 ## 10. Thông báo và sự kiện
 
@@ -486,8 +502,8 @@ Ai nhận gì qua kênh nào được định nghĩa ở PRD05. PRD này chỉ �
 
 ## 11. Yêu cầu phi chức năng
 
-- **Tách biệt dữ liệu**: không màn hình, email, file xuất hay thông báo nào hiện dữ liệu của tổ chức cho người ngoài tổ chức, trừ ngoại lệ trong ma trận quyền (khách qua link riêng, admin hệ thống).
-- **Đường truy cập xuyên tổ chức có chủ đích**: admin hệ thống là đường duy nhất thấy và thao tác trên dữ liệu của mọi tổ chức (BR-21). Đây là thay đổi bảo mật so với nền tảng hiện có (không có admin cấp hệ thống, không có đường vượt quyền), nên thiết kế kỹ thuật phải qua review bảo mật trước khi duyệt. Quyền này chỉ cấp được ngoài Hub (BR-20). Dấu vết của admin hệ thống trong tổ chức, tổ chức không tắt được: thay đổi trên feedback hiện "<tên> (Admin hệ thống)" trong lịch sử (BR-47); mỗi lần vào tổ chức được ghi vào nhật ký Chủ sở hữu và Quản trị xem được (BR-48); Hub luôn hiện rõ khi đang ở tư cách admin hệ thống (BR-49). Dấu vết của thay đổi trên thành viên, vai trò, sản phẩm, cài đặt tổ chức: câu hỏi mở 33; tính toàn vẹn của nhật ký: câu hỏi mở 36.
+- **Tách biệt dữ liệu**: không màn hình, email, file xuất hay thông báo nào hiện dữ liệu của tổ chức cho người ngoài tổ chức, trừ ngoại lệ khách qua link riêng trong ma trận quyền. Admin hệ thống không phải ngoại lệ: chỉ thấy tên và số thành viên của tổ chức (BR-21, BR-22).
+- **Vai trò cấp hệ thống không vượt quyền vào tổ chức**: admin hệ thống là vai trò cấp hệ thống mới so với nền tảng hiện có, chỉ cấp được ngoài Hub (BR-20), và không mở đường nào vào dữ liệu bên trong tổ chức (BR-21, BR-22). Đây vẫn là thay đổi bảo mật (spec khảo sát §3), nên thiết kế kỹ thuật phải qua review bảo mật trước khi duyệt.
 - **Kiểm tra quyền không phụ thuộc giao diện**: ẩn nút trên màn hình không thay cho việc từ chối thao tác; mọi thao tác bị chặn trong ma trận đều bị từ chối khi gọi trực tiếp (FR-12).
 - **Không hiện nội dung khi không có quyền**: người không có quyền mở feedback hay sản phẩm không thấy bất kỳ nội dung nào của nó, và thấy "không tìm thấy" giống như khi nó không tồn tại (BR-45). Thiết kế kỹ thuật cần review bảo mật xác nhận cách làm.
 - **Ngôn ngữ**: giao diện có tiếng Việt và tiếng Anh; tên trạng thái, loại, ưu tiên, vai trò dịch thống nhất ở mọi nơi (BR-41). Email mặc định tiếng Việt theo quyết định nền tảng 2026-08-04.
@@ -501,7 +517,7 @@ Ai nhận gì qua kênh nào được định nghĩa ở PRD05. PRD này chỉ �
   - Tổ chức: tạo tổ chức (người tạo thành Chủ sở hữu), vô hiệu tổ chức, chuyển tổ chức đang làm việc, quay về ngữ cảnh cá nhân không tổ chức. Nền tảng chưa có thao tác kích hoạt lại tổ chức; PRD này thêm cho admin hệ thống (FR-42).
   - Thành viên: thêm thành viên bằng email của một tài khoản **đã đăng ký**, đổi vai trò, gỡ thành viên; luôn còn ít nhất một Chủ sở hữu. PRD này thêm lời mời cho người chưa có tài khoản (FR-25).
   - Vai trò tổ chức tự tạo từ danh mục quyền cố định; ba vai trò hệ thống Owner (mọi quyền), Admin (hiện chỉ có quyền quản lý thành viên), Member (không có quyền nào). PRD này thêm quyền Quản trị FeedbackHub vào danh mục, có sẵn ở Admin (FR-23).
-  - Hiện không có admin cấp hệ thống và không có đường vượt quyền giữa các tổ chức. PRD này cố ý thêm một đường như vậy: admin hệ thống (BR-20, BR-21).
+  - Hiện không có admin cấp hệ thống và không có đường vượt quyền giữa các tổ chức. PRD này thêm vai trò admin hệ thống (BR-20, BR-21) nhưng giữ nguyên việc không có đường vượt quyền vào dữ liệu bên trong tổ chức.
   - Thông báo trong Hub, email, web push.
 - **PRD phụ thuộc vào PRD này**: PRD01–PRD07.
 - **Dịch vụ bên ngoài**: không có mới.
@@ -510,12 +526,9 @@ Ai nhận gì qua kênh nào được định nghĩa ở PRD05. PRD này chỉ �
 
 | # | Câu hỏi | Đề xuất trả lời | Vì sao quan trọng | Trạng thái |
 |---|---|---|---|---|
-| 33 | Khi admin hệ thống thay đổi thành viên, vai trò, sản phẩm hay cài đặt của một tổ chức (không phải feedback), tổ chức thấy dấu vết ở đâu? Câu 25 quyết định "ghi như mọi thay đổi khác", nhưng PRD này chỉ có lịch sử cho feedback; Hub chưa có màn hình nào cho tổ chức xem các thay đổi khác. | Ghi vào cùng nhật ký admin hệ thống của BR-48: mỗi mục thêm thao tác gì, trên đối tượng nào, từ giá trị nào sang giá trị nào; Chủ sở hữu và Quản trị xem được, tổ chức không tắt được. | Gỡ thành viên hay đổi domain được phép của sản phẩm là thay đổi nhạy cảm hơn đổi trạng thái feedback; không có chỗ xem thì quyết định câu 25 chỉ có hiệu lực một nửa. Lựa chọn khác: danh mục quyền cố định của nền tảng đã có quyền "xem nhật ký thay đổi" của tổ chức (chưa có màn hình nào dùng); có thể dùng quyền đó thay cho Chủ sở hữu + Quản trị, cho cả nhật ký ở BR-48. Ảnh hưởng FR-40, BR-47, BR-48, ma trận quyền và review bảo mật. | Mở |
-| 34 | Admin hệ thống đồng thời là thành viên của tổ chức X thì làm việc ở X theo tư cách nào? Có gắn "(Admin hệ thống)", có ghi nhật ký, có toàn quyền ở X không? Admin hệ thống có tự thêm mình làm thành viên được không? | Hai lối vào tách biệt: vào X qua danh sách tổ chức của mình thì làm việc theo vai trò thành viên (tên thường, không ghi nhật ký, không có quyền vượt vai trò); vào X qua mục *Mọi tổ chức* thì ở tư cách admin hệ thống (toàn quyền, nhãn, nhật ký). Tự thêm mình làm thành viên được, và việc đó ghi vào nhật ký admin hệ thống. | BR-47 và BR-48 hiện áp dụng ở mọi tổ chức, kể cả nơi admin hệ thống là thành viên; đề xuất này sẽ thu hẹp chúng về lối vào *Mọi tổ chức*. BR-49, BR-50 viết cho tổ chức admin hệ thống không là thành viên, và BR-50 còn mở đường "được thêm làm thành viên" mà admin hệ thống tự làm được. Không quyết thì một người vừa là admin hệ thống vừa là Phụ trách có thể đổi dữ liệu không để lại nhãn. | Mở |
-| 35 | Ai kích hoạt lại được một tổ chức đã vô hiệu, và điều gì trở lại sau khi kích hoạt? Câu 27 ghi "như Chủ sở hữu", nhưng nền tảng hiện không có thao tác kích hoạt lại, và Chủ sở hữu không vào được tổ chức đã vô hiệu (BR-31). | Chỉ admin hệ thống kích hoạt lại; Chủ sở hữu muốn kích hoạt lại thì liên hệ admin hệ thống. Sau khi kích hoạt, mọi thứ trở lại như trước khi vô hiệu: thành viên vào lại được với vai trò cũ, widget nhận feedback lại, link riêng còn hạn hoạt động lại. | Quyết định ô *Kích hoạt lại* trong ma trận quyền (đang ?35) và cách vô hiệu được giải thích cho Chủ sở hữu. | Mở |
-| 36 | Nhật ký admin hệ thống có ai sửa, xoá được không, và giữ bao lâu? | Chỉ thêm, không ai sửa hay xoá, kể cả admin hệ thống và Chủ sở hữu (như BR-14); giữ suốt thời gian tổ chức tồn tại. | Người toàn quyền xoá được dấu vết của chính mình thì nhật ký không còn giá trị tin cậy. Ảnh hưởng §9 và review bảo mật. | Mở |
-| 37 | Trong lịch sử đổi trạng thái, người báo và khách thấy người thực hiện là ai? BR-08 chỉ quy định cho bình luận; câu 25 chỉ nói về thành viên xem lịch sử. Cùng câu hỏi cho bình luận nội bộ do admin hệ thống viết. | Người báo là thành viên thấy tên thật của người IT, admin hệ thống hiện "<tên> (Admin hệ thống)"; khách luôn thấy "Đội hỗ trợ <tên sản phẩm>" cho mọi người IT kể cả admin hệ thống; thay đổi tự động hiện "Hệ thống". Bình luận nội bộ của admin hệ thống hiện "<tên> (Admin hệ thống)". | Giữ nhất quán với BR-08 và không lộ tên người IT cho khách qua lịch sử trạng thái (AC-20). | Mở |
-| 38 | Ưu tiên của các mục mới: US-16 (Should), FR-39 (Must), FR-40 (Must), FR-41 (Should), FR-42 (Should), FR-43 (Must). | Giữ như đang ghi. Dấu vết (FR-39, FR-40) và giới hạn (FR-43) là Must vì là điều kiện an toàn của quyền admin hệ thống, như FR-38; bộ chọn và kích hoạt lại theo US-13 (Should). | Quyết định phần nào bắt buộc ở bản đầu. | Mở |
+| 39 | Khi admin hệ thống vô hiệu hay kích hoạt lại một tổ chức, Chủ sở hữu có được báo không, và có phải ghi lý do không? Chủ sở hữu không vào được tổ chức đã vô hiệu (BR-31), nên nếu không được báo thì chỉ biết khi widget ngừng nhận feedback. | Có: mọi Chủ sở hữu của tổ chức nhận email khi tổ chức bị admin hệ thống vô hiệu hoặc được kích hoạt lại; admin hệ thống phải ghi lý do khi vô hiệu, lý do có trong email. Khi Chủ sở hữu tự vô hiệu (BR-52) thì không cần báo. | Quyết định thêm sự kiện vào §10 (kênh và nội dung: PRD05) và một trường lý do. Không báo thì một tổ chức có thể bị ngừng mà không ai trong tổ chức biết vì sao. | Mở |
+| 40 | Trong thời gian tổ chức bị vô hiệu, các mốc thời gian có tiếp tục chạy không: tự đóng sau 7 ngày ở *Đã xử lý* (BR-27), hạn 7 ngày của lời mời (BR-24), hạn của link riêng (PRD04)? | Có, tất cả tiếp tục chạy theo giờ lịch (như BR-40). Kích hoạt lại chỉ khôi phục những gì còn hạn, đúng với quyết định "link riêng còn hạn hoạt động lại". Feedback tự đóng trong lúc vô hiệu thì ở *Đóng* khi kích hoạt lại; lời mời đã hết hạn thì phải gửi lại. | Quyết định "như trước khi vô hiệu" nghĩa là gì sau một thời gian dài vô hiệu; ảnh hưởng BR-24, BR-27, BR-49 và kiểm thử AC-128–130. Dừng đồng hồ thì phải định nghĩa thêm cách tính thời gian còn lại. | Mở |
+| 41 | Ưu tiên của các mục mới hoặc chưa được xác nhận: US-17 (Should), US-18 (Should), FR-42 (Should), FR-44 (Should), FR-45 (Must). Câu 38, nơi FR-42 từng được hỏi, đã bỏ. | Giữ như đang ghi. FR-45 là Must vì nó bảo đảm admin hệ thống không có quyền vượt vai trò khi được thêm vào tổ chức, cùng nhóm với FR-01 và FR-38; danh sách tổ chức và kích hoạt lại đi theo khảo sát (FR-21, Should). | Quyết định phần nào bắt buộc ở bản đầu. | Mở |
 
 ## 14. Lịch sử thay đổi
 
@@ -557,3 +570,8 @@ Ai nhận gì qua kênh nào được định nghĩa ở PRD05. PRD này chỉ �
 | 2026-10-22 | 0.3 | Câu 30: gửi và thu hồi lời mời theo quyền quản lý thành viên → FR-25, BR-19, BR-24 (sửa), AC-60 (sửa), AC-115–117, §3.3, §9 | Quyết định của người dùng |
 | 2026-10-22 | 0.3 | Câu 31: lời mời chỉ dùng được bởi tài khoản có đúng email được mời → FR-25 (sửa), BR-51, AC-118, AC-119, §8, §9 | Quyết định của người dùng |
 | 2026-10-22 | 0.3 | Câu 32: tên tiếng Anh của loại Bug / Feature / Feedback, của ưu tiên High / Medium / Low → BR-41 (sửa), AC-120 | Quyết định của người dùng |
+| 2026-10-22 | 0.4 | Câu 2 (người dùng **đảo lại** câu trả lời ở v0.2): admin hệ thống **không** có toàn quyền. Mô hình giới hạn: chỉ thấy danh sách tổ chức (tên, số thành viên) và khảo sát (tạo, mở, đóng đợt, chọn tổ chức nhận, xem kết quả theo spec khảo sát; chi tiết PRD07); vô hiệu và kích hoạt lại tổ chức; không truy cập sản phẩm, feedback, thành viên hay cài đặt của tổ chức nào. Muốn giúp bên trong một tổ chức thì tổ chức thêm họ làm thành viên thường, họ làm việc đúng như thành viên đó, không nhãn, không nhật ký riêng. Giữ: chỉ người vận hành máy chủ chỉ định. Vì sao quan trọng: giữ nguyên việc tách biệt dữ liệu giữa các tổ chức, không còn đường truy cập xuyên tổ chức nào; khảo sát là nhu cầu duy nhất ở cấp hệ thống. → FR-01, FR-03, FR-21, FR-30, FR-38, FR-42 (sửa), BR-08, BR-21, BR-22, BR-31, BR-49 (sửa), thêm US-17, US-18, FR-44, FR-45, BR-53, AC-121–136; sửa §2, §3.1, §3.2, §3.3, §8, §9, §11, §12 | Quyết định của người dùng |
+| 2026-10-22 | 0.4 | Hệ quả của câu 2: các câu trả lời 25, 26, 28, 29 hết hiệu lực; câu 27 hết hiệu lực trừ phần vô hiệu và kích hoạt lại tổ chức. Bỏ các câu hỏi mở 33, 34, 36, 37, 38 vì không còn đối tượng. Câu 1, 3–24, 30–32 giữ nguyên. Phần admin hệ thống từng ghi thêm vào chúng do toàn quyền được bỏ: ô lời mời trong §3.3 và §9 (thêm khi áp dụng câu 30); điều kiện "không phải admin hệ thống" ở AC-01 (thêm cùng câu 2 ở v0.2); ngoại lệ admin hệ thống ở FR-30, BR-31, AC-73 (thêm cùng câu 27). Câu 8 và câu 23 tự thân không dựa vào toàn quyền | Quyết định của người dùng |
+| 2026-10-22 | 0.4 | Câu 35 (theo đề xuất, người dùng chấp nhận cùng mô hình giới hạn): chỉ admin hệ thống kích hoạt lại; Chủ sở hữu không vào được tổ chức đã vô hiệu, muốn kích hoạt lại thì liên hệ admin hệ thống; kích hoạt lại đưa mọi thứ về như trước: thành viên giữ vai trò, widget nhận feedback lại, link riêng còn hạn hoạt động lại → BR-49, FR-42, ô *Kích hoạt lại* trong ma trận quyền (hết ô chưa quyết), §8, §9, AC-106 (sửa), AC-128–131 | Quyết định của người dùng |
+| 2026-10-22 | 0.4 | Bỏ (~~Removed~~, không đánh lại số): US-13, US-16; FR-39, FR-40, FR-41, FR-43; BR-47, BR-48, BR-50; AC-46–50, AC-94–104, AC-108–114. Bỏ khỏi §3.1 các thuật ngữ *Tư cách admin hệ thống*, *Nhật ký admin hệ thống*; bỏ khỏi ma trận quyền dòng *Xem nhật ký admin hệ thống*; thêm dòng *Xem danh sách mọi tổ chức*. AC-121 khôi phục hành vi của AC-42 cũ, theo BR-45 ("không tìm thấy") | Quyết định của người dùng |
+| 2026-10-22 | 0.4 | Danh sách tổ chức đánh dấu tổ chức đã vô hiệu (FR-44, BR-49): suy ra từ câu 35 (chỉ admin hệ thống kích hoạt lại được, nên cần biết tổ chức nào đang bị vô hiệu); nhãn này trước đây thuộc câu 27; chờ người dùng xác nhận khi duyệt. Thêm câu hỏi mở 39–41 | Suy ra từ quyết định của người dùng (câu 35) |
