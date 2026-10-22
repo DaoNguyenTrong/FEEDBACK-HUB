@@ -10,9 +10,9 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
-### 2026-10-22 — git and gh run without prompts; a command-parsing guard enforces the never-rules
+### 2026-10-22 — git and gh run without prompts; a command-parsing guard catches accidental never-rule breaks
 
-Confirming every push and merge interrupted agent work, so the prompts were removed. Prefix-matched deny rules then let other spellings of forbidden commands (flag order, `+refspec`, combined short flags) run silently, so a PreToolUse guard parses each command and denies the never-rules in any spelling. Rejected: keeping `ask` prompts (the friction this removes); prefix deny rules alone (bypassed by spelling). The guard is still client-side, not a hard control, as accepted on 2026-10-20.
+Confirming every push and merge interrupted agent work, so the prompts were removed. Prefix deny rules miss other spellings, so a PreToolUse guard parses each command: pushes go only to work branches and tags, and unparseable git/gh is denied. It stops accidents, not deliberate obfuscation: variables, interpreters, wrappers, script files, aliases, `gh api`, `gh pr merge` into `main`, and hook or global-config edits pass, and it fails open if `bun` is missing or times out. Rejected: `ask` prompts; prefix rules alone.
 
 ### 2026-10-21 — Public files are served straight from storage; only `public/` is anonymously readable
 
