@@ -51,7 +51,7 @@ Không chắc thì coi là lớn. Để lệch lớn lộ ra sớm, kế hoạch
 
 ## 5. Commit tài liệu
 
-- **PRD và tài liệu kỹ thuật** được commit khi người dùng duyệt (trạng thái *Approved*): phiên chính tạo nhánh `chore/*` từ `dev`, commit, mở PR chỉ chứa tài liệu và merge qua `/git-accept`. Việc người dùng duyệt tài liệu là lệnh commit, push và mở PR cho PR đó. Bản nháp chưa duyệt không commit.
+- **PRD và tài liệu kỹ thuật** nằm trên nhánh `chore/*` riêng cắt từ `dev` ngay từ bản nháp đầu: phiên chính commit mỗi phiên bản lên nhánh đó và mở một **PR nháp** chỉ chứa tài liệu, để lịch sử các phiên bản và báo cáo review (comment trên PR) không mất giữa các phiên làm việc. Bắt đầu soạn một tài liệu là lệnh push và mở PR nháp cho nó. PR nháp không được merge; khi người dùng duyệt (trạng thái *Approved*), phiên chính commit bản duyệt, chuyển PR sang sẵn sàng và merge qua `/git-accept`.
 - **Kế hoạch** được phiên chính commit trên nhánh `feature/*` của nó, đi chung PR với code.
 - **Mọi PR**, kể cả PR chỉ có tài liệu, có mục `## Changelog` theo định dạng của `release-kit:git-mr` (`- Added: …`, `- Fixed: …`, hoặc chỉ `none` cho thay đổi nội bộ), và luôn có một mục `## ` khác theo sau: `git-release` đọc mục này tới heading `## ` kế tiếp, nên dòng chữ tự do ở cuối (dòng ghi nguồn) sẽ làm nó hỏng. `git-release` dựng CHANGELOG của bản phát hành từ các mục này; không sửa `CHANGELOG.md` bằng tay.
 - **Sửa tài liệu do lệch lớn** được phiên chính commit trên nhánh đang làm, đi chung PR với code; vì vậy `pr-reviewer` luôn đối chiếu code với đúng phiên bản tài liệu.
@@ -98,7 +98,8 @@ Bản nháp đầu của PRD-00 đi qua 8 phiên bản và 78 câu hỏi; ngư�
 - Câu hỏi mở chỉ dành cho điều người dùng phải quyết, tối đa khoảng 8 câu mỗi lượt; phần còn lại, kể cả mức ưu tiên, là *Mặc định đề xuất*, được duyệt một lần cùng PRD.
 - BA review ngay bản nháp đầu, và báo cáo được giữ lại cho lần review sau.
 - Phiên chính trình hệ quả ngay khi một câu trả lời chạm bảo mật hay tách dữ liệu, trước khi chuyển cho agent viết.
-- Mã yêu cầu chỉ cố định từ khi PRD được duyệt lần đầu; trong bản nháp, mục bị bỏ được xoá thẳng.
+- Trong bản nháp, mục bị bỏ được xoá thẳng thay vì gạch `~~Removed~~`; vẫn không đánh số lại và không dùng lại mã. Gạch bỏ chỉ áp dụng từ khi PRD được duyệt lần đầu.
+- Bản nháp nằm trên nhánh riêng với một PR nháp từ đầu (§ Commit tài liệu), để báo cáo review được lưu thành comment.
 - Mỗi PR một mục đích (§ Quyền push và mở PR).
 
 Phương án loại: giữ nguyên quy trình và chỉ nhắc agent hỏi ít hơn (không có tiêu chí để phân loại, lặp lại vẫn xảy ra).
