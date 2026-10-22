@@ -20,7 +20,7 @@ Hiện đang khó khăn ở đâu, với ai, bằng chứng là gì. Một đế
 - **Mục tiêu**: kết quả module phải mang lại.
 - **Không phải mục tiêu**: những gì cố ý không làm ở phiên bản này (và sẽ làm ở đâu).
 - **Phản mục tiêu**: kết quả bị coi là thất bại dù mọi yêu cầu đều đạt.
-- **Đo thành công**: biết bằng cách nào là đã thành công; chỉ số dùng chung thì dẫn về PRD-00.
+- **Đo thành công**: biết bằng cách nào là đã thành công; chỉ số dùng chung thì dẫn về PRD-00 §2; định nghĩa và cách tính: PRD06.
 
 ## 3. Người dùng và vai trò
 
