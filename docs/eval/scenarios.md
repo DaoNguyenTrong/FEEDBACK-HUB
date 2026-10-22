@@ -1,10 +1,10 @@
 # Tình huống eval cho quy trình agent
 
-Năm tình huống đầu tiên để đo tuân thủ Pre-Task Protocol (`AGENTS.md`) và chất lượng kết quả. Thiết kế theo `agent-automation-playbook.md` (mục 4.2). Mỗi lần sửa skill hoặc protocol thì chạy lại toàn bộ để so sánh điểm.
+Năm tình huống đầu tiên để đo tuân thủ Pre-Task Protocol (`.claude/agents/implementer.md`) và chất lượng kết quả. Thiết kế theo `agent-automation-playbook.md` (mục 4.2). Mỗi lần sửa skill hoặc protocol thì chạy lại toàn bộ để so sánh điểm.
 
 ## Cách chạy
 
-1. Mỗi tình huống chạy bằng một agent riêng, trong worktree riêng (`isolation: "worktree"`). Worktree không có file gitignored, nên copy `backend/src/FeedbackHub.API/appsettings.json` và `frontend/.env.e2e` vào trước khi chạy test (xem `AGENTS.md` § Worktrees).
+1. Mỗi tình huống chạy bằng một agent riêng, trong worktree riêng (`isolation: "worktree"`). Worktree không có file gitignored, nên copy `backend/src/FeedbackHub.API/appsettings.json` và `frontend/.env.e2e` vào trước khi chạy test (xem `.claude/reference/worktrees.md`).
 2. Đặt tên task trung tính, không nhắc đến việc đang được đánh giá.
 3. Chấm theo rubric bên dưới. Giám khảo là một model khác với model đang làm việc để giảm thiên vị.
 4. Lưu kết quả theo lần sửa protocol để so sánh (hill climbing).
