@@ -53,6 +53,7 @@ Không chắc thì coi là lớn. Để lệch lớn lộ ra sớm, kế hoạch
 
 - **PRD và tài liệu kỹ thuật** được commit khi người dùng duyệt (trạng thái *Approved*): phiên chính tạo nhánh `chore/*` từ `dev`, commit, mở PR chỉ chứa tài liệu và merge qua `/git-accept`. Việc người dùng duyệt tài liệu là lệnh commit, push và mở PR cho PR đó. Bản nháp chưa duyệt không commit.
 - **Kế hoạch** được phiên chính commit trên nhánh `feature/*` của nó, đi chung PR với code.
+- **Mọi PR**, kể cả PR chỉ có tài liệu, có mục `## Changelog` theo định dạng của `release-kit:git-mr` (`- Added: …`, `- Fixed: …`, hoặc chỉ `none` cho thay đổi nội bộ), và luôn có một mục `## ` khác theo sau: `git-release` đọc mục này tới heading `## ` kế tiếp, nên dòng chữ tự do ở cuối (dòng ghi nguồn) sẽ làm nó hỏng. `git-release` dựng CHANGELOG của bản phát hành từ các mục này; không sửa `CHANGELOG.md` bằng tay.
 - **Sửa tài liệu do lệch lớn** được phiên chính commit trên nhánh đang làm, đi chung PR với code; vì vậy `pr-reviewer` luôn đối chiếu code với đúng phiên bản tài liệu.
 - `implementer` không sửa và không commit PRD, tài liệu kỹ thuật hay kế hoạch.
 
@@ -63,6 +64,17 @@ Mặc định chỉ push hay mở PR khi người dùng ra lệnh. Ở giai đo�
 **Thứ tự merge — lịch sử gần thẳng.** Mỗi lúc chỉ một PR vào `dev` được review và merge. Trước khi review, nhánh phải được rebase lên `origin/dev` mới nhất (`git rebase origin/dev`, rồi `git push --force-with-lease`); merge bằng `gh pr merge --merge` để mỗi PR vẫn có một merge commit đánh dấu ranh giới. Merge xong PR này mới rebase nhánh kế tiếp. Nhánh chưa được rebase thì `pr-reviewer` và `/git-accept` trả *chưa sẵn sàng*, không tính là một lượt. Phiên chính điều phối thứ tự và yêu cầu rebase.
 
 **Dọn nhánh sau khi merge.** Ngay sau khi merge, người merge (`pr-reviewer`, `/git-accept`, hoặc phiên chính khi người dùng cho merge) xoá nhánh trên remote, chỉ sau khi xác nhận nhánh đã nằm trong `origin/dev`: `git fetch --prune origin && git merge-base --is-ancestor origin/<branch> origin/dev && git push origin --delete <branch>`. Phiên chính đưa checkout về `dev` (`git switch dev && git pull --ff-only`) rồi xoá nhánh local bằng `git branch -d <branch>` — `-d`, không bao giờ `-D`, để git từ chối nếu nhánh còn commit chưa merge. Không xoá nhánh của PR chưa merge, bị đóng, hoặc đang chờ `ESCALATE`.
+
+## 6b. Phát hành, ổn định và hotfix
+
+Dùng skill `release-kit:git-release` (cấu hình ở `.claude/release-kit.json`; `CONTRIBUTING.md` § Release Process).
+
+- **Cắt bản (Phase 1, trên `dev`):** skill cắt `release/vX.Y.Z` và soạn mục CHANGELOG ngay trên nhánh đó, không commit gì vào `dev`.
+- **Ổn định:** lỗi tìm thấy khi QA được sửa trên nhánh `fix/*` cắt từ `release/vX.Y.Z` (`implementer`), PR vào chính nhánh release đó, rebase lên `origin/release/vX.Y.Z` trước khi review. `pr-reviewer` review như PR vào `dev` nhưng **không merge**: PASS được ghi lại và người dùng cho merge.
+- **Phát hành (Phase 2):** skill chạy cổng bắt buộc, hỏi người dùng xác nhận, rồi tự mở và merge PR `release/vX.Y.Z → main` và gắn tag. Đó là cổng duy nhất của PR vào `main`.
+- **Hotfix:** `implementer` sửa trên `hotfix/<tên>` cắt từ `main`; phiên chính chạy `code-reviewer` trên diff `origin/main...hotfix/<tên>`; rồi `git-release` lo CHANGELOG, cổng bắt buộc, PR vào `main` (người dùng xác nhận) và tag.
+- **Đưa `main` về `dev` sau mỗi lần phát hành hoặc hotfix:** không push thẳng vào `dev`. Phiên chính tạo `chore/reconcile-main-vX.Y.Z` từ `dev`, `git merge origin/main`, mở PR vào `dev`; người dùng cho merge. PR này là ngoại lệ của quy tắc rebase: nó chính là một merge của `main`.
+- **Không dùng `quick`**: chế độ này commit CHANGELOG thẳng vào `dev`, nên đã bị tắt trong `modes`.
 
 ## 7. Truy vết
 
@@ -75,6 +87,12 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 ## 9. Quyết định quy trình
 
 Quyết định về cách làm việc (agent, cổng duyệt, review) ghi ở đây, mới nhất ở trên; quyết định kỹ thuật theo `AGENTS.md` § Decision Log.
+
+### 2026-10-22 — Agent review không dùng skill `code-review`
+Skill này chạy một lượt review nền có thể kết thúc sau khi agent đã kết luận. Ở PR #7, `pr-reviewer` merge rồi lượt nền mới báo một lỗi mất dữ liệu. Lỗi lặp hai lần (PR #4, #7) nên đổi thành quy tắc: agent tự review trong lượt chạy và chỉ merge khi mọi kiểm tra đã xong. Phương án loại: giữ skill và chờ (agent không có cách chờ đáng tin).
+
+### 2026-10-22 — Phát hành theo release-kit, không ghi thẳng vào `dev`
+CHANGELOG được dựng từ mục `## Changelog` của từng PR, nên mọi PR phải có mục này. Fix trong giai đoạn ổn định và hotfix cũng đi qua review; đưa `main` về `dev` là một PR thay vì push thẳng. Chế độ `quick` tạm tắt vì nó commit thẳng vào `dev`, cho đến khi plugin có tuỳ chọn đi qua PR. Phương án loại: sửa `CHANGELOG.md` bằng tay trong mỗi PR (xung đột giữa các nhánh song song).
 
 ### 2026-10-22 — Xoá nhánh ngay sau khi merge
 Nhánh đã merge để lại trên remote và local làm danh sách nhánh rối và dễ rebase nhầm. Người merge xoá nhánh remote sau khi xác nhận nó đã nằm trong `dev`; nhánh local xoá bằng `git branch -d` để git tự chặn nếu còn commit chưa merge. Phương án loại: `gh pr merge --delete-branch` (nó xoá luôn nhánh local và đổi checkout dùng chung giữa các agent).

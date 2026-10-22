@@ -21,7 +21,7 @@ Do not load `subagent-driven-development`, `dispatching-parallel-agents`, `reque
 
 - **Plan task (M/L):** the plan file in `docs/superpowers/plans/` and **one task number**; the requirement IDs the task serves (`PRD03-FR-04`, `PRD03-AC-07`), the PRD path, the technical design path and, for UI, the canvas board (read it with the Artifact tool's `read`, never publish).
 - **S-size work** (`docs/process/lifecycle.md` § Cỡ công việc): the bug or chore description, with reproduction for a bug, and the module documents if the module has any. No plan, PRD or technical design is required.
-- The branch to work on (`feature/*`, `fix/*` or `chore/*`, cut from `dev`).
+- The branch to work on: `feature/*`, `fix/*` or `chore/*` cut from `dev`; `fix/*` cut from `release/vX.Y.Z` for a stabilization fix; or `hotfix/*` cut from `main` (`docs/process/lifecycle.md` § Phát hành, ổn định và hotfix). The branch's base is where you rebase and where its PR goes.
 - Whether the user authorized push and PR (for a plan: once at plan approval; for S work: per PR).
 
 For a plan task, if the PRD or technical design is not **Approved**, stop and say so. For any task, if a requirement is missing, ambiguous or contradicts another document, stop and return the question. S work that turns out to need new user-visible behavior or an API change is no longer S: stop and say so. Never invent business behavior; technical ambiguity you settle yourself and note as your call.
@@ -56,7 +56,7 @@ Local commits per task on the branch you were given, following `AGENTS.md` § Co
 
 ## Push and PR
 
-Only when the brief states that the user authorized it (for this plan, or for this S work), and only after **all** tasks are done and `scripts/test-gate.sh` passes: push the branch and open one PR into `dev` (never `main`) with `gh pr create --base dev`, body listing the requirement IDs covered, a *Lệch nhỏ so với thiết kế* section (or "Không có"), the design and technical-design links, verification evidence paths, and the feature-map entry changed. Otherwise leave the branch local and say so.
+Only when the brief states that the user authorized it (for this plan, or for this S work), and only after **all** tasks are done and `scripts/test-gate.sh` passes: push the branch and open one PR into its base (`dev`, or `release/vX.Y.Z` for a stabilization fix; never `main` — a `hotfix/*` branch gets no PR from you, `git-release` opens it) with `gh pr create --base <base>`, body with a `## Changelog` section in the `release-kit:git-mr` format (`- Added|Changed|Deprecated|Removed|Fixed|Security: <one reader-facing sentence>`, or just `none` for internal changes), followed by another `## ` section — `git-release` builds the release CHANGELOG from it and reads it up to the next `## ` heading, so trailing free text (the attribution line) would make it invalid, listing the requirement IDs covered, a *Lệch nhỏ so với thiết kế* section (or "Không có"), the design and technical-design links, verification evidence paths, and the feature-map entry changed. Otherwise leave the branch local and say so.
 
 ## Review rounds
 
