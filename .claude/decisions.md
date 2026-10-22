@@ -10,6 +10,10 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-22 — git and gh run without prompts; a command-parsing guard catches accidental never-rule breaks
+
+Confirming every push and merge interrupted agent work, so the prompts were removed. Prefix deny rules miss other spellings, so a PreToolUse guard parses each command: pushes go only to work branches and tags, and unparseable git/gh is denied. It stops accidents, not deliberate obfuscation: variables, interpreters, wrappers, script files, aliases, `gh api`, `gh pr merge` into `main`, and hook or global-config edits pass, and it fails open if `bun` is missing or times out. Rejected: `ask` prompts; prefix rules alone.
+
 ### 2026-10-21 — Public files are served straight from storage; only `public/` is anonymously readable
 
 Streaming avatars through the API puts every image view on the app, and presigned URLs have no Local equivalent and defeat browser caching. All providers instead serve files from `PublicUrlBase`; the S3 providers get an anonymous-read policy scoped to `public/*`, so org-scoped files stay API-only. Cost: anything under `public/` is readable by anyone holding the URL, and `PublicUrlBase` must be browser-reachable per environment.
