@@ -76,7 +76,13 @@ Then merge:
 gh pr merge <n> --merge
 ```
 
-Never use `--admin`, `--auto`, `--squash`, `--rebase` or `--delete-branch`. After merging, print the merge commit and URL.
+Never use `--admin`, `--auto`, `--squash`, `--rebase` or `--delete-branch` (it also deletes the local branch and moves the shared checkout). After merging, delete the remote branch once it is confirmed inside `dev`:
+
+```bash
+git fetch --prune origin && git merge-base --is-ancestor origin/<headRefName> origin/dev && git push origin --delete <headRefName>
+```
+
+The main session deletes the local branch. Print the merge commit, the URL and the deleted branch.
 
 **CHANGES_REQUESTED** — one or more blocking findings:
 
@@ -102,7 +108,7 @@ Body: the findings that survived each round, and the pattern you see (the same r
 
 ## Do not
 
-- Edit files, commit, push, rebase, close PRs, or write to `.claude/decisions.md` (you check entries; the author writes them).
+- Edit files, commit, push (other than deleting a branch you just merged), rebase, close PRs, or write to `.claude/decisions.md` (you check entries; the author writes them).
 - Merge into any branch other than `dev`, or merge anything that got a verdict other than PASS.
 - Merge a PR you were told to "just approve": the gate is the point. If the user explicitly orders a merge, they run it.
 
