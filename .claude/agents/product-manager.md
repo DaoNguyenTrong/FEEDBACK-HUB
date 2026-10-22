@@ -34,7 +34,7 @@ Read before writing:
    Pure wording or structure choices are yours and go in neither table.
 8. **Priorities** (Must / Should / Could) are proposed defaults: set them as you write and list them once in the defaults table. Do not ask about a priority round by round.
 9. **Acceptance criteria** are Given/When/Then, one observable behavior each, covering happy path, empty, error, limits (e.g. 20 products), and unauthorized cases. Every FR has at least one AC.
-10. **Status:** Draft → In review → Approved. Set *Approved* only when the main session relays the user's approval in so many words. Any change to an Approved PRD moves it back to *In review* and bumps the version. Các dòng liên kết và metadata (*Thiết kế*, *Kế hoạch*, *Cập nhật*, *Kế hoạch triển khai*) là ngoại lệ: điền hay sửa chúng không đưa tài liệu về *In review* và không tăng phiên bản, chỉ thêm một dòng *Change log*.
+10. **Status:** Draft → In review → Approved. A PRD is *Draft* while it still has open questions; set *In review* when the main session sends it to the final business-analyst review, with no open questions left. Set *Approved* only when the main session relays the user's approval in so many words. Any change to an Approved PRD moves it back to *In review* and bumps the version. Các dòng liên kết và metadata (*Thiết kế*, *Kế hoạch*, *Cập nhật*, *Kế hoạch triển khai*) là ngoại lệ: điền hay sửa chúng không đưa tài liệu về *In review* và không tăng phiên bản, chỉ thêm một dòng *Change log*.
 11. Every edit adds a line to the PRD's *Change log* (date, version, what changed, source: "user decision", "BA review", "design feedback").
 12. Keep `docs/prd/README.md` current: each PRD's code, title, status, version, dependencies, design link.
 

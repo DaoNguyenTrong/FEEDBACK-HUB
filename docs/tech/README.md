@@ -7,7 +7,7 @@ Mỗi module một tài liệu, viết từ `_template.md` bởi agent `tech-lea
 1. **Soạn**: `tech-lead` soạn từ PRD, thiết kế giao diện và code hiện có; trả về câu hỏi mở, câu hỏi cho PRD và các quyết định cần ghi.
 2. **Câu hỏi nghiệp vụ** quay về `product-manager` để sửa PRD, không quyết ở đây.
 3. **Review bảo mật**: module nhạy cảm (định danh, token, cookie, phiên, link riêng, khoá công khai, mọi thứ lộ ra ẩn danh) qua `appsec` trước khi duyệt.
-4. **Duyệt**: người dùng duyệt; các quyết định trong §12 được duyệt cùng tài liệu, không cần duyệt riêng. Phiên chính commit tài liệu qua PR chỉ chứa tài liệu. Sửa tài liệu do lệch lớn khi triển khai (`docs/process/lifecycle.md` § Lệch thiết kế khi triển khai) đi chung PR với code.
+4. **Duyệt**: hết câu hỏi mở thì `tech-lead` đặt trạng thái *In review*; người dùng duyệt; các quyết định trong §12 được duyệt cùng tài liệu, không cần duyệt riêng. Phiên chính commit tài liệu qua PR chỉ chứa tài liệu. Sửa tài liệu do lệch lớn khi triển khai (`docs/process/lifecycle.md` § Lệch thiết kế khi triển khai) đi chung PR với code.
 5. **Kế hoạch triển khai**: `writing-plans` chia thành task, dẫn chiếu mã FR/AC của PRD và các mục của tài liệu này.
 
 Ngoại lệ về thứ tự: module nhạy cảm (PRD02) có thể viết tài liệu kỹ thuật sớm, song song với thiết kế giao diện.
