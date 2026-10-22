@@ -3,8 +3,8 @@
 | Mục | Giá trị |
 |---|---|
 | Mã | `PRD00` (tiền tố cho mọi mã trong tài liệu này) |
-| Trạng thái | Draft |
-| Phiên bản | 0.9 |
+| Trạng thái | Approved |
+| Phiên bản | 1.0 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-10-22 |
 | Phụ thuộc | Không có (mọi PRD khác phụ thuộc PRD này) |
@@ -615,7 +615,7 @@ Chỉ những điều người dùng phải quyết: làm đổi thứ được 
 
 ### Mặc định đề xuất
 
-Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả mức ưu tiên. Người dùng soát cả bảng một lần khi duyệt; điểm nào bị bác thì thành câu hỏi mở.
+Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả mức ưu tiên. Người dùng đã duyệt cả bảng cùng PRD ở v1.0 (2026-10-22).
 
 | # | Mặc định | Mã bị ảnh hưởng | Lý do |
 |---|---|---|---|
@@ -635,6 +635,7 @@ Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả
 | 2026-10-22 | 0.8 | Áp dụng câu 72–78 (74–78 từ review cuối của business-analyst); xác nhận điểm suy ra từ câu 63, 64; sửa B1, B2, N1, N6, N7 theo review; §13 hết câu hỏi mở | Quyết định của người dùng; BA review |
 | 2026-10-22 | 0.9 | Gọt theo phạm vi, quy trình PR #15. Chuyển sang §12 *Chuyển cho PRD khác* (33 mục, mỗi mục dẫn câu hỏi đã trả lời hoặc spec lõi) mọi quy tắc thuộc PRD01–PRD07; ma trận quyền giữ đủ dòng, dòng nào có chi tiết ở PRD khác thì dẫn tới PRD đó. Xoá hẳn, không đánh lại số: các mục đã đánh dấu Removed (US-13, US-16; FR-39–41, FR-43; BR-47, BR-48, BR-50; AC-42, AC-46–50, AC-94–104, AC-108–114) và các mục đã chuyển (US-10, US-12, US-19; FR-18, FR-19, FR-22, FR-32–34, FR-36, FR-47, FR-48, FR-50, FR-51, FR-55, FR-57, FR-58; BR-05, BR-08, BR-13, BR-14, BR-17, BR-35–38, BR-40, BR-42, BR-44, BR-46, BR-56, BR-61, BR-69–72; AC-13, AC-19, AC-37–39, AC-44, AC-45, AC-75–81, AC-84, AC-88, AC-89, AC-93, AC-137, AC-140, AC-149, AC-150, AC-162–169, AC-174, AC-175, AC-202–209, AC-212, AC-213, AC-216–222, AC-224, AC-227–240, AC-242). Rút gọn phần thuộc module khác trong §2, §3.1, §3.3, BR-06, BR-07, BR-11, BR-28–31, BR-49, BR-52, BR-54, FR-06, FR-13, FR-16, FR-21, FR-27–30, FR-46, AC-20, AC-23, AC-31, AC-34, AC-67, AC-69, AC-133, AC-141, AC-146, AC-148, AC-170, AC-188, AC-192, AC-244, AC-246; AC-36 trỏ về FR-14, AC-120 về FR-13, AC-214, AC-215, AC-223, AC-241 về FR-12. Viết lại §8–§11 theo phạm vi; gọn §14 thành một dòng mỗi phiên bản và một dòng mỗi câu hỏi. Thêm D1 (ưu tiên chưa được xác nhận riêng). Sửa dẫn chiếu, không đổi nghĩa: BR-24 (thêm "Nội dung email mời: PRD05"), BR-25 (feedback gốc dẫn PRD03 thay FR-18), BR-27 và BR-55 (ghi "người thực hiện là hệ thống" thay "lịch sử ghi…"; BR-55 bỏ dẫn BR-40), BR-41 (*Áp dụng cho* bỏ FR-22, FR-51), BR-58 (email dẫn PRD05 thay BR-54), FR-11 (thêm "người báo hay khách" và BR-06), FR-14 (thêm "với các ràng buộc của BR-25"), FR-35 (thêm BR-43). Vẫn Draft | Quy trình (PR #15) |
 | 2026-10-22 | 0.9 | Sửa theo review BA v0.9 (PR #16): thêm §12 PRD03 *Sửa đồng thời* (chưa quyết) mà §8 đã trỏ tới; khôi phục AC-216, AC-217, AC-239 (cùng mã, cùng nội dung v0.8, AC-239 viết thẳng phần Cho trước của AC-238 đã chuyển), nay dưới FR-12; ghi "Ưu tiên đã quyết: Must" cho các mục §12 từ FR-32, FR-33, FR-34, FR-36 (xác nhận ở v0.3); thêm §12 PRD05 *Sản phẩm chưa có Phụ trách* (câu 12); BR-26 nêu rõ mọi lần đổi trạng thái, kể cả tự động, ghi ai (hoặc "Hệ thống"), lúc nào, từ → sang, FR-14 và §11 dẫn tới; AC-07 bỏ "và lọc được" (thuộc PRD03); bổ sung các sửa dẫn chiếu vào dòng 0.9 trên. Giữ phiên bản 0.9, vẫn Draft, D1 không đổi | BA review |
+| 2026-10-22 | 1.0 | Người dùng duyệt PRD cùng bảng Mặc định đề xuất | Quyết định của người dùng |
 
 ### Quyết định của người dùng
 
