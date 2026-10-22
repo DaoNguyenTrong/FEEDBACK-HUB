@@ -3,9 +3,10 @@
 A hub that collects bug reports and feature requests from your products and tracks each one until it is closed. Instead of a chat message with no screenshot and no idea which device it came from, every report arrives with what IT needs to reproduce it.
 
 - **Embeddable web widget** — a loader script plus an iframe served by the Hub. It captures an annotatable screenshot, device, browser and screen details, the URL, console errors, failed requests and data the host product passes in, without leaking the host page's tokens or cookies. Colleagues and testers are recognised from their Hub session; customers can report as guests (optionally anonymous) and follow their report through a private link.
-- **Hub inbox** — each product has one or more owners who are notified (in-app, email, web push), triage, assign, comment (internal or to the reporter) and move feedback through its lifecycle: *Mới → Đã tiếp nhận → Đang xử lý → In review → Đã xử lý → Đóng*, plus *Cần thêm thông tin*, *Từ chối* and *Trùng lặp* (working names from the specs; PRD-00 fixes them).
+- **Hub inbox** — each product has one or more owners who are notified (in-app, email, web push), triage, assign, comment (internal or to the reporter) and move feedback through its lifecycle: *Mới → Đã tiếp nhận → Đang xử lý → In review → Đã xử lý → Đóng*, plus *Cần thêm thông tin*, *Từ chối* and *Trùng lặp* (working names from [the core design](docs/superpowers/specs/2026-10-21-feedback-hub-core-design.md); PRD-00 will fix them).
 - **Multi-tenant** — several organizations share one Hub with separate data; an account can belong to several organizations with a different role in each.
-- **Later:** periodic satisfaction surveys, a Flutter SDK, connectors (Plane, GitHub, GitLab) and AI triage.
+- **Satisfaction surveys** — periodic survey rounds with optionally anonymous answers and results ([surveys design](docs/superpowers/specs/2026-10-21-feedback-hub-surveys-design.md)).
+- **Later:** a Flutter SDK, connectors (Plane, GitHub, GitLab) and AI triage.
 
 **Status:** requirements stage. Each module gets a PRD (`docs/prd/`), a UI design and a technical design (`docs/tech/`) before it is built — see [the lifecycle](docs/process/lifecycle.md) and [per-module progress](docs/process/progress.md). No FeedbackHub-specific feature is implemented yet; the code today is the platform foundation below.
 
@@ -17,7 +18,7 @@ A hub that collects bug reports and feature requests from your products and trac
 - **ApiKey**, **AuditLog**, **Files** (local disk, provider pluggable via `IStorageProvider`), **SystemSettings**: all four require an active organization *and* the specific permission for it — there is no personal/org-less access and no global admin bypass.
 - **Notifications**: in-app (REST + real-time via SignalR), email, and optional Web Push (Firebase Cloud Messaging) — channels fan out through a Hangfire background job.
 
-No global admin role exists yet — outside of an organization ("personal" context) an account only has auth/profile/organization endpoints. FeedbackHub's own roles (*Quản trị*, *Phụ trách*, *Viewer*, *Người báo*, *Khách*) and the system-level admin that surveys need are defined in PRD-00 and PRD-07.
+No global admin role exists yet — outside of an organization ("personal" context) an account only has auth/profile/organization endpoints. FeedbackHub's own roles (*Quản trị*, *Phụ trách*, *Viewer*, *Người báo*, *Khách*) and the system-level admin that surveys need will be defined in PRD-00 and PRD-07; until then the working draft is the role table in [the core design](docs/superpowers/specs/2026-10-21-feedback-hub-core-design.md).
 
 ## Architecture
 
@@ -25,8 +26,8 @@ No global admin role exists yet — outside of an organization ("personal" conte
 backend/    .NET 10 API — Domain → Application → Infrastructure → API (src/, tests/, FeedbackHub.sln)
 frontend/   Vue 3 + Vite dashboard (src/api, src/stores, src/views, ...)
 shared/     openapi/ (shared contract — frontend generates its client/types from it)
-docs/       process/ (lifecycle, progress), prd/ (requirements), tech/ (technical designs), feature-map.md
-plans/      history of plan files from the starter-kit era (reference for patterns, not product documentation)
+docs/       process/ (lifecycle, progress), prd/ (requirements), tech/ (technical designs), superpowers/ (specs/ early designs, plans/ implementation plans), feature-map.md
+plans/      history of plan files from the starter-kit era (reference for patterns, not product documentation; new plans go in docs/superpowers/plans/)
 ```
 
 For layer/rule details for each part, see `AGENTS.md` and `.claude/rules/`. Work is done by Claude Code agents per stage (`.claude/agents/`); `AGENTS.md` § Software Lifecycle says who does what.
@@ -135,9 +136,9 @@ bun run --cwd frontend codegen
 
 ### CI
 
-Every PR into `dev`/`main`/`release/**` and every push to `dev` runs the test gate (`.github/workflows/ci.yml` → `test.yml`): backend tests plus an OpenAPI-export drift check, frontend formatting, type-check, import-boundary lint and unit tests. The release pipeline runs the same gate: a `v*` tag runs the tests, builds and pushes the production images, then creates the release (`.github/workflows/release.yml`; `.gitlab-ci.yml` is the same pipeline for a fork on GitLab). Protect `v*` tags — whoever can push one publishes images.
+Every PR into `dev`/`main`/`release/**` and every push to `dev` runs the test gate (`.github/workflows/ci.yml` → `test.yml`) in four jobs: `comments` (script tests and the comment-length check, always runs), `backend` (tests plus an OpenAPI-export drift check), `frontend` (formatting, type-check, import-boundary lint and unit tests) and `guide` (the user guide's format check, tests and build). CI runs only the jobs whose parts a change touches and counts a skipped job as passing. The release pipeline runs the same gate: a `v*` tag runs the tests, builds and pushes the production images, then creates the release (`.github/workflows/release.yml`; `.gitlab-ci.yml` is the same pipeline for a fork on GitLab). Protect `v*` tags — whoever can push one publishes images.
 
-For full details, see `.claude/rules/commands.md`.
+For full details, see `.claude/reference/ci-and-git-hooks.md`.
 
 ## Production (Docker)
 
