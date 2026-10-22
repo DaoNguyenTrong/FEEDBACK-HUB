@@ -89,17 +89,11 @@ QA stabilizes on `release/vX.Y.Z` from here. Bugs found during stabilization go 
 
 ### Phase 3 — Reconcile (on `dev`)
 
-4. After shipping, bring `main` back into `dev` through a PR (nothing is pushed to `dev` directly), so the stabilization fixes, the CHANGELOG section and the tag reach `dev`:
-
-   ```bash
-   git switch dev && git pull --ff-only
-   git switch -c chore/reconcile-main-vX.Y.Z && git merge origin/main
-   git push -u origin chore/reconcile-main-vX.Y.Z   # then a PR into dev; the user merges it
-   ```
+4. After shipping, `main` comes back into `dev` through a PR — nothing is pushed to `dev` directly (`devWrites: "pr"` in `.claude/release-kit.json`). `/git-release` opens a `chore/reconcile-main-vX.Y.Z` PR into `dev` at the end of the ship and never merges it; merge it with a merge commit, so the stabilization fixes, the CHANGELOG section and the tag reach `dev`.
 
 ### Quick release (on `dev`)
 
-Disabled in this project (`modes` in `.claude/release-kit.json`): `/git-release quick` commits the CHANGELOG section straight to `dev`, which the process forbids. Use the two-phase release above.
+For a small release that needs no stabilization window, `/git-release quick` on `dev` does it in one pass, without writing to `dev` directly: the CHANGELOG section goes through a `chore/release-vX.Y.Z-changelog` PR into `dev`, which you merge with `/git-accept` (`devMergeCommand`); then the skill runs the mandatory gate, opens and merges the `dev → main` PR after you confirm, tags `origin/main`, and opens the reconcile PR. There is no `release/vX.Y.Z` branch, so nothing gets QA'd on its own first; use the two-phase release whenever QA has to sign off.
 
 ## Hotfix Process
 
@@ -107,7 +101,7 @@ For an emergency production fix that can't wait for `dev`'s next `[Unreleased]` 
 
 1. Branch `hotfix/<name>` from `main`; the fix is made by `implementer` and reviewed by `code-reviewer` on `origin/main...hotfix/<name>`.
 2. `/git-release` on the hotfix branch handles the rest: it inserts the new `## [vX.Y.Z]` section directly above the previous release entry (**never** touching `dev`'s `[Unreleased]`), runs the mandatory test suite, PRs `hotfix/vX.Y.Z` → `main`, merges, and tags `origin/main`.
-3. Reconcile: bring `main` back into `dev` through a PR, as in Phase 3 above, so the fix and its CHANGELOG section reach `dev`. Keep the hotfix's `## [vX.Y.Z]` section above the previous release; leave `dev`'s `## [Unreleased]` untouched.
+3. Reconcile: `/git-release` opens the `main → dev` PR, as in Phase 3 above; so the fix and its CHANGELOG section reach `dev`. Keep the hotfix's `## [vX.Y.Z]` section above the previous release; leave `dev`'s `## [Unreleased]` untouched.
 
 ## Versioning (SemVer)
 

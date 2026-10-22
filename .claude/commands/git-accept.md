@@ -14,7 +14,7 @@ gh pr view --json number,state,baseRefName,headRefName,url,title
 
 Stop unless `state` is `OPEN`, `baseRefName` is `dev`, and `headRefName` starts with `feature/`, `fix/` or `chore/`. Report which condition failed.
 
-Then check the branch is rebased onto the latest `dev` (one PR at a time, `docs/process/lifecycle.md`): `git fetch origin dev && git merge-base --is-ancestor origin/dev origin/<headRefName>` must exit 0; otherwise stop and ask for a rebase. Also check the description has a `## Changelog` section (`gh pr view <number> --json body`) — usually just `none` for docs; missing → stop and ask for it.
+Then check the branch is rebased onto the latest `dev` (one PR at a time, `docs/process/lifecycle.md`): `git fetch origin dev && git merge-base --is-ancestor origin/dev origin/<headRefName>` must exit 0; otherwise stop and ask for a rebase. Also check the description has a `## Changelog` section (`gh pr view <number> --json body`) — usually just `none` for docs; missing → stop and ask for it. Exception: a `chore/release-vX.Y.Z-changelog` PR opened by `/git-release` (quick release, `devMergeCommand`) carries the release's own `## [vX.Y.Z]` section instead and needs none; its only changed file must be the CHANGELOG (and any `versionFiles`).
 
 ### 2. Scope gate
 
