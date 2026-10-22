@@ -4,8 +4,6 @@ An app starter kit for new web applications: .NET 10 Clean Architecture on the b
 
 This is **not** a finished product — no business features are baked in. Remove/replace whatever you don't need and add your own domain on top of this foundation.
 
-Starting a project from it? Rename it first — `scripts/rename.sh NewName`, then the fork checklist in [`RENAMING.md`](RENAMING.md).
-
 ## Already Included
 
 - **Auth**: email + password register/login (JWT access + refresh token, refresh token stored as a SHA-256 hash), mandatory email verification via SMTP, Google + Microsoft login (credential flow / MSAL popup), session management (list/revoke by device).
