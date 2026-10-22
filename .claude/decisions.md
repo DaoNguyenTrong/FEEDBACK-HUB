@@ -10,6 +10,10 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-22 — git and gh run without prompts; a command-parsing guard enforces the never-rules
+
+Confirming every push and merge interrupted agent work, so the prompts were removed. Prefix-matched deny rules then let other spellings of forbidden commands (flag order, `+refspec`, combined short flags) run silently, so a PreToolUse guard parses each command and denies the never-rules in any spelling. Rejected: keeping `ask` prompts (the friction this removes); prefix deny rules alone (bypassed by spelling). The guard is still client-side, not a hard control, as accepted on 2026-10-20.
+
 ### 2026-10-21 — Public files are served straight from storage; only `public/` is anonymously readable
 
 Streaming avatars through the API puts every image view on the app, and presigned URLs have no Local equivalent and defeat browser caching. All providers instead serve files from `PublicUrlBase`; the S3 providers get an anonymous-read policy scoped to `public/*`, so org-scoped files stay API-only. Cost: anything under `public/` is readable by anyone holding the URL, and `PublicUrlBase` must be browser-reachable per environment.
