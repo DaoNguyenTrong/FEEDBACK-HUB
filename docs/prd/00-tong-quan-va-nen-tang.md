@@ -1,0 +1,716 @@
+# PRD-00 — Tổng quan và nền tảng: thuật ngữ, vai trò và quyền, vòng đời trạng thái, tổ chức và sản phẩm
+
+| Mục | Giá trị |
+|---|---|
+| Mã | `PRD00` (tiền tố cho mọi mã trong tài liệu này) |
+| Trạng thái | Approved |
+| Phiên bản | 1.0 |
+| Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
+| Cập nhật | 2026-10-22 |
+| Phụ thuộc | Không có (mọi PRD khác phụ thuộc PRD này) |
+| Thiết kế | Chưa thiết kế riêng cho PRD này. Canvas đã duyệt trước PRD: https://claude.ai/artifact/21QUWu78AZFfwSxcaWmjQn — bảng *System* (màu trạng thái, loại, ưu tiên, nhãn "Khách", hai kiểu bình luận) dùng làm tham chiếu |
+| Kế hoạch | Chưa có |
+
+Tài liệu này là **nơi duy nhất** định nghĩa thuật ngữ (§3.1), vai trò (§3.2), ma trận quyền (§3.3) và vòng đời trạng thái feedback (§3.4), cùng tổ chức và thành viên. Các PRD khác dẫn chiếu, ví dụ `xem PRD-00 §3.2 Vai trò`, và chỉ bổ sung phần riêng của module. Cách một thao tác diễn ra (bình luận, trùng lặp, xoá feedback, email, chỉ số, khảo sát…) thuộc PRD sở hữu module đó; các quyết định đã có cho những phần này ghi ở §12 *Chuyển cho PRD khác*.
+
+## 1. Bối cảnh và vấn đề
+
+Hiện nay lỗi và yêu cầu tính năng được báo qua tin nhắn Zalo: không có ảnh chụp màn hình, không biết thiết bị hay trình duyệt, không có chỗ theo dõi. IT phải hỏi đi hỏi lại và feedback dễ bị trôi. Người báo là đồng nghiệp trong công ty và tester; ý kiến khách hàng thường đến gián tiếp qua họ. Team IT tiếp nhận; mỗi sản phẩm có một hoặc vài người phụ trách.
+
+FeedbackHub thay kênh đó bằng một widget gắn vào từng sản phẩm và một Hub nơi feedback được thông báo, phân công, xử lý và theo dõi đến khi đóng. Nhiều công ty dùng chung một Hub nên cần một nền chung, định nghĩa một lần: ai là ai, ai được làm gì, feedback đi qua những trạng thái nào và dữ liệu của mỗi tổ chức được tách riêng ra sao. Nền tảng hiện có (tài khoản, tổ chức, vai trò tự tạo từ danh mục quyền cố định, thông báo) chưa có khái niệm sản phẩm, feedback, vai trò theo sản phẩm hay admin cấp hệ thống.
+
+## 2. Mục tiêu, không phải mục tiêu, phản mục tiêu
+
+- **Mục tiêu**:
+  - Mọi PRD, thiết kế và tài liệu kỹ thuật dùng cùng một bộ thuật ngữ, vai trò, quyền và trạng thái.
+  - Mỗi người chỉ thấy và làm đúng phần việc của vai trò mình; dữ liệu của tổ chức này không bao giờ lộ sang tổ chức khác, kể cả với admin hệ thống (BR-21).
+  - Một tài khoản làm việc được ở nhiều tổ chức, với vai trò khác nhau ở mỗi nơi.
+  - Vòng đời feedback rõ ràng cho cả IT lẫn người báo: luôn biết feedback đang ở đâu và ai đang giữ bước tiếp theo.
+- **Không phải mục tiêu**:
+  - Màn hình và hành vi của quản lý sản phẩm, widget, hộp feedback, cổng người báo, thông báo, tổng quan, khảo sát: thuộc PRD01–PRD07 (các quyết định đã có: §12 *Chuyển cho PRD khác*).
+  - Gói trả phí, hạn mức, billing.
+  - Đồng bộ với công cụ ngoài (Plane, GitHub, GitLab), SDK Flutter, AI phân loại: để sau.
+  - Đổi cơ chế đăng nhập, đăng ký, phiên của nền tảng.
+- **Phản mục tiêu** (chạy đúng nhưng vẫn là thất bại nếu):
+  - Người báo hoặc khách thấy được feedback của người khác.
+  - Thành viên của tổ chức này, hay admin hệ thống, thấy dữ liệu bên trong một tổ chức mình không là thành viên (BR-21, BR-22).
+  - Quyền admin hệ thống cấp được từ bên trong Hub (BR-20).
+  - Một thao tác bị chặn trên giao diện nhưng vẫn làm được khi gọi thẳng vào hệ thống.
+  - Báo lỗi qua widget phiền hơn nhắn Zalo.
+- **Đo thành công** (chỉ số dùng chung, các PRD khác dẫn về đây; định nghĩa đầy đủ và cách tính: PRD06, xem §12):
+  - **Khảo sát hài lòng định kỳ** của người dùng Hub (PRD07).
+  - **Tỉ lệ feedback từng vào *Cần thêm thông tin***. Càng thấp càng tốt: feedback đến đủ ngữ cảnh.
+  - **Thời gian đến lần xử lý đầu tiên** (§3.1 *Xử lý lần đầu*), tính bằng trung vị.
+  - **Danh sách cần chú ý** (§3.1) càng ngắn càng tốt.
+
+## 3. Người dùng và vai trò
+
+### 3.1 Thuật ngữ
+
+| Thuật ngữ | Nghĩa |
+|---|---|
+| Hub | Ứng dụng web FeedbackHub nơi thành viên tổ chức xem, xử lý và theo dõi feedback. |
+| Tài khoản | Tài khoản đăng nhập Hub của một người. Một tài khoản thuộc được nhiều tổ chức. |
+| Tổ chức | Một công ty hoặc đơn vị dùng Hub. Dữ liệu (sản phẩm, feedback, nhãn, vai trò) của mỗi tổ chức tách biệt hoàn toàn với các tổ chức khác. Về một tổ chức, admin hệ thống chỉ thấy tên, số thành viên, dấu hiệu đã vô hiệu và kết quả khảo sát theo PRD07 (BR-21), ngoài feedback chính mình gửi với tư cách khách, như mọi tài khoản (BR-06). |
+| Thành viên | Tài khoản đang hoạt động trong một tổ chức. Thành viên bị gỡ khỏi tổ chức không còn là thành viên. |
+| Định danh ngắn | Mã viết thường của một tổ chức, duy nhất toàn Hub, đặt khi tạo tổ chức và không bao giờ đổi, kể cả khi đổi tên tổ chức; không ai sửa được (BR-65). |
+| Tổ chức đang làm việc | Tổ chức mà phiên làm việc của người dùng đang ở trong đó. Mỗi phiên có tối đa một tổ chức đang làm việc; người dùng tự chuyển được. |
+| Bộ chọn tổ chức | Nơi người dùng thấy các tổ chức mình là thành viên và chuyển tổ chức đang làm việc, không phải đăng nhập lại (FR-03). Chỉ có tổ chức mình là thành viên (AC-05); tổ chức đang bị vô hiệu vẫn hiện, làm mờ kèm nhãn tạm ngừng, không chọn được (BR-64). Có cả ở trang chào khi tài khoản có tổ chức đang hoạt động (BR-68). |
+| Ngữ cảnh cá nhân | Phiên làm việc không có tổ chức đang làm việc (nền tảng đã có). Trong ngữ cảnh này người dùng luôn thấy trang chào, kèm bộ chọn tổ chức nếu họ có tổ chức đang hoạt động (BR-68). |
+| Trang chào | Màn hình của ngữ cảnh cá nhân (BR-68): lựa chọn tạo tổ chức hoặc chờ được thêm; kèm bộ chọn tổ chức khi tài khoản có tổ chức đang hoạt động; kèm lời giải thích khi mọi tổ chức của mình đang bị vô hiệu (BR-64). Tài khoản chưa thuộc tổ chức nào luôn thấy màn hình này (BR-32). |
+| Vai trò tổ chức | Gói quyền gán cho thành viên trong một tổ chức. Nền tảng có sẵn ba vai trò hệ thống: *Chủ sở hữu* (Owner, có mọi quyền), *Admin* (quyền quản lý thành viên và quyền Quản trị FeedbackHub), *Member* (không có quyền nào); vai trò hệ thống không sửa, không xoá được (BR-60). Tổ chức tạo thêm vai trò tự tạo từ một danh mục quyền cố định. |
+| Quyền Quản trị FeedbackHub | Quyền trong danh mục quyền cố định; thành viên có quyền này là Quản trị (BR-18). |
+| Quyền quản lý thành viên | Quyền sẵn có của nền tảng để thêm, gỡ thành viên, đổi vai trò tổ chức, gửi và thu hồi lời mời (BR-19), trong giới hạn chống leo thang quyền (BR-58). |
+| Quyền quản lý vai trò | Quyền sẵn có của nền tảng để tạo, sửa, xoá vai trò tự tạo của tổ chức (BR-60), trong giới hạn chống leo thang quyền (BR-58). |
+| Quyền quản lý tổ chức | Quyền sẵn có của nền tảng để quản lý chính tổ chức: đổi tên tổ chức (BR-65) và vô hiệu tổ chức (BR-52). |
+| Các quyền nền tảng khác | Bốn quyền sẵn có của nền tảng ngoài các quyền trên: quản lý khoá API, xem nhật ký kiểm toán, quản lý file, quản lý cài đặt. Không quyền nào mở đường tới feedback ngoài ma trận quyền (BR-59). |
+| Chống leo thang quyền | Quy tắc chung cho mọi thao tác cấp hoặc gỡ quyền: chỉ Chủ sở hữu động tới vai trò Chủ sở hữu, không ai cấp được quyền mình không có (BR-58). |
+| Lời mời | Email mời một người vào một tổ chức với một vai trò tổ chức đã chọn, dù email đó đã có tài khoản Hub hay chưa; hết hạn sau 7 ngày, thu hồi được (BR-24, BR-63). Khác với *lời mời khảo sát*. |
+| Vô hiệu tổ chức | Tạm ngừng toàn bộ hoạt động của một tổ chức (BR-31); dữ liệu giữ nguyên. Ngược lại là *kích hoạt lại*, chỉ admin hệ thống làm được (BR-49). |
+| Người vận hành máy chủ | Người quản trị máy chủ chạy Hub, đứng ngoài Hub. Là người duy nhất chỉ định được admin hệ thống (BR-20). |
+| Sản phẩm | Một ứng dụng hoặc website của tổ chức có gắn widget. Mỗi sản phẩm thuộc đúng một tổ chức. Sản phẩm chỉ lưu trữ được, không xoá hẳn (§3.3). Quản lý sản phẩm: PRD01. |
+| Vai trò theo sản phẩm | Vai trò của một thành viên đối với một sản phẩm cụ thể: *Phụ trách* hoặc *Viewer* (§3.2); tối đa một vai trò mỗi người mỗi sản phẩm (BR-03). |
+| Widget | Nút nổi và hộp gửi feedback gắn vào trang của sản phẩm. Chi tiết: PRD02. |
+| Khoá công khai | Mã định danh sản phẩm nằm trong đoạn mã nhúng widget. Chỉ cho phép gửi feedback vào đúng sản phẩm đó, không phải mật khẩu hay bí mật. Chi tiết: PRD01. |
+| Domain được phép | Danh sách tên miền nơi widget của sản phẩm được phép chạy. Chi tiết: PRD01. |
+| Chế độ khách | Tuỳ chọn theo từng sản phẩm, cho phép người không phải thành viên gửi feedback. Chi tiết: PRD02. |
+| Feedback | Một báo cáo gửi qua widget: loại, tiêu đề, mô tả, ảnh, file, ngữ cảnh kỹ thuật, trạng thái, ưu tiên, người được giao, nhãn, bình luận, lịch sử. |
+| Mã feedback | Mã ngắn để gọi tên một feedback, ví dụ `FB-129`: tiền tố `FB-` và một số tăng dần theo tổ chức, dùng chung cho mọi sản phẩm của tổ chức. Chi tiết: PRD03. |
+| Loại | Phân loại feedback: *Lỗi*, *Tính năng*, *Góp ý* (tên: BR-41). Người báo chọn khi gửi (PRD02); Phụ trách và Quản trị sửa được (§3.3). |
+| Trạng thái | Vị trí của feedback trong vòng đời (§3.4). |
+| In review | **Trong sản phẩm**, luôn là trạng thái feedback "đã sửa, chờ kiểm tra lại" (§3.4). Không nhầm với trạng thái *In review* của tài liệu PRD trong quy trình nội bộ. |
+| Ưu tiên | Mức độ gấp do IT đặt: *Cao*, *Trung bình*, *Thấp*; mặc định chưa đặt (BR-41). Người báo và khách không thấy (BR-07). Chi tiết: PRD03. |
+| Người được giao | Một người trong số Phụ trách của sản phẩm, chịu trách nhiệm chính cho một feedback. Có thể để trống (*Chưa giao*). Quy tắc giao việc: PRD03. |
+| Nhãn | Thẻ tự do theo tổ chức, gắn lên feedback để lọc và nhóm. Chi tiết: PRD03. |
+| Người báo | Thành viên tổ chức đã gửi một feedback (§3.2). |
+| Khách | Người gửi feedback mà không phải thành viên của tổ chức sở hữu sản phẩm (§3.2). |
+| Link riêng | Đường link khó đoán gửi qua email cho khách, mở trang theo dõi đúng một feedback. Thu hồi được, hết hạn. Chi tiết: PRD04. |
+| Bình luận nội bộ | Bình luận chỉ team trong tổ chức thấy; người báo và khách không bao giờ thấy. |
+| Bình luận gửi người báo | Bình luận người báo (hoặc khách) thấy và được thông báo. |
+| Bình luận lưu lý do | Bình luận gửi người báo chứa lý do của một lần đổi trạng thái: *Từ chối* (BR-28), *chưa đạt* hoặc đưa feedback từ In review về *Đang xử lý* (BR-11), mở lại (BR-29). Không ai sửa hay xoá được (§3.3); chi tiết: PRD03. |
+| Ngữ cảnh kỹ thuật | Thông tin widget tự thu lúc gửi: thiết bị, trình duyệt, màn hình, URL, lỗi console, request lỗi, dữ liệu sản phẩm truyền vào. Chi tiết: PRD02. |
+| Trùng lặp / feedback gốc | Feedback đã được báo trước đó; bản trùng gắn với một feedback gốc cùng sản phẩm. Chi tiết: PRD03. |
+| Lịch sử | Bản ghi mọi thay đổi trạng thái và thuộc tính của feedback: ai, lúc nào, từ giá trị nào sang giá trị nào. Chi tiết: PRD03. |
+| Xoá hẳn | Xoá không khôi phục được. Chỉ áp dụng cho feedback, do Quản trị (§3.3); chi tiết: PRD03. Sản phẩm không xoá hẳn được, chỉ lưu trữ (PRD01). |
+| Xử lý lần đầu | Lần đầu một người chuyển feedback ra khỏi *Mới*, sang bất kỳ trạng thái nào; tính một lần cho mỗi feedback. Dùng cho chỉ số: PRD06. |
+| Hộp feedback | Màn hình danh sách và bảng feedback cho IT. Chi tiết: PRD03. |
+| Feedback của tôi | Màn hình người báo xem feedback mình đã gửi. Chi tiết: PRD04. |
+| Tổng quan | Màn hình số liệu theo sản phẩm. Chi tiết: PRD06. |
+| Danh sách cần chú ý | Các feedback chưa được xử lý lần đầu sau 24 giờ lịch kể từ lúc gửi. Chi tiết: PRD06. |
+| Admin hệ thống | Người vận hành Hub, đứng ngoài mọi tổ chức, do người vận hành máy chủ chỉ định (BR-20). Chỉ có quyền cấp hệ thống: xem danh sách tổ chức (tên, số thành viên, dấu hiệu đã vô hiệu), chạy khảo sát và xem kết quả (PRD07), vô hiệu và kích hoạt lại tổ chức; không truy cập dữ liệu bên trong tổ chức nào (BR-21), ngoài feedback chính mình gửi với tư cách khách, như mọi tài khoản (BR-06). |
+| Đợt khảo sát | Một lần khảo sát hài lòng về Hub do admin hệ thống mở cho các tổ chức được chọn. Chi tiết: PRD07. |
+| Lời mời khảo sát | Lời mời trả lời một đợt khảo sát, gửi theo tài khoản tới thành viên của các tổ chức được chọn. Không phải lời mời vào tổ chức. Chi tiết: PRD07. |
+
+### 3.2 Vai trò
+
+| Vai trò | Cấp | Là ai | Phạm vi nhìn thấy | Nguồn |
+|---|---|---|---|---|
+| **Quản trị** | Tổ chức | Thành viên có quyền Quản trị FeedbackHub (BR-18): Chủ sở hữu luôn có, vai trò Admin có sẵn, Member không có, vai trò tự tạo có khi tổ chức thêm quyền này | Mọi sản phẩm và feedback của tổ chức, không cần được gán | Spec lõi §5; quyết định 2026-10-22 |
+| **Phụ trách** | Theo sản phẩm | Thành viên được Quản trị gán Phụ trách cho một sản phẩm; một người phụ trách được nhiều sản phẩm | Mọi feedback của các sản phẩm mình phụ trách | Spec lõi §5 |
+| **Viewer** | Theo sản phẩm | Thành viên được gán Viewer cho một sản phẩm | Mọi feedback của các sản phẩm mình được gán, kể cả bình luận nội bộ, và Tổng quan của các sản phẩm đó; chỉ đọc, trừ feedback chính mình gửi, nơi Viewer có đủ quyền người báo (BR-62) | Spec lõi §5; quyết định 2026-10-22 |
+| **Người báo** | Tổ chức | Mọi thành viên của tổ chức, với feedback do chính mình gửi | Chỉ feedback chính mình gửi | Spec lõi §5 |
+| **Khách** | Không thuộc tổ chức | Người không có tài khoản trong tổ chức sở hữu sản phẩm, kể cả người đã đăng nhập Hub nhưng thuộc tổ chức khác | Chỉ feedback mình gửi, qua link riêng; về tổ chức chỉ thấy tên sản phẩm, không thấy tên hay cách liên hệ của ai trong tổ chức (BR-06) | Spec lõi §5, §9; quyết định 2026-10-22 |
+| **Admin hệ thống** | Hệ thống | Người vận hành Hub, do người vận hành máy chủ chỉ định, không cấp được qua Hub (BR-20) | Danh sách mọi tổ chức (tên, số thành viên, dấu hiệu đã vô hiệu) và khảo sát, kể cả kết quả (PRD07); vô hiệu, kích hoạt lại tổ chức (BR-49). Không thấy sản phẩm, feedback, thành viên hay cài đặt của tổ chức nào (BR-21), trừ trường hợp khách dưới đây. Ở tổ chức đã thêm họ làm thành viên, họ làm việc đúng như thành viên đó (BR-53). Gửi feedback qua widget của tổ chức mình không là thành viên thì là khách trên feedback đó, như mọi tài khoản (BR-06) | Spec khảo sát §3; quyết định 2026-10-22 |
+
+Quy tắc kết hợp vai trò: §6 (BR-01 đến BR-04, BR-06, BR-07, BR-09, BR-12, BR-18 đến BR-22, BR-49, BR-52, BR-53, BR-58 đến BR-60, BR-62).
+
+### 3.3 Ma trận quyền
+
+Ký hiệu: **✓** được làm · **—** không được · **R** chỉ xem. "Của mình" = feedback chính người đó gửi (hoặc, ở dòng bình luận, bình luận chính người đó viết). Quản trị có mọi quyền của Phụ trách trên mọi sản phẩm của tổ chức. Viewer trên feedback chính mình gửi có đủ quyền người báo (BR-62). **BR-19** ở một ô: thao tác đi theo quyền quản lý thành viên của nền tảng, không theo vai trò ở cột; **BR-52** và **BR-65**: tương tự, theo quyền quản lý tổ chức; **BR-60**: theo quyền quản lý vai trò; **BR-59**: theo bốn quyền nền tảng khác (§3.1). Mọi thao tác cấp hoặc gỡ quyền còn theo **BR-58** (chống leo thang quyền). Cột Admin hệ thống chỉ ghi quyền cấp hệ thống (BR-21): ở mọi tổ chức họ không là thành viên, admin hệ thống không thấy và không làm được gì bên trong tổ chức, trừ tư cách khách dưới đây. Ở tổ chức đã thêm họ làm thành viên, họ có đúng quyền của vai trò mình ở đó như mọi thành viên, không theo cột này (BR-53). **Admin hệ thống gửi feedback qua widget của tổ chức mình không là thành viên thì là khách trên feedback đó (BR-06): với feedback đó họ có đúng quyền ở cột Khách**, như mọi tài khoản. Ô ghi "như mọi tài khoản" hoặc "như mọi thành viên" là thao tác đi theo tài khoản, tư cách khách hoặc tư cách thành viên của người đó, không phải quyền admin hệ thống. **Dòng có ghi một PRD khác**: ma trận chỉ chốt ai được làm; cách thao tác diễn ra và các điều kiện của nó thuộc PRD đó (các quyết định đã có: §12).
+
+| Thao tác | Quản trị | Phụ trách | Viewer | Người báo | Khách | Admin hệ thống |
+|---|---|---|---|---|---|---|
+| **Hệ thống** | | | | | | |
+| Cấp, bỏ quyền admin hệ thống | — | — | — | — | — | — (chỉ người vận hành máy chủ, BR-20) |
+| Xem danh sách mọi tổ chức của Hub: tên, số thành viên, dấu hiệu đã vô hiệu (BR-21, BR-49) | — | — | — | — | — | ✓ |
+| **Tổ chức** | | | | | | |
+| Tạo tổ chức mới (mọi tài khoản đã xác minh email, BR-23) | ✓ | ✓ | ✓ | ✓ | ✓ nếu có tài khoản Hub | như mọi tài khoản |
+| Đổi tên tổ chức | BR-65 | BR-65 | BR-65 | BR-65 | — | — |
+| Thêm, gỡ thành viên tổ chức, đổi vai trò tổ chức | BR-19, BR-58 | BR-19, BR-58 | BR-19, BR-58 | BR-19, BR-58 | — | — (kể cả tự thêm mình, BR-53) |
+| Gán, gỡ vai trò Chủ sở hữu, kể cả qua lời mời; gỡ khỏi tổ chức một thành viên đang là Chủ sở hữu | chỉ Chủ sở hữu (BR-58) | chỉ Chủ sở hữu (BR-58) | chỉ Chủ sở hữu (BR-58) | chỉ Chủ sở hữu (BR-58) | — | — |
+| Gửi, thu hồi lời mời qua email | BR-19, BR-58 | BR-19, BR-58 | BR-19, BR-58 | BR-19, BR-58 | — | — |
+| Tạo, sửa, xoá vai trò tự tạo | BR-60, BR-58 | BR-60, BR-58 | BR-60, BR-58 | BR-60, BR-58 | — | — |
+| Sửa, xoá vai trò hệ thống (Chủ sở hữu, Admin, Member) | — | — | — | — | — | — (BR-60) |
+| Quản lý khoá API, file, cài đặt; xem nhật ký kiểm toán | BR-59 | BR-59 | BR-59 | BR-59 | — | — |
+| Chuyển tổ chức đang làm việc (giữa các tổ chức mình là thành viên) | ✓ | ✓ | ✓ | ✓ | — | như mọi tài khoản (BR-53); không vào được tổ chức mình không là thành viên |
+| Vô hiệu tổ chức | BR-52 | BR-52 | BR-52 | BR-52 | — | ✓ kèm lý do (BR-49, BR-54) |
+| Kích hoạt lại tổ chức đã vô hiệu | — | — | — | — | — | ✓ (BR-49) |
+| **Sản phẩm** | | | | | | |
+| Tạo, sửa sản phẩm và cấu hình widget (PRD01) | ✓ | — | — | — | — | — |
+| Lưu trữ sản phẩm; không ai xoá hẳn được sản phẩm (PRD01) | ✓ | — | — | — | — | — |
+| Gán, bỏ Phụ trách và Viewer (BR-03; màn hình: PRD01) | ✓ | — | — | — | — | — |
+| **Feedback: xem** | | | | | | |
+| Xem hộp feedback (PRD03) | ✓ mọi sản phẩm | ✓ sản phẩm được gán | ✓ sản phẩm được gán | — | — | — |
+| Xem chi tiết feedback, ảnh, file | ✓ | ✓ | R | R của mình | R của mình, qua link riêng | như mọi tài khoản (khách, BR-06) |
+| Xem ngữ cảnh kỹ thuật | ✓ | ✓ | R | R của mình | — | — |
+| Xem ưu tiên, người được giao, lịch sử giao việc và đổi ưu tiên | ✓ | ✓ | R | — | — | — |
+| Xem trạng thái và lịch sử đổi trạng thái | ✓ | ✓ | R | R của mình | R của mình | như mọi tài khoản (khách, BR-06) |
+| Xem bình luận gửi người báo | ✓ | ✓ | R | R của mình | R của mình | như mọi tài khoản (khách, BR-06) |
+| Xem bình luận nội bộ | ✓ | ✓ | R | — | — | — |
+| Xem đầy đủ email, điện thoại của khách (PRD03) | ✓ ở chi tiết; danh sách che | ✓ ở chi tiết; danh sách che | — (chỉ bản che) | — | — | — |
+| Xem Tổng quan (PRD06) | ✓ | ✓ | R sản phẩm được gán | — | — | — |
+| Xem "Feedback của tôi" (PRD04) | ✓ | ✓ | ✓ | ✓ | — | như mọi thành viên (BR-53) |
+| **Feedback: thao tác** | | | | | | |
+| Gửi feedback qua widget (PRD02) | ✓ | ✓ | ✓ | ✓ mọi sản phẩm của tổ chức | ✓ khi sản phẩm bật chế độ khách | như mọi tài khoản (BR-06) |
+| Đổi trạng thái, giữa mọi trạng thái (§3.4, BR-25; từ In review về *Đang xử lý* phải kèm lý do, BR-11) | ✓ | ✓ | chỉ hai thao tác dưới, của mình (BR-62) | chỉ hai thao tác dưới | chỉ hai thao tác dưới | như mọi tài khoản (khách, BR-06) |
+| Kết thúc In review (đạt / chưa đạt kèm lý do) | ✓ | ✓ | ✓ của mình (BR-62) | ✓ của mình | ✓ của mình, qua link riêng | như mọi tài khoản (khách, BR-06) |
+| Mở lại khi *Đã xử lý* | ✓ | ✓ | ✓ của mình, kèm lý do (BR-62) | ✓ của mình, kèm lý do | ✓ của mình, qua link riêng, kèm lý do | như mọi tài khoản (khách, BR-06) |
+| Đổi loại, ưu tiên, gắn nhãn (PRD03) | ✓ | ✓ | — | — | — | — |
+| Giao việc (PRD03) | ✓ | ✓ | — | — | — | — |
+| Đánh dấu trùng lặp (PRD03) | ✓ | ✓ | — | — | — | — |
+| Viết bình luận nội bộ | ✓ | ✓ | — | — | — | — |
+| Viết bình luận gửi người báo | ✓ | ✓ | — | — | — | — |
+| Bình luận, bổ sung trên feedback của mình (trừ khi *Đóng* / *Từ chối* / *Trùng lặp*) | dùng hai dòng trên; bình luận gửi người báo tính là trả lời của người báo, bình luận nội bộ thì không (BR-12) | dùng hai dòng trên; bình luận gửi người báo tính là trả lời của người báo, bình luận nội bộ thì không (BR-12) | ✓ (BR-62) | ✓ | ✓ qua link riêng | như mọi tài khoản (khách, BR-06) |
+| Sửa bình luận của chính mình; không ai sửa bình luận của người khác hay bình luận lưu lý do (PRD03) | ✓ | ✓ | ✓ (BR-62), trừ khi *Đóng* / *Từ chối* / *Trùng lặp* | ✓, trừ khi *Đóng* / *Từ chối* / *Trùng lặp* | ✓ qua link riêng, trừ khi *Đóng* / *Từ chối* / *Trùng lặp* | như mọi tài khoản (khách, BR-06) |
+| Xoá bình luận (PRD03) | ✓ mọi bình luận, kể cả của mình, trừ bình luận lưu lý do | — | — | — | — | — |
+| Xoá hẳn feedback (điều kiện: PRD03) | ✓ | — | — | — | — | — |
+| Tạo, sửa, xoá nhãn của tổ chức (PRD03) | ✓ | ✓ | — | — | — | — |
+| Thu hồi link riêng của khách (PRD04) | ✓ | ✓ | — | — | — | — |
+| **Khảo sát** (PRD07) | | | | | | |
+| Tạo, mở, đóng đợt khảo sát; chọn tổ chức nhận; xem kết quả (BR-16, BR-21) | — | — | — | — | — | ✓ |
+| Trả lời khảo sát | ✓ | ✓ | ✓ | ✓ | — | như mọi thành viên của tổ chức được chọn (BR-53) |
+
+### 3.4 Vòng đời trạng thái
+
+| Trạng thái | Nghĩa | Ai giữ bước tiếp theo |
+|---|---|---|
+| Mới | Vừa gửi, chưa ai xem xét | Phụ trách |
+| Đã tiếp nhận | IT đã xem và nhận xử lý | Phụ trách |
+| Cần thêm thông tin | IT cần người báo bổ sung | Người báo / khách |
+| Đang xử lý | Đang sửa hoặc làm | Người được giao |
+| In review | Đã sửa, chờ kiểm tra lại (không bắt buộc) | Phụ trách hoặc người báo |
+| Đã xử lý | Đã xong; người báo còn mở lại được trong 7 ngày trước khi tự đóng | Người báo (nếu chưa ổn) |
+| Đóng | Kết thúc | — |
+| Từ chối | Không làm (có lý do) | — |
+| Trùng lặp | Đã có feedback gốc | Theo feedback gốc |
+
+Luồng chính (spec lõi §6):
+
+```
+Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review ──► Đã xử lý ──► Đóng (tay, hoặc tự đóng sau 7 ngày)
+ │           │                ▲    ▲         │              │
+ │           │                │    └─────────┘ chưa đạt     │ người báo mở lại
+ │           │                └─────────────────────────────┘ (về Đang xử lý)
+ │           └──► Cần thêm thông tin ──(người báo trả lời → về trạng thái trước)
+ └──► Từ chối (kèm lý do)  /  Trùng lặp (gắn feedback gốc)
+```
+
+- Phụ trách chuyển thẳng được *Đang xử lý* → *Đã xử lý*, bỏ qua In review.
+- Sơ đồ là luồng chính, không phải ràng buộc cứng: Phụ trách và Quản trị chuyển được giữa mọi trạng thái, kể cả mở lại từ *Đóng*, *Từ chối*, *Trùng lặp* (BR-25). Ràng buộc riêng của từng chuyển: BR-25.
+- Người báo và khách chỉ có hai thao tác đổi trạng thái: kết thúc In review và mở lại khi *Đã xử lý* (BR-09).
+- Chỉ có hai chuyển tự động: rời *Cần thêm thông tin* khi người báo hoặc khách trả lời (BR-12), và tự đóng sau 7 ngày (7×24 giờ lịch) ở *Đã xử lý* (BR-27).
+
+## 4. User story
+
+| Mã | Là… | Tôi muốn… | Để… | Ưu tiên |
+|---|---|---|---|---|
+| PRD00-US-01 | thành viên của nhiều tổ chức | chuyển giữa các tổ chức mình thuộc về | chỉ thấy và làm việc với dữ liệu của tổ chức đang chọn | Must |
+| PRD00-US-02 | Quản trị | thấy mọi sản phẩm và feedback của tổ chức, gán Phụ trách và Viewer cho từng sản phẩm | mỗi sản phẩm có đúng người nhận và xử lý feedback | Must |
+| PRD00-US-03 | Phụ trách | chỉ thấy và xử lý feedback của các sản phẩm mình phụ trách | tập trung vào việc của mình | Must |
+| PRD00-US-04 | Viewer | đọc feedback của sản phẩm được gán mà không thay đổi được gì | theo dõi tình hình mà không làm xáo trộn việc của IT | Must |
+| PRD00-US-05 | người báo | chỉ thấy feedback mình đã gửi và trạng thái của chúng | biết feedback của mình đang ở đâu mà không phải hỏi | Must |
+| PRD00-US-06 | khách | theo dõi feedback mình gửi qua link riêng mà không cần tài khoản | biết kết quả và trả lời khi IT hỏi | Must |
+| PRD00-US-07 | Quản trị của một tổ chức | chắc chắn thành viên tổ chức khác không thấy dữ liệu của mình | dùng chung Hub mà vẫn an toàn | Must |
+| PRD00-US-08 | bất kỳ ai dùng Hub | thấy cùng một bộ trạng thái với cùng một nghĩa | hiểu feedback đang ở bước nào và ai giữ bước tiếp theo | Must |
+| PRD00-US-09 | người báo hoặc Phụ trách | xác nhận bản sửa ở bước In review là đạt hay chưa | feedback chỉ coi là xong khi đã kiểm tra lại | Must |
+| PRD00-US-11 | admin hệ thống | có vai trò riêng đứng trên các tổ chức | chạy khảo sát hài lòng trên nhiều tổ chức (PRD07) | Should |
+| PRD00-US-14 | người quản lý thành viên của tổ chức | mời đồng nghiệp, tester chưa có tài khoản qua email | họ bắt đầu dùng widget mà không phải tự đăng ký rồi chờ được thêm | Should |
+| PRD00-US-15 | Phụ trách | feedback đã xử lý tự đóng khi không ai mở lại | hộp feedback không tích tụ feedback *Đã xử lý* | Should |
+| PRD00-US-17 | admin hệ thống | xem danh sách các tổ chức (tên, số thành viên), vô hiệu và kích hoạt lại tổ chức | vận hành Hub mà không chạm vào dữ liệu bên trong tổ chức nào | Must |
+| PRD00-US-18 | người quản lý thành viên của tổ chức | thêm admin hệ thống làm thành viên khi cần họ giúp, và họ chỉ làm được đúng vai trò mình gán | nhận hỗ trợ mà không phải mở dữ liệu cho người ngoài tổ chức | Should |
+| PRD00-US-20 | người có quyền quản lý tổ chức | đổi tên tổ chức | tên hiển thị trong Hub luôn đúng tên hiện tại của công ty | Should |
+| PRD00-US-21 | Chủ sở hữu của một tổ chức | chắc chắn không ai tự nâng quyền của mình, tự thành Chủ sở hữu hay cấp cho người khác quyền mà chính họ không có | phân quyền cho người quản lý thành viên mà không mất kiểm soát tổ chức | Must |
+
+## 5. Yêu cầu chức năng
+
+| Mã | Yêu cầu | Story | Ưu tiên |
+|---|---|---|---|
+| PRD00-FR-01 | Hệ thống phải gắn mọi sản phẩm, feedback, nhãn và vai trò theo sản phẩm với đúng một tổ chức, và không cho ai ngoài tổ chức đó xem hay sửa chúng, trừ ngoại lệ khách qua link riêng ghi trong ma trận quyền; quyền admin hệ thống không mở ngoại lệ nào (BR-21), admin hệ thống chỉ thấy feedback chính mình gửi với tư cách khách, như mọi tài khoản (BR-06). | US-07 | Must |
+| PRD00-FR-02 | Hệ thống phải cho một tài khoản là thành viên của nhiều tổ chức, với vai trò tổ chức và vai trò theo sản phẩm riêng ở từng tổ chức. | US-01 | Must |
+| PRD00-FR-03 | Hệ thống phải cho mỗi phiên làm việc có tối đa một tổ chức đang làm việc, và cho người dùng chuyển sang tổ chức khác mình là thành viên mà không phải đăng nhập lại. | US-01 | Must |
+| PRD00-FR-04 | Hệ thống phải giới hạn hộp feedback, quản lý sản phẩm, Tổng quan và "Feedback của tôi" vào dữ liệu của tổ chức đang làm việc. | US-01, US-07 | Must |
+| PRD00-FR-05 | Hệ thống phải cho Quản trị thấy mọi sản phẩm và feedback của tổ chức mà không cần được gán vào sản phẩm. | US-02 | Must |
+| PRD00-FR-06 | Hệ thống phải chỉ cho Quản trị gán một thành viên làm Phụ trách hoặc Viewer của từng sản phẩm, và bỏ gán; mỗi thành viên có tối đa một vai trò theo sản phẩm ở mỗi sản phẩm (BR-03). Màn hình gán: PRD01. | US-02 | Must |
+| PRD00-FR-07 | Hệ thống phải giới hạn Phụ trách và Viewer vào feedback của các sản phẩm họ được gán. | US-03, US-04 | Must |
+| PRD00-FR-08 | Hệ thống phải chặn Viewer khỏi mọi thao tác thay đổi feedback, kể cả bình luận, trừ các thao tác của người báo trên feedback chính Viewer đã gửi (BR-62). | US-04 | Must |
+| PRD00-FR-09 | Hệ thống phải giới hạn người báo vào feedback chính mình gửi, và chỉ hiện cho họ các phần ma trận quyền cho phép (không ưu tiên, không người được giao, không bình luận nội bộ). | US-05 | Must |
+| PRD00-FR-10 | Hệ thống phải cho khách xem và trao đổi trên đúng một feedback mình gửi qua link riêng, không cần tài khoản. | US-06 | Must |
+| PRD00-FR-11 | Hệ thống phải xác định tư cách người gửi qua widget (người báo hay khách) theo tổ chức sở hữu sản phẩm, không theo tổ chức đang làm việc của phiên (BR-06). | US-05, US-06 | Must |
+| PRD00-FR-12 | Hệ thống phải áp dụng ma trận quyền cho mọi thao tác, kể cả khi thao tác được gọi trực tiếp mà không qua màn hình của Hub, và áp dụng mọi thay đổi quyền từ thao tác tiếp theo của người bị đổi quyền (BR-67). | US-03, US-04, US-05, US-07 | Must |
+| PRD00-FR-13 | Hệ thống phải dùng đúng chín trạng thái ở §3.4, và dùng cùng một tên cho mỗi trạng thái, loại và ưu tiên trên mọi màn hình, email và thông báo, theo ngôn ngữ giao diện (BR-41). | US-08 | Must |
+| PRD00-FR-14 | Hệ thống phải cho Phụ trách và Quản trị đổi trạng thái feedback theo §3.4, giữa mọi trạng thái, với các ràng buộc của BR-25, và ghi mỗi lần đổi vào lịch sử (BR-26). | US-03, US-08 | Must |
+| PRD00-FR-15 | Hệ thống phải tự đưa feedback đang ở *Cần thêm thông tin* về trạng thái ngay trước đó khi người báo hoặc khách gửi bình luận gửi người báo, kể cả khi người báo đồng thời là Phụ trách của sản phẩm hoặc là Quản trị; bình luận nội bộ không làm feedback rời *Cần thêm thông tin* (BR-12). | US-05, US-06 | Must |
+| PRD00-FR-16 | Hệ thống phải cho bất kỳ Phụ trách nào của sản phẩm (kể cả người đã sửa), Quản trị, người báo của feedback, hoặc khách đã gửi feedback (qua link riêng) kết thúc bước In review: *đạt* → *Đã xử lý*, *chưa đạt* → *Đang xử lý* kèm lý do bắt buộc (BR-11, BR-66). Phụ trách hay Quản trị đưa feedback từ In review về *Đang xử lý* bằng thao tác đổi trạng thái (BR-25) cũng phải ghi lý do như *chưa đạt* (BR-11). | US-06, US-09 | Must |
+| PRD00-FR-17 | Hệ thống phải cho người báo và khách mở lại feedback của mình khi nó đang ở *Đã xử lý*, đưa về *Đang xử lý*. | US-05, US-06 | Must |
+| PRD00-FR-20 | Hệ thống phải chặn người báo và khách bình luận khi feedback ở *Đóng*, *Từ chối* hoặc *Trùng lặp*, và cho họ biết cần gửi feedback mới nếu muốn trao đổi tiếp. | US-05, US-06 | Must |
+| PRD00-FR-21 | Hệ thống phải có vai trò admin hệ thống tách khỏi mọi tổ chức, chỉ với các quyền cấp hệ thống ghi ở cột Admin hệ thống của ma trận quyền (danh sách tổ chức, khảo sát, vô hiệu và kích hoạt lại tổ chức), và không cho vai trò này xem hay thao tác trên bất kỳ dữ liệu nào bên trong tổ chức (BR-21). | US-11, US-17 | Must |
+| PRD00-FR-23 | Hệ thống phải có quyền Quản trị FeedbackHub trong danh mục quyền cố định, luôn có ở Chủ sở hữu và ở vai trò Admin (không ai bỏ được, vì vai trò hệ thống không sửa được, BR-60), không có ở Member, và cho tổ chức đưa quyền này vào vai trò tự tạo (trong giới hạn BR-58). | US-02 | Must |
+| PRD00-FR-24 | Hệ thống phải cho mọi tài khoản đã xác minh email tạo tổ chức mới và trở thành Chủ sở hữu của tổ chức đó. | US-01 | Must |
+| PRD00-FR-25 | Hệ thống phải cho mời một người vào tổ chức qua email với một vai trò tổ chức đã chọn, dù email đó đã có tài khoản Hub hay chưa: người chưa có tài khoản đăng ký xong (bằng email hoặc Google, Microsoft cùng email) thì vào thẳng tổ chức với vai trò đó; người đã có tài khoản đăng nhập rồi chấp nhận. Lời mời hết hạn sau 7 ngày, thu hồi được, chỉ dùng được bởi tài khoản có đúng email được mời, và xử lý các trường hợp biên ở BR-63. Gửi và thu hồi theo quyền quản lý thành viên, trong giới hạn chống leo thang quyền (BR-19, BR-24, BR-51, BR-58). | US-14 | Should |
+| PRD00-FR-26 | Hệ thống phải tự chuyển feedback sang *Đóng* khi nó ở *Đã xử lý* đủ 7 ngày (7×24 giờ lịch) mà không ai mở lại, chậm nhất 1 giờ sau mốc đó (BR-27). | US-15 | Should |
+| PRD00-FR-27 | Hệ thống phải yêu cầu lý do (tối đa 500 ký tự, BR-66) khi chuyển feedback sang *Từ chối* (BR-28). | US-05, US-06, US-08 | Must |
+| PRD00-FR-28 | Hệ thống phải yêu cầu người báo và khách ghi lý do ngắn (tối đa 500 ký tự, BR-66) khi mở lại (BR-29). | US-05, US-06 | Must |
+| PRD00-FR-29 | Hệ thống phải xử lý việc gỡ một thành viên khỏi tổ chức theo BR-30: giữ feedback họ đã gửi, bỏ vai trò theo sản phẩm của họ, chặn họ xem và nhận thông báo của tổ chức. | US-07 | Must |
+| PRD00-FR-30 | Hệ thống phải ngừng nhận feedback qua widget, vô hiệu link riêng và chặn mọi người chuyển vào tổ chức khi tổ chức bị vô hiệu (BR-31, BR-57). | US-07 | Must |
+| PRD00-FR-31 | Hệ thống phải hiện trang chào trong ngữ cảnh cá nhân, với lựa chọn tạo tổ chức hoặc chờ được thêm, kèm bộ chọn tổ chức khi tài khoản có tổ chức đang hoạt động, và không hiện hộp feedback hay "Feedback của tôi"; tài khoản chưa thuộc tổ chức nào luôn ở màn hình này (BR-32, BR-68). | US-01 | Must |
+| PRD00-FR-35 | Hệ thống phải chặn chuyển sang *Cần thêm thông tin* với feedback của khách không để email, kèm giải thích (BR-43). | US-08 | Must |
+| PRD00-FR-37 | Hệ thống phải trả về cùng một thông báo "không tìm thấy" khi người không được thấy một feedback, sản phẩm hay dữ liệu khác bên trong tổ chức (như danh sách thành viên) mở hoặc thao tác trên nó, như khi nó không tồn tại (BR-45). | US-07 | Must |
+| PRD00-FR-38 | Hệ thống phải không cho cấp hay bỏ quyền admin hệ thống từ bên trong Hub; chỉ người vận hành máy chủ chỉ định được. | US-07, US-11 | Must |
+| PRD00-FR-42 | Hệ thống phải cho admin hệ thống vô hiệu và kích hoạt lại bất kỳ tổ chức nào, và khi kích hoạt lại thì đưa tổ chức về như trước khi vô hiệu, trừ những gì đã hết hạn trong thời gian vô hiệu (BR-49, BR-55). | US-17 | Must |
+| PRD00-FR-44 | Hệ thống phải cho admin hệ thống xem danh sách mọi tổ chức của Hub, mỗi tổ chức với tên, số thành viên hiện tại và dấu hiệu đã vô hiệu nếu có; danh sách không hiện thành viên, sản phẩm hay feedback nào (BR-21, BR-49). | US-17 | Must |
+| PRD00-FR-45 | Hệ thống phải xử lý admin hệ thống được một tổ chức thêm làm thành viên đúng như mọi thành viên khác của tổ chức đó: quyền theo vai trò được gán, tên thường trong lịch sử và bình luận, không nhãn hay nhật ký riêng (BR-53). | US-18 | Must |
+| PRD00-FR-46 | Hệ thống phải yêu cầu admin hệ thống ghi lý do (tối đa 500 ký tự, BR-66) khi vô hiệu một tổ chức, kể cả khi admin hệ thống đồng thời là Chủ sở hữu hoặc có quyền quản lý tổ chức ở tổ chức đó; người vô hiệu theo quyền quản lý tổ chức mà không là admin hệ thống thì không bắt buộc ghi lý do (BR-52, BR-54). Email báo các Chủ sở hữu: PRD05. | US-17 | Must |
+| PRD00-FR-49 | Hệ thống phải chỉ cho admin hệ thống xem kết quả khảo sát; thành viên tổ chức, kể cả Quản trị và Chủ sở hữu, không xem được (BR-16). Chi tiết: PRD07. | US-11 | Should |
+| PRD00-FR-52 | Hệ thống phải chặn leo thang quyền trong mọi thao tác thêm, gỡ thành viên, đổi vai trò tổ chức, gửi lời mời, tạo và sửa vai trò tự tạo: chỉ Chủ sở hữu động tới vai trò Chủ sở hữu, không ai cấp được quyền mình không có, kể cả cho chính mình (BR-58). | US-21, US-07 | Must |
+| PRD00-FR-53 | Hệ thống phải cho người có quyền quản lý tổ chức đổi tên tổ chức; tên mới hiện ở mọi nơi tên tổ chức xuất hiện, kể cả danh sách tổ chức của admin hệ thống; định danh ngắn của tổ chức không đổi theo và không ai sửa được (BR-65). | US-20 | Should |
+| PRD00-FR-54 | Hệ thống phải cho người dùng biết khi tổ chức của mình đang bị vô hiệu: báo "tổ chức tạm ngừng" ở thao tác tiếp theo của người đang làm việc trong tổ chức đó rồi đưa họ về ngữ cảnh cá nhân (BR-68), giữ tổ chức trong bộ chọn tổ chức nhưng làm mờ kèm nhãn và không cho chọn, hiện trang chào có lời giải thích cho tài khoản mà mọi tổ chức đều đang bị vô hiệu, và không đưa ai vào tổ chức qua lời mời trong lúc vô hiệu (BR-57, BR-64). | US-01, US-07 | Must |
+| PRD00-FR-56 | Hệ thống phải bảo đảm bốn quyền nền tảng khác (quản lý khoá API, xem nhật ký kiểm toán, quản lý file, quản lý cài đặt) không cho người giữ chúng thấy hay thao tác trên feedback, ảnh, file hay bình luận ngoài những gì ma trận quyền cho phép (BR-59). | US-07 | Must |
+
+## 6. Quy tắc nghiệp vụ
+
+| Mã | Quy tắc | Áp dụng cho |
+|---|---|---|
+| PRD00-BR-01 | Mọi thành viên đang hoạt động của tổ chức là người báo tiềm năng và gửi được feedback cho mọi sản phẩm của tổ chức. | FR-09, FR-11 |
+| PRD00-BR-02 | Một người có thể vừa là Phụ trách sản phẩm A vừa là người báo ở sản phẩm B, và có vai trò theo sản phẩm khác nhau ở các sản phẩm khác nhau. | FR-02, FR-06 |
+| PRD00-BR-03 | Với mỗi sản phẩm, một thành viên có tối đa một vai trò theo sản phẩm: Phụ trách hoặc Viewer. | FR-06 |
+| PRD00-BR-04 | Quản trị có mọi quyền của Phụ trách trên mọi sản phẩm của tổ chức, kể cả kết thúc In review. | FR-05, FR-16 |
+| PRD00-BR-06 | Tư cách người gửi qua widget xác định theo tổ chức sở hữu sản phẩm: là thành viên của tổ chức đó → gửi với tư cách người báo; không thuộc tổ chức đó, kể cả khi đã đăng nhập Hub → gửi với tư cách khách, khi sản phẩm bật chế độ khách (PRD02). Khách không thấy gì bên trong tổ chức: về tổ chức, khách chỉ thấy tên sản phẩm, không thấy tên hay cách liên hệ của bất kỳ ai trong tổ chức. Trải nghiệm gửi qua widget (điền sẵn thông tin, lời nhắn khi không được gửi): PRD02. | FR-11 |
+| PRD00-BR-07 | Người báo và khách thấy: mô tả, ảnh, file mình đã gửi; trạng thái và lịch sử đổi trạng thái; bình luận gửi người báo. Không thấy: ưu tiên, người được giao, lịch sử giao việc và đổi ưu tiên, bình luận nội bộ. Ngữ cảnh kỹ thuật: BR-39. | FR-09, FR-10 |
+| PRD00-BR-09 | Người báo không có vai trò xử lý trên sản phẩm (không là Phụ trách của sản phẩm, không là Quản trị; kể cả khi là Viewer, BR-62) chỉ có hai thao tác đổi trạng thái: kết thúc In review trên feedback của mình, và mở lại khi feedback của mình đang ở *Đã xử lý*. Khách có đúng hai thao tác đó trên trang link riêng. | FR-08, FR-14, FR-16, FR-17 |
+| PRD00-BR-10 | Bước In review không bắt buộc: Phụ trách có thể chuyển thẳng *Đang xử lý* → *Đã xử lý*. | FR-14, FR-16 |
+| PRD00-BR-11 | Kết thúc In review với *chưa đạt* phải có lý do (tối đa 500 ký tự, BR-66). Mọi lần đưa feedback từ In review về *Đang xử lý* đều theo quy tắc này, kể cả khi Phụ trách hay Quản trị đổi trạng thái theo BR-25 thay vì chọn *chưa đạt*: không có lý do thì không chuyển được. Lý do là bình luận lưu lý do, người báo và khách thấy được (§3.1; chi tiết: PRD03). | FR-16, FR-14 |
+| PRD00-BR-12 | Rời *Cần thêm thông tin* tự động chỉ khi người báo hoặc khách gửi bình luận gửi người báo; feedback quay về đúng trạng thái ngay trước khi vào *Cần thêm thông tin*. Người báo đồng thời là Phụ trách của sản phẩm, hoặc là Quản trị: bình luận gửi người báo của họ trên feedback chính mình gửi tính là trả lời của người báo và cũng đưa feedback rời *Cần thêm thông tin*; bình luận nội bộ của họ không tính, feedback vẫn ở *Cần thêm thông tin*. Bình luận của Phụ trách hay Quản trị khác người báo không làm feedback rời *Cần thêm thông tin*. | FR-15 |
+| PRD00-BR-15 | Hộp feedback và mọi màn hình quản lý chỉ hiện dữ liệu của tổ chức đang làm việc; "Feedback của tôi" cũng theo tổ chức đang làm việc. | FR-04 |
+| PRD00-BR-16 | Quản trị tổ chức không xem được kết quả khảo sát. | FR-21, FR-49 |
+| PRD00-BR-18 | Thành viên là Quản trị khi một trong các vai trò tổ chức của họ có quyền Quản trị FeedbackHub. Chủ sở hữu luôn có quyền này; vai trò Admin luôn có, không ai bỏ được (BR-60); Member không có; tổ chức đưa được quyền này vào vai trò tự tạo, trong giới hạn BR-58. | FR-23 |
+| PRD00-BR-19 | Thêm, gỡ thành viên, đổi vai trò tổ chức, gửi và thu hồi lời mời đi theo quyền quản lý thành viên sẵn có của nền tảng, không theo quyền Quản trị FeedbackHub, và luôn trong giới hạn chống leo thang quyền (BR-58). | FR-23, FR-25, FR-52 |
+| PRD00-BR-20 | Quyền admin hệ thống chỉ do người vận hành máy chủ Hub chỉ định. Không ai cấp hay bỏ được quyền này từ bên trong Hub, kể cả Chủ sở hữu của một tổ chức hay chính admin hệ thống. | FR-38 |
+| PRD00-BR-21 | Admin hệ thống chỉ có quyền ở cấp hệ thống: xem danh sách mọi tổ chức của Hub với tên, số thành viên và dấu hiệu đã vô hiệu (BR-49); tạo, mở, đóng đợt khảo sát, chọn tổ chức nhận và xem kết quả (chi tiết: PRD07); vô hiệu và kích hoạt lại tổ chức (BR-49). Admin hệ thống không thấy và không thao tác được trên sản phẩm, feedback, thành viên hay cài đặt của bất kỳ tổ chức nào; họ mở feedback hay sản phẩm của tổ chức thì thấy "không tìm thấy" như mọi người ngoài tổ chức (BR-45). Không có đường truy cập xuyên tổ chức nào, kể cả cho admin hệ thống. Thông tin về người trả lời khảo sát mà admin hệ thống thấy trong kết quả do PRD07 quy định; ngoài đó admin hệ thống không thấy thành viên của tổ chức. Các thao tác gắn với tài khoản (tạo tổ chức, gửi feedback qua widget, trả lời khảo sát khi là thành viên của tổ chức được chọn) admin hệ thống làm như mọi tài khoản. Gửi feedback qua widget của tổ chức mình không là thành viên thì admin hệ thống là khách trên feedback đó (BR-06): theo dõi, trao đổi, kết thúc In review, mở lại và sửa bình luận của mình qua link riêng đúng như mọi khách, không hơn. | FR-01, FR-21, FR-44 |
+| PRD00-BR-22 | Quyền của admin hệ thống không mở thêm đường nào để bất kỳ ai, kể cả chính admin hệ thống, thấy dữ liệu bên trong một tổ chức mình không là thành viên. | FR-01, FR-21 |
+| PRD00-BR-23 | Mọi tài khoản đã xác minh email tự tạo được tổ chức và trở thành Chủ sở hữu của tổ chức đó. | FR-24 |
+| PRD00-BR-24 | Lời mời gửi tới một email, có hoặc chưa có tài khoản Hub, kèm vai trò tổ chức đã chọn. Người chưa có tài khoản đăng ký xong thì vào thẳng tổ chức với vai trò đó; người đã có tài khoản đăng nhập rồi chấp nhận lời mời (BR-63). Lời mời hết hạn sau 7 ngày, kể cả khi tổ chức đang bị vô hiệu (BR-55), và thu hồi được trước khi được dùng; lời mời hết hạn hoặc đã thu hồi không đưa ai vào tổ chức. Ai gửi và thu hồi: người có quyền quản lý thành viên (BR-19), vì mời là một cách thêm thành viên, nên vai trò trong lời mời cũng theo giới hạn chống leo thang quyền (BR-58); Quản trị không có quyền đó thì không gửi, không thu hồi được. Ai dùng được lời mời: BR-51. Các trường hợp biên: BR-63. Nội dung email mời: PRD05. | FR-25, FR-42 |
+| PRD00-BR-25 | Phụ trách và Quản trị chuyển được feedback giữa mọi trạng thái, kể cả mở lại từ *Đóng*, *Từ chối*, *Trùng lặp*; sơ đồ §3.4 là luồng chính, không phải ràng buộc cứng. Các ràng buộc riêng vẫn áp dụng: *Trùng lặp* cần gắn một feedback gốc (chi tiết: PRD03), *Từ chối* cần lý do (BR-28), từ In review về *Đang xử lý* cần lý do như *chưa đạt* (BR-11), *Cần thêm thông tin* bị chặn với khách không để email (BR-43). | FR-14 |
+| PRD00-BR-26 | Chỉ có hai chuyển trạng thái tự động: rời *Cần thêm thông tin* (BR-12) và tự đóng (BR-27). Mọi lần đổi trạng thái, do người làm hay tự động, đều được ghi vào lịch sử của feedback: ai thực hiện, lúc nào, từ trạng thái nào sang trạng thái nào. Với rời *Cần thêm thông tin*, người thực hiện là người báo hoặc khách có bình luận gây ra chuyển đó; với tự đóng, người thực hiện là "Hệ thống" (BR-27). Cách hiện lịch sử: PRD03. | FR-14, FR-15, FR-16, FR-17, FR-26 |
+| PRD00-BR-27 | Feedback ở *Đã xử lý* đủ 7 ngày liên tục (7×24 giờ lịch, tính từ lần vào *Đã xử lý* gần nhất) mà không ai mở lại thì tự sang *Đóng*, chậm nhất 1 giờ sau mốc đó; người thực hiện chuyển này là hệ thống. 7 ngày vẫn chạy khi tổ chức đang bị vô hiệu (BR-55). Phụ trách và Quản trị vẫn đóng tay được bất cứ lúc nào. | FR-26, FR-42 |
+| PRD00-BR-28 | Chuyển sang *Từ chối* phải có lý do (tối đa 500 ký tự, BR-66); lý do là bình luận lưu lý do, người báo và khách thấy được (§3.1; chi tiết: PRD03). | FR-27 |
+| PRD00-BR-29 | Người báo hoặc khách mở lại phải ghi một câu lý do ngắn (tối đa 500 ký tự, BR-66); lý do là bình luận lưu lý do, như *chưa đạt* (§3.1; chi tiết: PRD03). | FR-28 |
+| PRD00-BR-30 | Thành viên bị gỡ khỏi tổ chức: không còn là thành viên, mất quyền xem và không nhận thông báo của tổ chức; vai trò tổ chức và vai trò theo sản phẩm của họ bị bỏ; feedback họ đã gửi giữ nguyên. Cách hiện tên họ và feedback đang giao cho họ: PRD03. | FR-29 |
+| PRD00-BR-31 | Tổ chức bị vô hiệu: widget của mọi sản phẩm tạm ngừng nhận feedback; link riêng của khách hết hiệu lực (chi tiết: PRD04); không ai chuyển vào tổ chức đó được, kể cả Chủ sở hữu và admin hệ thống (cách Hub báo cho người dùng: BR-64); không ai vào được qua lời mời (BR-57); không thông báo nào của tổ chức được gửi (ngoại lệ và chi tiết: PRD05); khảo sát: PRD07. Dữ liệu giữ nguyên. Chỉ admin hệ thống kích hoạt lại được (BR-49). | FR-30, FR-54 |
+| PRD00-BR-32 | Tài khoản chưa thuộc tổ chức nào mở Hub thì thấy trang chào: tạo tổ chức (BR-23) hoặc chờ được thêm; không có hộp feedback hay "Feedback của tôi". Trang chào cũng là màn hình của ngữ cảnh cá nhân cho mọi tài khoản (BR-68). | FR-31 |
+| PRD00-BR-33 | Viewer xem được bình luận nội bộ, chỉ đọc. | FR-07, FR-08 |
+| PRD00-BR-34 | Viewer xem được Tổng quan, chỉ với các sản phẩm mình được gán. | FR-07 |
+| PRD00-BR-39 | Ngữ cảnh kỹ thuật: người báo xem lại được trên feedback của mình (chỉ đọc); khách không thấy trên trang link riêng. | FR-09, FR-10 |
+| PRD00-BR-41 | Tên hiển thị tiếng Việt của loại: *Lỗi*, *Tính năng*, *Góp ý*. Ưu tiên có ba mức *Cao*, *Trung bình*, *Thấp*, mặc định chưa đặt. Tên tiếng Anh của trạng thái: New, Acknowledged, Needs info, In progress, In review, Resolved, Closed, Rejected, Duplicate (theo thứ tự ở §3.4). Tên tiếng Anh của loại: Bug, Feature, Feedback (theo thứ tự *Lỗi*, *Tính năng*, *Góp ý*); của ưu tiên: High, Medium, Low (theo thứ tự *Cao*, *Trung bình*, *Thấp*). | FR-13 |
+| PRD00-BR-43 | Không chuyển được sang *Cần thêm thông tin* khi feedback là của khách không để email; thao tác bị khoá kèm giải thích. | FR-35 |
+| PRD00-BR-45 | Người không được thấy một feedback, sản phẩm hay dữ liệu khác bên trong tổ chức (khác tổ chức, sản phẩm không được gán, feedback của người khác, danh sách thành viên của tổ chức mình không thuộc) mà mở **hoặc thao tác** trên nó thì luôn thấy "không tìm thấy", giống hệt khi nó không tồn tại, để không lộ là nó có tồn tại; thao tác không có tác dụng gì. Người thấy được dữ liệu nhưng không có quyền làm thao tác (ví dụ Viewer bình luận trên feedback của người khác) thì thấy "không đủ quyền". Tổ chức đang bị vô hiệu: thông báo riêng "tổ chức tạm ngừng" (BR-64). | FR-37 |
+| PRD00-BR-49 | Admin hệ thống vô hiệu và kích hoạt lại được mọi tổ chức. Chỉ admin hệ thống kích hoạt lại được: Chủ sở hữu và thành viên không vào được tổ chức đã vô hiệu (BR-31), muốn kích hoạt lại thì liên hệ admin hệ thống. Admin hệ thống phải ghi lý do khi vô hiệu (BR-54). Kích hoạt lại đưa tổ chức về như trước khi vô hiệu, trừ những gì đã hết hạn trong thời gian vô hiệu (BR-55): thành viên vào lại được và giữ nguyên vai trò tổ chức và vai trò theo sản phẩm, widget nhận feedback lại, link riêng của khách còn hạn hoạt động lại. Trong danh sách tổ chức của admin hệ thống, tổ chức đã vô hiệu được đánh dấu, để admin hệ thống biết tổ chức nào cần kích hoạt lại. Email báo các Chủ sở hữu khi vô hiệu và kích hoạt lại: PRD05. | FR-30, FR-42, FR-44, FR-46 |
+| PRD00-BR-51 | Lời mời chỉ dùng được bởi tài khoản có đúng email được mời. Người khác mở lời mời (đăng ký bằng email khác, hoặc đang đăng nhập tài khoản có email khác) thấy báo lời mời không dành cho mình và không được đưa vào tổ chức. | FR-25 |
+| PRD00-BR-52 | Vô hiệu tổ chức đi theo quyền quản lý tổ chức sẵn có của nền tảng, không theo quyền Quản trị FeedbackHub. Người vô hiệu theo quyền này không bắt buộc ghi lý do, trừ khi người đó cũng là admin hệ thống (BR-54). Admin hệ thống vô hiệu được mọi tổ chức (BR-49), kèm lý do (BR-54). Email báo các Chủ sở hữu: PRD05. | FR-30, FR-42, FR-46 |
+| PRD00-BR-53 | Muốn admin hệ thống giúp bên trong một tổ chức, tổ chức thêm họ làm thành viên như mọi tài khoản (người có quyền quản lý thành viên, BR-19); admin hệ thống không tự thêm mình được. Ở tổ chức đó họ làm việc thuần tuý như thành viên ấy: quyền theo vai trò tổ chức và vai trò theo sản phẩm được gán, lịch sử và bình luận ghi tên như mọi thành viên, không có nhãn hay nhật ký riêng. Quyền admin hệ thống không cộng thêm quyền nào bên trong tổ chức. | FR-02, FR-21, FR-45 |
+| PRD00-BR-54 | Admin hệ thống vô hiệu một tổ chức thì phải ghi lý do (tối đa 500 ký tự, BR-66); không có lý do thì không vô hiệu được. Quy tắc này áp dụng cả khi admin hệ thống đồng thời là Chủ sở hữu hoặc có quyền quản lý tổ chức ở tổ chức đó, dù vô hiệu từ danh sách tổ chức hay từ bên trong tổ chức (quy tắc chặt hơn thắng). Người khác vô hiệu theo quyền quản lý tổ chức (BR-52) thì lý do không bắt buộc. Lý do, nếu có, đi kèm email báo các Chủ sở hữu (người nhận, nội dung: PRD05). | FR-46 |
+| PRD00-BR-55 | Trong thời gian tổ chức bị vô hiệu, mọi mốc thời gian vẫn chạy theo giờ lịch: 7 ngày tự đóng ở *Đã xử lý* (BR-27), hạn 7 ngày của lời mời (BR-24), hạn của link riêng (PRD04). Kích hoạt lại chỉ khôi phục những gì còn hạn: feedback đã đủ 7 ngày ở *Đã xử lý* trong lúc vô hiệu thì ở *Đóng* khi kích hoạt lại, người thực hiện là hệ thống (BR-27); lời mời đã hết hạn thì không dùng được, muốn mời lại phải gửi lời mời mới; link riêng đã hết hạn thì vẫn hết hạn. | FR-25, FR-26, FR-42 |
+| PRD00-BR-57 | Người được mời mở một lời mời còn hạn trong lúc tổ chức bị vô hiệu: không được đưa vào tổ chức, thấy báo tổ chức đang tạm ngừng hoạt động. Lời mời không bị huỷ: nếu còn hạn sau khi tổ chức được kích hoạt lại (hạn vẫn chạy, BR-55) thì dùng được như thường. | FR-25, FR-54 |
+| PRD00-BR-58 | Chống leo thang quyền. (1) Chỉ Chủ sở hữu gán hoặc gỡ được vai trò Chủ sở hữu, cho người khác hay cho chính mình, kể cả gửi lời mời với vai trò Chủ sở hữu. (2) Không ai cấp được quyền mình không có: khi thêm thành viên, đổi vai trò tổ chức (của người khác hay của chính mình) hoặc gửi lời mời, người thao tác chỉ chọn được vai trò mà mọi quyền trong đó mình đều có; khi tạo hoặc sửa vai trò tự tạo, chỉ đưa vào được quyền mình có. Chủ sở hữu có mọi quyền nên không bị giới hạn ở (2). (3) Gỡ cũng theo cùng giới hạn: chỉ Chủ sở hữu gỡ được khỏi tổ chức một thành viên đang là Chủ sở hữu; không ai gỡ khỏi người khác một vai trò có quyền mà mình không có, hay bỏ khỏi vai trò tự tạo một quyền mà mình không có. Thao tác vi phạm bị từ chối vì không đủ quyền và không có gì thay đổi. Mục đích: không ai tự thành Chủ sở hữu, tự nâng quyền, hay gỡ các Chủ sở hữu khác để vô hiệu tổ chức mà không Chủ sở hữu nào được báo (email: PRD05). | FR-23, FR-25, FR-52 |
+| PRD00-BR-59 | Bốn quyền nền tảng khác (quản lý khoá API, xem nhật ký kiểm toán, quản lý file, quản lý cài đặt) không mở đường nào tới feedback ngoài ma trận quyền: người giữ chúng không thấy được tiêu đề, nội dung, ảnh, file, ngữ cảnh kỹ thuật hay bình luận của feedback mà vai trò của họ (§3.2) không cho thấy, và không thay đổi được feedback nào qua các quyền này. | FR-56 |
+| PRD00-BR-60 | Tạo, sửa, xoá vai trò tự tạo đi theo quyền quản lý vai trò sẵn có của nền tảng, trong giới hạn BR-58. Ba vai trò hệ thống không ai sửa hay xoá được: Chủ sở hữu luôn có mọi quyền; Admin luôn có quyền quản lý thành viên và quyền Quản trị FeedbackHub; Member không có quyền nào. | FR-23, FR-52 |
+| PRD00-BR-62 | Viewer của một sản phẩm, trên feedback chính mình gửi ở sản phẩm đó, có đủ quyền người báo: bình luận, bổ sung (BR-12 áp dụng), kết thúc In review, mở lại khi *Đã xử lý* (BR-09). Trên feedback người khác gửi, Viewer chỉ đọc (FR-08). | FR-08, FR-15, FR-16, FR-17 |
+| PRD00-BR-63 | Trường hợp biên của lời mời. (1) Email đã có tài khoản Hub: người nhận đăng nhập rồi chấp nhận lời mời thì vào tổ chức với vai trò được mời. (2) Đăng ký bằng Google hoặc Microsoft với đúng email được mời được chấp nhận như đăng ký bằng email. (3) Mời lại một email đang có lời mời chờ: gửi lời mời mới, lời mời cũ hết hiệu lực ngay. (4) Email đã là thành viên của tổ chức thì không mời được; người gửi thấy báo người này đã là thành viên. (5) Vai trò trong lời mời bị xoá trước khi lời mời được dùng: lời mời hết hiệu lực. (6) Đăng ký qua lời mời bằng email và mật khẩu: việc mở lời mời từ email được tính là đã xác minh email, không cần xác minh lần nữa. | FR-25 |
+| PRD00-BR-64 | Tổ chức bị vô hiệu, với người dùng của nó: người đang làm việc trong tổ chức khi nó bị vô hiệu thấy báo "tổ chức tạm ngừng" ở thao tác tiếp theo, và thao tác đó không có tác dụng; sau đó Hub đưa họ về ngữ cảnh cá nhân (BR-68). Tổ chức vẫn nằm trong bộ chọn tổ chức của thành viên, làm mờ kèm nhãn tạm ngừng, không chọn được. Tài khoản mà mọi tổ chức mình thuộc về đều đang bị vô hiệu mở Hub thì thấy trang chào (BR-32) kèm lời giải thích các tổ chức của mình đang tạm ngừng. | FR-30, FR-54 |
+| PRD00-BR-65 | Đổi tên tổ chức đi theo quyền quản lý tổ chức sẵn có của nền tảng, không theo quyền Quản trị FeedbackHub. Tên mới không để trống và hiện ở mọi nơi tên tổ chức xuất hiện (bộ chọn tổ chức, danh sách tổ chức của admin hệ thống, email). Định danh ngắn của tổ chức đặt khi tạo tổ chức và không bao giờ đổi: không đổi theo khi đổi tên, và không ai sửa riêng được. | FR-53 |
+| PRD00-BR-66 | Mọi lý do (từ chối, *chưa đạt*, mở lại, vô hiệu tổ chức) dài tối đa 500 ký tự; dài hơn thì không gửi được. Lý do bắt buộc thì không để trống. | FR-16, FR-27, FR-28, FR-46 |
+| PRD00-BR-67 | Mọi thay đổi quyền (bỏ gán sản phẩm, đổi vai trò theo sản phẩm, đổi vai trò tổ chức, sửa vai trò tự tạo, gỡ thành viên) có hiệu lực từ thao tác tiếp theo của người bị đổi quyền, không cần đăng xuất. | FR-12 |
+| PRD00-BR-68 | Ngữ cảnh cá nhân luôn hiện trang chào (BR-32), cộng với bộ chọn tổ chức nếu người dùng có tổ chức đang hoạt động. Người đang làm việc trong một tổ chức vừa bị vô hiệu, sau khi thấy "tổ chức tạm ngừng" (BR-64), được Hub đưa về ngữ cảnh cá nhân: nếu còn tổ chức đang hoạt động, họ chọn tổ chức khác từ bộ chọn; nếu không, họ thấy trang chào kèm lời giải thích các tổ chức của mình đang tạm ngừng (BR-64). | FR-31, FR-54 |
+
+## 7. Tiêu chí nghiệm thu
+
+| Mã | Yêu cầu | Cho trước (Given) | Khi (When) | Thì (Then) |
+|---|---|---|---|---|
+| PRD00-AC-01 | FR-01, FR-37 | Tổ chức X có sản phẩm P; tài khoản A chỉ là thành viên tổ chức Y | A mở đường dẫn trực tiếp tới một feedback của P | Hệ thống báo "không tìm thấy"; không hiện tiêu đề, tên sản phẩm hay bất kỳ nội dung nào của feedback |
+| PRD00-AC-02 | FR-01 | Hai tổ chức X và Y cùng có sản phẩm tên "App Bán hàng" | Quản trị của X mở danh sách sản phẩm | Chỉ thấy sản phẩm của X |
+| PRD00-AC-03 | FR-02 | Tài khoản A là Quản trị ở X và chỉ là thành viên thường ở Y | A làm việc ở Y | A không thấy màn hình quản lý sản phẩm của Y và không xem được feedback của sản phẩm Y mà A không được gán |
+| PRD00-AC-04 | FR-03 | A là thành viên của X và Y, đang làm việc ở X | A chọn Y trong bộ chọn tổ chức | Hub chuyển sang Y mà không bắt đăng nhập lại; tên Y hiện ở vị trí tổ chức đang làm việc |
+| PRD00-AC-05 | FR-03 | A là thành viên duy nhất của X | A mở bộ chọn tổ chức | Chỉ có X trong danh sách; không có tổ chức nào A không thuộc về |
+| PRD00-AC-06 | FR-04 | A là Phụ trách sản phẩm P ở X và người báo ở Y; đang làm việc ở X | A mở hộp feedback và "Feedback của tôi" | Chỉ thấy feedback của X; feedback A đã gửi ở Y không hiện |
+| PRD00-AC-07 | FR-05 | Q là Quản trị của X, không được gán vào sản phẩm nào; X có 20 sản phẩm | Q mở hộp feedback | Q thấy feedback của cả 20 sản phẩm |
+| PRD00-AC-08 | FR-06 | Q là Quản trị; M là thành viên của X | Q gán M làm Phụ trách sản phẩm P | M thấy feedback của P ngay ở lần tải tiếp theo; M không thấy sản phẩm khác |
+| PRD00-AC-09 | FR-06 | M đang là Viewer của P | Q đổi M thành Phụ trách của P | M có đúng một vai trò ở P là Phụ trách, không còn là Viewer |
+| PRD00-AC-10 | FR-06 | M là thành viên thường, không phải Quản trị | M thử gán người khác làm Phụ trách | Thao tác bị từ chối với thông báo không đủ quyền; không có gì thay đổi |
+| PRD00-AC-11 | FR-07, FR-37 | M là Phụ trách sản phẩm A, không được gán vào B | M mở đường dẫn trực tiếp tới một feedback của B | Hệ thống báo "không tìm thấy"; không hiện nội dung nào của feedback |
+| PRD00-AC-12 | FR-07, FR-12, FR-37 | M là Phụ trách sản phẩm A | Quản trị bỏ gán M khỏi A trong lúc M đang mở một feedback của A, rồi M đổi trạng thái feedback đó | M thấy "không tìm thấy", feedback không đổi; A biến khỏi hộp feedback của M khi tải lại |
+| PRD00-AC-14 | FR-08 | V là Viewer của P | V mở một feedback của P không do V gửi | Không có nút đổi trạng thái, giao việc, đổi ưu tiên, loại, nhãn, đánh dấu trùng hay ô bình luận |
+| PRD00-AC-15 | FR-08, FR-12 | V là Viewer của P; F là feedback của P không do V gửi | V gửi yêu cầu bình luận hoặc đổi trạng thái F trực tiếp, không qua màn hình | Hệ thống từ chối vì không đủ quyền; feedback không đổi, lịch sử không có mục mới |
+| PRD00-AC-16 | FR-09 | R là người báo, đã gửi feedback F1; người báo khác gửi F2 cùng sản phẩm | R mở "Feedback của tôi" | Chỉ thấy F1 |
+| PRD00-AC-17 | FR-09, FR-12, FR-37 | R là người báo của F1, không phải Phụ trách hay Viewer | R mở đường dẫn trực tiếp tới F2 do người khác gửi | Hệ thống báo "không tìm thấy"; không hiện nội dung nào của F2 |
+| PRD00-AC-18 | FR-09 | F1 của R có ưu tiên Cao, đã giao cho H, có một bình luận nội bộ và một bình luận gửi người báo | R mở F1 | R thấy trạng thái, lịch sử đổi trạng thái và bình luận gửi người báo; không thấy ưu tiên, H, lịch sử giao việc hay bình luận nội bộ |
+| PRD00-AC-20 | FR-10 | Khách K gửi feedback G có email, nhận link riêng | K mở link | K thấy đúng G: trạng thái, lịch sử đổi trạng thái, bình luận gửi người báo; không thấy tên hay cách liên hệ của người nào trong tổ chức |
+| PRD00-AC-21 | FR-10 | K có link riêng của G | K sửa đường link để thử mở feedback khác | Không mở được feedback nào khác |
+| PRD00-AC-22 | FR-11 | A là thành viên tổ chức X, đang làm việc ở Y; sản phẩm P thuộc X | A gửi feedback qua widget của P | Feedback được ghi là của người báo A, hiện trong "Feedback của tôi" của A khi A làm việc ở X |
+| PRD00-AC-23 | FR-11 | A đăng nhập Hub nhưng không thuộc X; P thuộc X và bật chế độ khách | A gửi feedback qua widget của P | Feedback được ghi là của khách; A không thấy gì bên trong X |
+| PRD00-AC-24 | FR-12 | Người báo R (không phải Phụ trách) | R gửi yêu cầu đổi ưu tiên của feedback của mình trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; ưu tiên không đổi |
+| PRD00-AC-25 | FR-13 | Một feedback ở *Cần thêm thông tin* | Phụ trách xem trong Hub, người báo xem trong "Feedback của tôi", khách nhận email | Cả ba nơi dùng cùng tên trạng thái *Cần thêm thông tin* (ở cùng một ngôn ngữ) |
+| PRD00-AC-26 | FR-14 | Feedback F ở *Mới*; H là Phụ trách sản phẩm | H chuyển F sang *Đã tiếp nhận* | F ở *Đã tiếp nhận*; lịch sử có mục H, thời điểm, *Mới* → *Đã tiếp nhận* |
+| PRD00-AC-27 | FR-14 | Người báo R (không là Phụ trách hay Quản trị của sản phẩm) của feedback F đang ở *Đang xử lý* | R tìm cách đổi trạng thái F | R không có thao tác đổi trạng thái nào ngoài kết thúc In review và mở lại khi *Đã xử lý* |
+| PRD00-AC-28 | FR-15 | F đang ở *Đã tiếp nhận*, Phụ trách chuyển sang *Cần thêm thông tin* | Người báo của F gửi một bình luận | F tự về *Đã tiếp nhận*; lịch sử ghi người báo là người gây ra thay đổi |
+| PRD00-AC-29 | FR-15 | F đang ở *Cần thêm thông tin*; H là Phụ trách của sản phẩm, không phải người báo của F | H gửi một bình luận gửi người báo | F vẫn ở *Cần thêm thông tin* |
+| PRD00-AC-30 | FR-16 | F ở In review | Người báo của F chọn *chưa đạt* mà không ghi lý do | Không gửi được; hệ thống yêu cầu nhập lý do |
+| PRD00-AC-31 | FR-16 | F ở In review | Người báo chọn *chưa đạt* với lý do "Vẫn lỗi trên Safari" | F về *Đang xử lý*; người báo và Phụ trách thấy lý do đó trên F |
+| PRD00-AC-32 | FR-16 | F ở In review; H là Phụ trách đã sửa F | H chọn *đạt* | F sang *Đã xử lý* |
+| PRD00-AC-33 | FR-16 | F ở In review, không do V gửi; V là Viewer của sản phẩm | V tìm cách kết thúc In review | Không có thao tác; gửi trực tiếp bị từ chối vì không đủ quyền |
+| PRD00-AC-34 | FR-17, FR-28 | F của người báo R ở *Đã xử lý* | R chọn *Mở lại* và ghi lý do "Lỗi xuất hiện lại" | F về *Đang xử lý*; Phụ trách thấy lý do đó trên F; lịch sử ghi R là người mở lại |
+| PRD00-AC-35 | FR-17 | F của người báo R (không là Phụ trách hay Quản trị của sản phẩm) ở *Đóng* | R mở F | Không có thao tác *Mở lại* |
+| PRD00-AC-36 | FR-14 | Phụ trách H đang xem F | H chọn *Trùng lặp* mà không chọn feedback gốc | Không chuyển được; hệ thống yêu cầu chọn feedback gốc |
+| PRD00-AC-40 | FR-20 | F của người báo R (không là Phụ trách hay Quản trị của sản phẩm) ở *Từ chối* | R mở F | Ô bình luận bị khoá, kèm lời nhắn gửi feedback mới nếu muốn trao đổi tiếp |
+| PRD00-AC-41 | FR-20 | F của khách K ở *Đóng* | K mở link riêng | K không bình luận được, thấy lời nhắn tương tự |
+| PRD00-AC-43 | FR-49, FR-12 | Q là Quản trị của X, không phải admin hệ thống | Q tìm cách mở kết quả một đợt khảo sát | Bị từ chối vì không đủ quyền |
+| PRD00-AC-51 | FR-38 | O là Chủ sở hữu của X | O tìm cách cấp quyền admin hệ thống cho một thành viên | Không có thao tác nào như vậy trong Hub; gửi trực tiếp bị từ chối |
+| PRD00-AC-52 | FR-38 | S là admin hệ thống | S tìm cách cấp quyền admin hệ thống cho tài khoản khác qua Hub | Không có thao tác nào như vậy; gửi trực tiếp bị từ chối |
+| PRD00-AC-53 | FR-23 | X có vai trò tự tạo "Trưởng IT" có quyền Quản trị FeedbackHub; M có vai trò đó, không được gán sản phẩm nào | M mở hộp feedback | M thấy feedback của mọi sản phẩm X như một Quản trị |
+| PRD00-AC-54 | FR-23 | M chỉ có vai trò Member ở X, không được gán sản phẩm nào | M mở Hub ở X | M không thấy màn hình quản lý sản phẩm và không có hộp feedback của sản phẩm nào; chỉ có "Feedback của tôi" |
+| PRD00-AC-55 | FR-23, FR-52 | O là Chủ sở hữu của X; A có quyền quản lý vai trò và quyền quản lý thành viên, không phải Chủ sở hữu | A tìm cách sửa vai trò Chủ sở hữu để bỏ quyền Quản trị FeedbackHub | Bị từ chối vì vai trò hệ thống không sửa được; O vẫn là Quản trị |
+| PRD00-AC-56 | FR-24 | A là tài khoản đã xác minh email, chưa thuộc tổ chức nào | A tạo tổ chức "Công ty Z" | Z được tạo; A là Chủ sở hữu và là Quản trị của Z |
+| PRD00-AC-57 | FR-25 | B chưa có tài khoản Hub; X gửi lời mời tới email của B với vai trò Member | B mở email trong vòng 7 ngày và đăng ký | B vào thẳng X với vai trò Member, không cần ai thêm lần nữa |
+| PRD00-AC-58 | FR-25 | Lời mời tới B đã gửi được 8 ngày | B mở lời mời | B không vào được X; hệ thống báo lời mời đã hết hạn |
+| PRD00-AC-59 | FR-25 | Lời mời tới B đã bị thu hồi | B mở lời mời | B không vào được X; hệ thống báo lời mời không còn hiệu lực |
+| PRD00-AC-60 | FR-25 | M là thành viên X không có quyền quản lý thành viên (BR-19) | M gửi lời mời trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; không email nào được gửi |
+| PRD00-AC-61 | FR-14 | F ở *Đóng*; H là Phụ trách sản phẩm | H chuyển F sang *Đang xử lý* | F ở *Đang xử lý*; lịch sử ghi H, *Đóng* → *Đang xử lý* |
+| PRD00-AC-62 | FR-14 | F ở *Trùng lặp* với gốc G; Q là Quản trị | Q chuyển F sang *Đã tiếp nhận* | F ở *Đã tiếp nhận*; lịch sử ghi thay đổi |
+| PRD00-AC-63 | FR-26 | F sang *Đã xử lý* lúc 09:00 ngày 1 và không ai mở lại | Đến 10:00 ngày 8 (7×24 giờ cộng 1 giờ) | F đã ở *Đóng*; lịch sử ghi người thực hiện là hệ thống, thời điểm không trước 09:00 ngày 8 |
+| PRD00-AC-64 | FR-26 | F sang *Đã xử lý*; người báo mở lại ở ngày thứ 5 | Đến mốc 7 ngày kể từ lúc F sang *Đã xử lý* | F vẫn ở *Đang xử lý*, không bị tự đóng |
+| PRD00-AC-65 | FR-26 | F ở *Đã xử lý* được 2 ngày | Phụ trách chuyển F sang *Đóng* | F ở *Đóng* ngay |
+| PRD00-AC-66 | FR-27 | H là Phụ trách, F ở *Mới* | H chọn *Từ chối* mà không ghi lý do | Không chuyển được; hệ thống yêu cầu nhập lý do |
+| PRD00-AC-67 | FR-27 | H là Phụ trách, F ở *Mới* | H chọn *Từ chối* với lý do "Đúng theo thiết kế" | F ở *Từ chối*; người báo thấy lý do đó trên F |
+| PRD00-AC-68 | FR-28 | F của khách K ở *Đã xử lý* | K chọn *Mở lại* trên trang link riêng mà không ghi lý do | Không mở lại được; hệ thống yêu cầu nhập lý do |
+| PRD00-AC-69 | FR-29 | M có vai trò Member ở X, là người báo của F1 và là Phụ trách của P | Người có quyền quản lý thành viên gỡ M khỏi X | F1 vẫn còn trong hộp feedback của P; M không còn là thành viên X và không còn là Phụ trách của P |
+| PRD00-AC-70 | FR-29, FR-37 | M vừa bị gỡ khỏi X | M mở đường dẫn tới F1 mình từng gửi, và có feedback mới ở P | M thấy "không tìm thấy"; M không nhận thông báo nào của X |
+| PRD00-AC-71 | FR-30 | Tổ chức X bị vô hiệu; P thuộc X | Một người mở widget của P | Widget báo tạm ngừng nhận feedback; không gửi được |
+| PRD00-AC-72 | FR-30 | Tổ chức X bị vô hiệu; khách K có link riêng của G thuộc X | K mở link | Trang báo link hết hiệu lực; không hiện nội dung G |
+| PRD00-AC-73 | FR-30, FR-54 | Tổ chức X bị vô hiệu; A là thành viên X và Y | A mở bộ chọn tổ chức | X vẫn có trong danh sách, làm mờ kèm nhãn tạm ngừng; A không chọn được X |
+| PRD00-AC-74 | FR-31 | A có tài khoản Hub, chưa thuộc tổ chức nào | A mở Hub | A thấy trang chào với lựa chọn tạo tổ chức hoặc chờ được thêm; không có hộp feedback hay "Feedback của tôi" |
+| PRD00-AC-82 | FR-35 | Khách gửi G không để email | Phụ trách tìm cách chuyển G sang *Cần thêm thông tin* | Thao tác bị khoá kèm giải thích; gửi trực tiếp bị từ chối, G không đổi trạng thái |
+| PRD00-AC-83 | FR-35 | Khách gửi G có email | Phụ trách chuyển G sang *Cần thêm thông tin* | G ở *Cần thêm thông tin* |
+| PRD00-AC-85 | FR-37 | M là Phụ trách sản phẩm A ở X; F thuộc sản phẩm B của X; `FB-99999` không tồn tại | M mở F, rồi mở `FB-99999` | Cả hai lần M thấy cùng một thông báo "không tìm thấy" |
+| PRD00-AC-86 | FR-07 | V là Viewer của P; F của P không do V gửi, có một bình luận nội bộ | V mở F | V thấy bình luận nội bộ, không có ô viết bình luận |
+| PRD00-AC-87 | FR-07 | V là Viewer của P, không được gán Q; cả hai thuộc X | V mở Tổng quan | V chỉ thấy số liệu của P |
+| PRD00-AC-90 | FR-20 | F của người báo R (không là Phụ trách hay Quản trị của sản phẩm) ở *Trùng lặp* | R mở F | Ô bình luận bị khoá, kèm lời nhắn gửi feedback mới nếu muốn trao đổi tiếp |
+| PRD00-AC-91 | FR-09 | R là người báo của F | R mở F | R thấy ngữ cảnh kỹ thuật của F, chỉ đọc |
+| PRD00-AC-92 | FR-10 | Khách K gửi G | K mở link riêng của G | Không có ngữ cảnh kỹ thuật nào trên trang |
+| PRD00-AC-105 | FR-42 | S là admin hệ thống; X đang hoạt động, có sản phẩm P | S vô hiệu X, ghi lý do "Tổ chức yêu cầu tạm dừng" | X bị vô hiệu; widget của P báo tạm ngừng nhận feedback (BR-31) |
+| PRD00-AC-106 | FR-42 | S là admin hệ thống; Z đang bị vô hiệu | S kích hoạt lại Z | Z hết trạng thái vô hiệu; danh sách tổ chức của S không còn đánh dấu Z đã vô hiệu |
+| PRD00-AC-107 | FR-30, FR-12 | M là thành viên X không có quyền quản lý tổ chức của nền tảng (BR-52) | M gửi yêu cầu vô hiệu X trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; X vẫn hoạt động |
+| PRD00-AC-115 | FR-25 | Q là Quản trị của X nhưng không có quyền quản lý thành viên | Q tìm cách gửi hoặc thu hồi lời mời | Không có thao tác nào; gửi trực tiếp bị từ chối |
+| PRD00-AC-116 | FR-25, FR-52 | N có quyền quản lý thành viên ở X, không có quyền Quản trị FeedbackHub, không phải Chủ sở hữu | N gửi lời mời tới email của B với vai trò Member (không có quyền nào N không có) | Lời mời được gửi; B nhận email mời |
+| PRD00-AC-117 | FR-25 | N đã gửi lời mời tới B, B chưa dùng | N thu hồi lời mời | Lời mời hết hiệu lực; B mở thì thấy như AC-59 |
+| PRD00-AC-118 | FR-25 | Lời mời gửi tới b@congty.vn bị chuyển tiếp cho C | C mở lời mời và đăng ký bằng c@gmail.com | C không vào X; hệ thống báo lời mời không dành cho C |
+| PRD00-AC-119 | FR-25 | Lời mời gửi tới b@congty.vn; C đang đăng nhập Hub bằng tài khoản có email khác | C mở lời mời | C không vào X; hệ thống báo lời mời không dành cho C |
+| PRD00-AC-120 | FR-13 | Người dùng đặt giao diện Hub sang tiếng Anh | Mở một feedback có loại và ưu tiên | Loại hiện là Bug, Feature hoặc Feedback; ưu tiên hiện là High, Medium hoặc Low |
+| PRD00-AC-121 | FR-01, FR-21, FR-37 | S là admin hệ thống, không là thành viên của tổ chức X; F là feedback của X | S mở đường dẫn trực tiếp tới F | Hệ thống báo "không tìm thấy", giống hệt khi F không tồn tại; không hiện tiêu đề, tên sản phẩm hay bất kỳ nội dung nào của F |
+| PRD00-AC-122 | FR-21, FR-12, FR-37 | S là admin hệ thống, không là thành viên X | S gửi yêu cầu xem danh sách thành viên của X trực tiếp, không qua màn hình | Hệ thống báo "không tìm thấy" (BR-45); không có tên thành viên nào của X được trả về |
+| PRD00-AC-123 | FR-21, FR-12, FR-37 | S là admin hệ thống, không là thành viên X; F của X ở *Mới* | S gửi yêu cầu đổi trạng thái F trực tiếp, không qua màn hình | Hệ thống báo "không tìm thấy" như khi F không tồn tại; F vẫn ở *Mới*, lịch sử không có mục mới |
+| PRD00-AC-124 | FR-44 | Hub có X (12 thành viên, đang hoạt động) và Z (đã vô hiệu); S là admin hệ thống, không là thành viên của cả hai | S mở danh sách tổ chức | Thấy X và Z, mỗi tổ chức với tên và số thành viên; Z được đánh dấu đã vô hiệu; không hiện tên thành viên, sản phẩm hay feedback nào |
+| PRD00-AC-125 | FR-44 | X có 12 thành viên trong danh sách của S | Người có quyền quản lý thành viên gỡ một thành viên có vai trò Member khỏi X | Lần tải tiếp theo, danh sách của S hiện X có 11 thành viên |
+| PRD00-AC-126 | FR-44, FR-12 | O là Chủ sở hữu của X, không phải admin hệ thống | O gửi yêu cầu xem danh sách mọi tổ chức trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; không tổ chức nào được liệt kê |
+| PRD00-AC-127 | FR-44 | Hub chưa có tổ chức nào; S là admin hệ thống | S mở danh sách tổ chức | Thấy trạng thái trống cho biết Hub chưa có tổ chức nào |
+| PRD00-AC-128 | FR-42 | Z bị vô hiệu; trước đó M là thành viên Z với vai trò Admin và là Phụ trách sản phẩm P của Z | S kích hoạt lại Z, rồi M chọn Z trong bộ chọn tổ chức | M vào được Z, vẫn có vai trò Admin và vẫn là Phụ trách của P |
+| PRD00-AC-129 | FR-42 | Z bị vô hiệu; P thuộc Z | S kích hoạt lại Z, rồi một người báo mở widget của P | Widget nhận feedback như trước khi vô hiệu |
+| PRD00-AC-130 | FR-42 | Z bị vô hiệu; khách K có link riêng của G thuộc Z, link còn hạn | S kích hoạt lại Z, rồi K mở link | K thấy G như trước khi vô hiệu |
+| PRD00-AC-131 | FR-42, FR-12 | Z bị vô hiệu; O là Chủ sở hữu của Z, không phải admin hệ thống | O gửi yêu cầu kích hoạt lại Z trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; Z vẫn bị vô hiệu |
+| PRD00-AC-132 | FR-45 | S là admin hệ thống; X thêm S làm thành viên với vai trò Member và gán S làm Phụ trách của P | S chuyển feedback F của P từ *Mới* sang *Đã tiếp nhận* | F ở *Đã tiếp nhận*; lịch sử ghi tên S như mọi thành viên, không kèm nhãn nào |
+| PRD00-AC-133 | FR-45 | Như trên; F là feedback của người báo R, thành viên X | S viết một bình luận gửi người báo trên F | R thấy bình luận với tên của S như với mọi thành viên khác, không kèm nhãn nào |
+| PRD00-AC-134 | FR-45, FR-37 | Như trên; Q là sản phẩm khác của X, S không được gán vào Q | S mở đường dẫn trực tiếp tới một feedback của Q | Hệ thống báo "không tìm thấy"; quyền admin hệ thống không mở thêm gì |
+| PRD00-AC-135 | FR-45, FR-12 | S là admin hệ thống, không là thành viên X | S gửi yêu cầu tự thêm mình làm thành viên X trực tiếp, không qua màn hình | Bị từ chối; S không thành thành viên X |
+| PRD00-AC-136 | FR-21, FR-12, FR-37 | S là admin hệ thống, không là thành viên X; X có 20 sản phẩm | S gửi yêu cầu xem danh sách sản phẩm của X trực tiếp, không qua màn hình | Hệ thống báo "không tìm thấy" (BR-45); không có tên sản phẩm nào của X được trả về |
+| PRD00-AC-138 | FR-46 | X đang hoạt động; S là admin hệ thống | S chọn vô hiệu X mà không ghi lý do | Không vô hiệu được; hệ thống yêu cầu nhập lý do; X vẫn hoạt động, không email nào được gửi |
+| PRD00-AC-139 | FR-46, FR-12 | X đang hoạt động; S là admin hệ thống | S gửi yêu cầu vô hiệu X trực tiếp, không qua màn hình, không kèm lý do | Bị từ chối; X vẫn hoạt động, không email nào được gửi |
+| PRD00-AC-141 | FR-46 | X đang hoạt động, có hai Chủ sở hữu O1 và O2 | O1 vô hiệu X (BR-52), không ghi lý do | X bị vô hiệu |
+| PRD00-AC-142 | FR-26, FR-42 | F ở *Đã xử lý* được 5 ngày thì tổ chức X bị vô hiệu; X bị vô hiệu 3 ngày | S kích hoạt lại X, rồi Phụ trách mở F | F ở *Đóng*; lịch sử ghi người thực hiện việc tự đóng là hệ thống |
+| PRD00-AC-143 | FR-26, FR-42 | F ở *Đã xử lý* được 2 ngày thì X bị vô hiệu; X bị vô hiệu 1 ngày rồi được kích hoạt lại; không ai mở lại F | Đến 1 giờ sau mốc 7×24 giờ kể từ lúc F sang *Đã xử lý* (4 ngày sau khi kích hoạt lại) | F đã ở *Đóng*; không có ngày nào được cộng thêm vì thời gian vô hiệu |
+| PRD00-AC-144 | FR-25, FR-42 | Lời mời tới B gửi 3 ngày trước khi X bị vô hiệu, B chưa dùng; X bị vô hiệu 5 ngày rồi được kích hoạt lại | B mở lời mời | B không vào được X; hệ thống báo lời mời đã hết hạn (như AC-58) |
+| PRD00-AC-145 | FR-42 | Khách K có link riêng của G thuộc Z; link hết hạn trong lúc Z bị vô hiệu | S kích hoạt lại Z, rồi K mở link | Trang báo link đã hết hạn như mọi link hết hạn (PRD04); không hiện nội dung G |
+| PRD00-AC-146 | FR-46 | X đang hoạt động; M có quyền quản lý tổ chức, không phải Chủ sở hữu, không phải admin hệ thống | M vô hiệu X, không ghi lý do | X bị vô hiệu |
+| PRD00-AC-147 | FR-46 | S là admin hệ thống, đồng thời là Chủ sở hữu của X cùng O2 | S vô hiệu X từ bên trong X mà không ghi lý do | Không vô hiệu được; hệ thống yêu cầu nhập lý do; X vẫn hoạt động, không email nào được gửi |
+| PRD00-AC-148 | FR-46 | Như trên | S vô hiệu X với lý do "Khách hàng yêu cầu tạm dừng" | X bị vô hiệu |
+| PRD00-AC-151 | FR-54, FR-25 | Lời mời tới B còn hạn; X bị vô hiệu | B mở lời mời | B không vào được X; hệ thống báo tổ chức đang tạm ngừng hoạt động |
+| PRD00-AC-152 | FR-25 | Lời mời tới B gửi 2 ngày trước khi X bị vô hiệu; X bị vô hiệu 1 ngày rồi được kích hoạt lại | B mở lời mời ở ngày thứ 4 kể từ lúc gửi | B vào X với vai trò được mời |
+| PRD00-AC-153 | FR-52 | N có vai trò tự tạo "Nhân sự" chỉ gồm quyền quản lý thành viên | N gửi lời mời tới email của B với vai trò Admin | Bị từ chối vì không đủ quyền (Admin có quyền Quản trị FeedbackHub mà N không có); không email nào được gửi |
+| PRD00-AC-154 | FR-52 | Như trên | N gửi yêu cầu đổi vai trò tổ chức của chính mình thành Admin, trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; N giữ nguyên vai trò "Nhân sự" |
+| PRD00-AC-155 | FR-52 | A có vai trò Admin ở X, không phải Chủ sở hữu; M là Member | A gán vai trò Chủ sở hữu cho M | Bị từ chối vì không đủ quyền; M không thành Chủ sở hữu |
+| PRD00-AC-156 | FR-52 | R có quyền quản lý vai trò, không có quyền Quản trị FeedbackHub | R tạo vai trò tự tạo có quyền Quản trị FeedbackHub | Bị từ chối vì không đủ quyền; không vai trò nào được tạo |
+| PRD00-AC-157 | FR-52 | O là Chủ sở hữu của X; M là Member | O gán vai trò Chủ sở hữu cho M | M là Chủ sở hữu và là Quản trị của X |
+| PRD00-AC-158 | FR-52 | X có hai Chủ sở hữu O1 và O2; A có vai trò Admin, không phải Chủ sở hữu | A gỡ O2 khỏi X (BR-58 điểm 3) | Bị từ chối vì không đủ quyền; O2 vẫn là thành viên và Chủ sở hữu của X |
+| PRD00-AC-159 | FR-23 | O là Chủ sở hữu của X; M có vai trò Admin | O tìm cách bỏ quyền Quản trị FeedbackHub khỏi vai trò Admin | Không bỏ được vì vai trò hệ thống không sửa được; M vẫn là Quản trị |
+| PRD00-AC-160 | FR-56 | M có quyền quản lý file, không là Quản trị, không được gán sản phẩm P; F của P có ảnh chụp màn hình | M mở phần quản lý file | Không thấy ảnh hay file nào của F |
+| PRD00-AC-161 | FR-56 | M có quyền xem nhật ký kiểm toán, không là Quản trị, không được gán P; H vừa đổi trạng thái và bình luận trên F của P | M mở nhật ký kiểm toán | M không thấy tiêu đề, nội dung hay bình luận nào của F |
+| PRD00-AC-170 | FR-08, FR-16 | V là Viewer của P và đã gửi F ở P; F ở In review | V chọn *chưa đạt* với lý do "Vẫn lỗi" | F về *Đang xử lý*; Phụ trách thấy lý do đó trên F |
+| PRD00-AC-171 | FR-08, FR-15 | V đã gửi F ở P; F chuyển từ *Đã tiếp nhận* sang *Cần thêm thông tin* | V gửi một bình luận trên F | Bình luận được lưu; F tự về *Đã tiếp nhận* |
+| PRD00-AC-172 | FR-08, FR-17 | V đã gửi F ở P; F ở *Đã xử lý* | V chọn *Mở lại* với lý do "Lỗi xuất hiện lại" | F về *Đang xử lý*; lịch sử ghi V là người mở lại |
+| PRD00-AC-173 | FR-15 | H là Phụ trách của P và là người báo của F ở P; F chuyển từ *Đã tiếp nhận* sang *Cần thêm thông tin* | H gửi một bình luận gửi người báo trên F | F tự về *Đã tiếp nhận* |
+| PRD00-AC-176 | FR-37, FR-12 | R là người báo của F1; F2 do người khác gửi, R không thấy được F2 | R gửi yêu cầu bình luận trên F2 trực tiếp, không qua màn hình | Hệ thống báo "không tìm thấy" như khi F2 không tồn tại; F2 không có bình luận mới |
+| PRD00-AC-177 | FR-25 | B đã có tài khoản Hub với email b@congty.vn; X gửi lời mời tới b@congty.vn với vai trò Member | B mở lời mời, đăng nhập rồi chấp nhận | B vào X với vai trò Member |
+| PRD00-AC-178 | FR-25 | B chưa có tài khoản; X gửi lời mời tới b@congty.vn | B mở lời mời và đăng ký bằng Google với đúng b@congty.vn | B vào thẳng X với vai trò được mời |
+| PRD00-AC-179 | FR-25 | N gửi lời mời L1 tới b@congty.vn, B chưa dùng | N gửi lời mời L2 tới cùng email, rồi B mở L1 | B không vào được X; hệ thống báo lời mời không còn hiệu lực |
+| PRD00-AC-180 | FR-25 | M đã là thành viên X với email m@congty.vn | N gửi lời mời tới m@congty.vn | Không gửi được; hệ thống báo người này đã là thành viên; không email nào được gửi |
+| PRD00-AC-181 | FR-25 | Lời mời tới B với vai trò tự tạo "Tester"; vai trò "Tester" bị xoá trước khi B dùng lời mời | B mở lời mời | B không vào được X; hệ thống báo lời mời không còn hiệu lực |
+| PRD00-AC-182 | FR-25 | B chưa có tài khoản; X gửi lời mời tới b@congty.vn | B mở lời mời và đăng ký bằng b@congty.vn và mật khẩu | B vào thẳng X; email của B được coi là đã xác minh, B tạo được tổ chức mới (BR-23) mà không phải xác minh thêm |
+| PRD00-AC-183 | FR-54 | A đang làm việc ở X và đang mở một feedback; X bị vô hiệu | A đổi trạng thái feedback đó | Hệ thống báo "tổ chức tạm ngừng"; feedback không đổi |
+| PRD00-AC-184 | FR-54 | A chỉ là thành viên của X; X bị vô hiệu | A mở Hub | A thấy trang chào kèm lời giải thích tổ chức X đang tạm ngừng; không có hộp feedback hay "Feedback của tôi" |
+| PRD00-AC-185 | FR-53 | M có quyền quản lý tổ chức ở X tên "Công ty A"; S là admin hệ thống | M đổi tên X thành "Công ty B" | Lần tải tiếp theo, mọi thành viên X thấy "Công ty B" trong bộ chọn tổ chức; danh sách tổ chức của S hiện "Công ty B" |
+| PRD00-AC-186 | FR-53, FR-12 | M là thành viên X không có quyền quản lý tổ chức | M gửi yêu cầu đổi tên X trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; tên X không đổi |
+| PRD00-AC-187 | FR-53 | M có quyền quản lý tổ chức ở X | M đổi tên X thành tên trống | Không đổi được; hệ thống yêu cầu nhập tên; tên X không đổi |
+| PRD00-AC-188 | FR-27 | H là Phụ trách, F ở *Mới* | H chọn *Từ chối* với lý do dài đúng 500 ký tự | F ở *Từ chối*; người báo thấy đủ 500 ký tự của lý do |
+| PRD00-AC-189 | FR-27 | Như trên | H chọn *Từ chối* với lý do dài 501 ký tự | Không chuyển được; hệ thống báo lý do vượt 500 ký tự; F vẫn ở *Mới* |
+| PRD00-AC-190 | FR-12 | Q có vai trò Admin ở X, không được gán sản phẩm P, đang mở F của P | Chủ sở hữu đổi vai trò của Q thành Member, rồi Q đổi ưu tiên của F | Hệ thống báo "không tìm thấy"; ưu tiên của F không đổi; Q không phải đăng xuất |
+| PRD00-AC-191 | FR-16, FR-10 | Khách K gửi G; G ở In review | K chọn *đạt* trên trang link riêng | G sang *Đã xử lý*; lịch sử ghi thay đổi |
+| PRD00-AC-192 | FR-16, FR-10 | Như trên | K chọn *chưa đạt* với lý do "Vẫn không đăng nhập được" | G về *Đang xử lý*; Phụ trách thấy lý do đó trên G |
+| PRD00-AC-193 | FR-52 | O là Chủ sở hữu của X; A có quyền quản lý thành viên, không phải Chủ sở hữu | A tìm cách gỡ vai trò Chủ sở hữu khỏi O | Bị từ chối vì không đủ quyền; O vẫn là Chủ sở hữu và là Quản trị |
+| PRD00-AC-194 | FR-52, FR-25 | A có vai trò Admin ở X, không phải Chủ sở hữu | A gửi lời mời tới email của B với vai trò Chủ sở hữu | Bị từ chối vì không đủ quyền; không email nào được gửi |
+| PRD00-AC-195 | FR-56, FR-37 | M có quyền quản lý file, không là Quản trị, không được gán sản phẩm P; F của P có ảnh chụp màn hình | M mở đường dẫn trực tiếp tới ảnh của F | Hệ thống báo "không tìm thấy"; ảnh không hiện |
+| PRD00-AC-196 | FR-25 | Như AC-179 | B mở L2 | B vào X với vai trò được mời |
+| PRD00-AC-197 | FR-52 | N có vai trò tự tạo "Nhân sự" chỉ gồm quyền quản lý thành viên; Q có vai trò Admin ở X | N đổi vai trò tổ chức của Q từ Admin thành Member | Bị từ chối vì không đủ quyền (N không có quyền Quản trị FeedbackHub của vai trò Admin); Q vẫn có vai trò Admin và là Quản trị |
+| PRD00-AC-198 | FR-52 | Vai trò tự tạo "Trưởng IT" của X có quyền Quản trị FeedbackHub; R có quyền quản lý vai trò, không có quyền Quản trị FeedbackHub | R sửa "Trưởng IT" để bỏ quyền Quản trị FeedbackHub | Bị từ chối vì không đủ quyền; "Trưởng IT" vẫn có quyền Quản trị FeedbackHub |
+| PRD00-AC-199 | FR-54 | A là thành viên của X và Y, cả hai đang hoạt động; A đang làm việc ở X; X bị vô hiệu | A làm một thao tác trong X | A thấy "tổ chức tạm ngừng", rồi được đưa về ngữ cảnh cá nhân: trang chào kèm bộ chọn tổ chức, chọn được Y, X làm mờ kèm nhãn tạm ngừng |
+| PRD00-AC-200 | FR-54 | A chỉ là thành viên của X; A đang làm việc ở X; X bị vô hiệu | A làm một thao tác trong X | A thấy "tổ chức tạm ngừng", rồi thấy trang chào kèm lời giải thích X đang tạm ngừng; không có tổ chức nào chọn được |
+| PRD00-AC-201 | FR-31 | A là thành viên của X và Y, cả hai đang hoạt động | A chuyển về ngữ cảnh cá nhân | A thấy trang chào kèm bộ chọn tổ chức có X và Y; không có hộp feedback hay "Feedback của tôi" |
+| PRD00-AC-210 | FR-15 | H là Phụ trách của P và là người báo của F ở P; F chuyển từ *Đã tiếp nhận* sang *Cần thêm thông tin* | H viết một bình luận nội bộ trên F | F vẫn ở *Cần thêm thông tin* |
+| PRD00-AC-211 | FR-15 | Q là Quản trị của X, không là Phụ trách của P, và là người báo của F ở P; F chuyển từ *Đã tiếp nhận* sang *Cần thêm thông tin* | Q gửi một bình luận gửi người báo trên F | F tự về *Đã tiếp nhận* |
+| PRD00-AC-214 | FR-12 | Người báo R, không là Quản trị, đã viết một bình luận trên F | R tìm cách xoá bình luận đó, rồi gửi yêu cầu xoá trực tiếp, không qua màn hình | Không có thao tác xoá; yêu cầu trực tiếp bị từ chối vì không đủ quyền; bình luận vẫn còn |
+| PRD00-AC-215 | FR-12 | Phụ trách H, không là Quản trị, đã viết một bình luận gửi người báo trên F | H gửi yêu cầu xoá bình luận đó trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; bình luận vẫn còn |
+| PRD00-AC-216 | FR-12 | H chuyển F sang *Từ chối* với lý do "Đúng theo thiết kế" | H tìm cách sửa bình luận lưu lý do đó | Không có thao tác sửa; gửi trực tiếp bị từ chối; nội dung bình luận không đổi |
+| PRD00-AC-217 | FR-12 | Như trên; Q là Quản trị | Q tìm cách xoá bình luận lưu lý do đó | Không có thao tác xoá; gửi trực tiếp bị từ chối; bình luận vẫn còn |
+| PRD00-AC-223 | FR-12 | H là Phụ trách của P; F thuộc P | H tìm cách xoá F, rồi gửi yêu cầu xoá trực tiếp, không qua màn hình | Không có thao tác xoá; yêu cầu trực tiếp bị từ chối vì không đủ quyền; F vẫn còn |
+| PRD00-AC-225 | FR-53 | X tên "Công ty A", định danh ngắn `cong-ty-a`; M có quyền quản lý tổ chức | M đổi tên X thành "Công ty B" | Tên X là "Công ty B"; định danh ngắn vẫn là `cong-ty-a` |
+| PRD00-AC-226 | FR-53, FR-12 | O là Chủ sở hữu của X | O gửi yêu cầu đổi định danh ngắn của X trực tiếp, không qua màn hình | Bị từ chối; định danh ngắn không đổi |
+| PRD00-AC-239 | FR-12 | Người báo R (không là Phụ trách hay Quản trị của sản phẩm) đã viết một bình luận trên F; F sau đó sang *Đóng* | R gửi yêu cầu sửa bình luận đó trực tiếp, không qua màn hình | Bị từ chối; nội dung bình luận không đổi |
+| PRD00-AC-241 | FR-12 | Phụ trách H đã viết một bình luận gửi người báo trên F; Q là Quản trị | Q tìm cách sửa bình luận đó, rồi gửi yêu cầu sửa trực tiếp, không qua màn hình | Không có thao tác sửa; yêu cầu trực tiếp bị từ chối vì không đủ quyền; nội dung bình luận không đổi |
+| PRD00-AC-243 | FR-16, FR-14 | F ở In review; H là Phụ trách của sản phẩm | H đổi trạng thái F sang *Đang xử lý* mà không ghi lý do | Không chuyển được; hệ thống yêu cầu nhập lý do; F vẫn ở In review |
+| PRD00-AC-244 | FR-16, FR-14 | Như trên | H đổi trạng thái F sang *Đang xử lý* với lý do "Chưa xử lý trường hợp số âm" | F ở *Đang xử lý*; người báo thấy lý do đó trên F; lịch sử ghi H, In review → *Đang xử lý* |
+| PRD00-AC-245 | FR-16, FR-12 | F ở In review; Q là Quản trị | Q gửi yêu cầu chuyển F sang *Đang xử lý* trực tiếp, không qua màn hình, không kèm lý do | Bị từ chối; F vẫn ở In review, lịch sử không có mục mới |
+| PRD00-AC-246 | FR-21, FR-10 | S là admin hệ thống, không là thành viên X; P thuộc X và bật chế độ khách | S gửi feedback G qua widget của P, có để email | G được ghi là feedback của khách như AC-23; S theo dõi G qua link riêng như mọi khách |
+
+## 8. Trạng thái và trường hợp biên
+
+- **Không có tổ chức**: tài khoản chưa thuộc tổ chức nào (ví dụ chỉ từng gửi với tư cách khách) mở Hub → trang chào (BR-32, AC-74). Tài khoản mà mọi tổ chức đều đang bị vô hiệu → trang chào kèm lời giải thích (BR-64, AC-184). Ngữ cảnh cá nhân luôn hiện trang chào, kèm bộ chọn tổ chức khi có tổ chức đang hoạt động (BR-68, AC-201).
+- **Thành viên bị gỡ khỏi tổ chức** khi đang là người báo hoặc Phụ trách → BR-30 (AC-69, AC-70). Feedback đang giao cho họ và cách hiện tên họ: PRD03; sản phẩm mất Phụ trách duy nhất: PRD01 (§12).
+- **Tổ chức bị vô hiệu**: widget tạm ngừng, link riêng hết hiệu lực, không ai chuyển vào được, kể cả Chủ sở hữu và admin hệ thống (BR-31, AC-71, AC-72). Admin hệ thống luôn phải ghi lý do, kể cả khi đồng thời là Chủ sở hữu; người khác vô hiệu theo quyền quản lý tổ chức thì không bắt buộc (BR-52, BR-54, AC-138, AC-139, AC-141, AC-146–148). Chỉ admin hệ thống kích hoạt lại được; kích hoạt lại đưa tổ chức về như trước (BR-49, AC-106, AC-128–131). Các mốc thời gian (tự đóng 7 ngày, hạn lời mời, hạn link riêng) vẫn chạy trong lúc vô hiệu; kích hoạt lại chỉ khôi phục những gì còn hạn (BR-55, AC-142–145). Lời mời còn hạn không dùng được trong lúc vô hiệu nhưng không bị huỷ (BR-57, AC-151, AC-152). Người đang làm việc trong tổ chức thấy "tổ chức tạm ngừng" ở thao tác tiếp theo; tổ chức nằm mờ trong bộ chọn (BR-64, AC-73, AC-183); sau đó Hub đưa họ về ngữ cảnh cá nhân (BR-68, AC-199, AC-200). Email cho Chủ sở hữu, tạm dừng thông báo, link riêng mới, khảo sát: §12 (PRD04, PRD05, PRD07).
+- **Quyền bị thu hồi** (bỏ gán sản phẩm, đổi vai trò tổ chức, sửa vai trò tự tạo) có hiệu lực ngay từ thao tác tiếp theo của người đó; không cần đăng xuất (BR-67, AC-12, AC-190). Người được giao mất vai trò Phụ trách: PRD03 (§12).
+- **Leo thang quyền**: không ai tự thành Chủ sở hữu, tự nâng quyền hay cấp quyền mình không có, kể cả qua lời mời hay vai trò tự tạo (BR-58, AC-55, AC-153–157, AC-193, AC-194); việc gỡ cũng theo cùng giới hạn: gỡ Chủ sở hữu, gỡ vai trò có quyền mình không có, hay bỏ khỏi vai trò tự tạo quyền mình không có (BR-58 điểm 3, AC-158, AC-197, AC-198). Vai trò hệ thống không sửa, không xoá được (BR-60, AC-159).
+- **Một người là người báo và cũng là Phụ trách** của cùng sản phẩm: được làm mọi thao tác của Phụ trách trên feedback mình gửi; ở "Feedback của tôi" vẫn thấy feedback đó; bình luận gửi người báo của họ trên feedback đó tính là trả lời của người báo, bình luận nội bộ thì không (BR-12, AC-173, AC-210). Người báo là Quản trị được tính như người báo là Phụ trách (AC-211).
+- **Một người là người báo và là Viewer** của cùng sản phẩm: trên feedback mình gửi có đủ quyền người báo (BR-62, AC-170–172).
+- **Khách không để email**: không chuyển được feedback của họ sang *Cần thêm thông tin* (BR-43, AC-82).
+- **Lời mời hết hạn hoặc đã thu hồi**: không đưa ai vào tổ chức (BR-24, AC-58, AC-59). Mời lại, email đã là thành viên, vai trò bị xoá, email đã có tài khoản, đăng ký bằng Google/Microsoft: BR-63, AC-177–182.
+- **Lời mời bị chuyển tiếp** hoặc mở bởi tài khoản có email khác email được mời: không đưa người đó vào tổ chức, báo lời mời không dành cho họ (BR-51, AC-118, AC-119).
+- **Feedback ở *Đã xử lý* bị mở lại rồi quay về *Đã xử lý***: 7 ngày tự đóng tính lại từ lần vào *Đã xử lý* gần nhất (BR-27). Tự đóng xảy ra chậm nhất 1 giờ sau mốc 7×24 giờ (AC-63, AC-143).
+- **Phụ trách hay Quản trị đưa feedback từ In review về *Đang xử lý*** bằng thao tác đổi trạng thái thay vì *chưa đạt*: vẫn phải ghi lý do (BR-11, AC-243–245).
+- **Lý do dài**: mọi lý do tối đa 500 ký tự (BR-66, AC-188, AC-189).
+- **Admin hệ thống và tổ chức mình không là thành viên**: không vào được, không thấy gì bên trong, ngoài feedback chính mình gửi với tư cách khách (BR-06); mở hay thao tác trên feedback, sản phẩm, danh sách thành viên thì thấy "không tìm thấy" (BR-21, BR-45, AC-121–123, AC-136).
+- **Admin hệ thống được tổ chức thêm làm thành viên**: làm việc thuần tuý như thành viên đó, theo vai trò được gán, không nhãn, không nhật ký riêng (BR-53, AC-132–134). Quyền cấp hệ thống của họ (BR-21) không phụ thuộc tổ chức đang làm việc.
+- **Admin hệ thống gửi feedback qua widget của tổ chức mình không là thành viên**: là khách trên feedback đó, với đúng quyền của khách (BR-06, BR-21, AC-246).
+- **Đổi tên tổ chức**: định danh ngắn không đổi theo, không ai sửa được (BR-65, AC-225, AC-226).
+- **20 sản phẩm** trở lên mỗi tổ chức: phân quyền phải dùng tốt (AC-07; theo canvas đã duyệt). Chưa có giới hạn tối đa nào được quyết.
+- **Thuộc PRD khác**: sửa đồng thời, trùng lặp và feedback gốc, xoá feedback, sửa và xoá bình luận, sản phẩm chưa có Phụ trách, widget không cho gửi: §12.
+
+## 9. Dữ liệu (mức nghiệp vụ)
+
+Chỉ các trường của tổ chức, thành viên, vai trò và vòng đời. Các trường khác của feedback (loại, ưu tiên, người được giao, mã, bình luận, feedback gốc, liên hệ của khách, lịch sử): PRD02, PRD03.
+
+| Trường | Ý nghĩa | Bắt buộc | Giới hạn | Ai được sửa |
+|---|---|---|---|---|
+| Tên tổ chức | Tên hiển thị của tổ chức; admin hệ thống thấy trong danh sách tổ chức (FR-44) | Có | Không để trống (nền tảng đã có) | Người tạo tổ chức khi tạo; sau đó người có quyền quản lý tổ chức đổi được (BR-65; nền tảng chưa có thao tác đổi tên, PRD này thêm) |
+| Định danh ngắn của tổ chức | Mã viết thường, duy nhất toàn Hub | Có | Duy nhất (nền tảng đã có); không bao giờ đổi, kể cả khi đổi tên tổ chức (BR-65) | Người tạo tổ chức, khi tạo; sau đó không ai |
+| Vai trò tổ chức của thành viên | Một hoặc nhiều vai trò tổ chức | Có, ít nhất một | Tổ chức luôn còn ít nhất một Chủ sở hữu (nền tảng đã có); Chủ sở hữu và Admin luôn có quyền Quản trị FeedbackHub (BR-60); chỉ Chủ sở hữu gán, gỡ vai trò Chủ sở hữu; không ai gán vai trò có quyền mình không có (BR-58) | Người có quyền quản lý thành viên (BR-19), trong giới hạn BR-58 |
+| Vai trò tự tạo | Tên và các quyền chọn từ danh mục quyền cố định | Có tên | Chỉ đưa vào được quyền người tạo, người sửa có (BR-58); vai trò hệ thống không sửa, không xoá được (BR-60) | Người có quyền quản lý vai trò (BR-60) |
+| Số thành viên của tổ chức | Số thành viên hiện tại, hiện trong danh sách tổ chức của admin hệ thống (FR-44) | Tự tính | Không kèm tên thành viên | Không ai |
+| Trạng thái tổ chức | Đang hoạt động hoặc đã vô hiệu | Có | Mặc định đang hoạt động | Vô hiệu: người có quyền quản lý tổ chức (BR-52), admin hệ thống; kích hoạt lại: chỉ admin hệ thống (BR-49) |
+| Lý do vô hiệu tổ chức | Lý do ghi khi vô hiệu một tổ chức; đi kèm email báo các Chủ sở hữu (PRD05) | Có khi người vô hiệu là admin hệ thống (kể cả khi đồng thời là Chủ sở hữu); không bắt buộc với người khác (BR-54) | Tối đa 500 ký tự (BR-66) | Người vô hiệu, khi vô hiệu |
+| Lời mời | Email được mời, vai trò tổ chức, thời điểm gửi | Có email và vai trò | Hết hạn sau 7 ngày, kể cả khi tổ chức bị vô hiệu (BR-55); thu hồi được trước khi dùng; chỉ tài khoản có đúng email được mời dùng được (BR-51); mỗi email chỉ có một lời mời còn hiệu lực, không mời được email đã là thành viên, hết hiệu lực khi vai trò bị xoá (BR-63); vai trò theo BR-58 | Người có quyền quản lý thành viên (BR-19) |
+| Vai trò theo sản phẩm | Phụ trách hoặc Viewer, cho một thành viên ở một sản phẩm | Không | Tối đa một vai trò mỗi người mỗi sản phẩm (BR-03) | Quản trị |
+| Trạng thái feedback | Một trong chín trạng thái §3.4 | Có | Mặc định *Mới* khi gửi | Phụ trách, Quản trị; người báo và khách chỉ qua hai thao tác BR-09; tự động theo BR-12, BR-27 |
+| Lý do từ chối | Lý do khi chuyển sang *Từ chối*; là bình luận lưu lý do (§3.1) | Có khi chuyển sang *Từ chối* | Không để trống, tối đa 500 ký tự (BR-66) | Phụ trách, Quản trị, khi chuyển trạng thái; sau đó không ai (PRD03) |
+| Lý do *chưa đạt* | Lý do khi kết thúc In review với *chưa đạt*, hoặc khi Phụ trách, Quản trị đưa feedback từ In review về *Đang xử lý* (BR-11); là bình luận lưu lý do | Có khi chọn *chưa đạt* hoặc chuyển In review → *Đang xử lý* | Không để trống, tối đa 500 ký tự (BR-66) | Người kết thúc In review (FR-16), khi kết thúc; Phụ trách, Quản trị, khi chuyển trạng thái; sau đó không ai (PRD03) |
+| Lý do mở lại | Lý do người báo hoặc khách mở lại; là bình luận lưu lý do | Có khi mở lại | Một câu ngắn, không để trống, tối đa 500 ký tự (BR-66) | Người báo, khách, khi mở lại; sau đó không ai (PRD03) |
+
+## 10. Thông báo và sự kiện
+
+Ai nhận gì, qua kênh nào, với nội dung gì được định nghĩa ở PRD05. PRD này chỉ nêu các sự kiện phát sinh từ module của mình; các quyết định đã có về người nhận và nội dung ghi ở §12 (PRD05).
+
+| Sự kiện | Ai nhận | Kênh | Ghi chú |
+|---|---|---|---|
+| Feedback đổi trạng thái (§3.4), kể cả hai chuyển tự động (BR-26) | Theo PRD05 | Theo PRD05 | Lịch sử ghi người thực hiện, hoặc hệ thống |
+| Lời mời vào tổ chức | Email được mời | Email | BR-24; nội dung email: PRD05 |
+| Tổ chức bị vô hiệu | Các Chủ sở hữu (PRD05) | Email | Kèm lý do khi có (BR-54) |
+| Admin hệ thống kích hoạt lại tổ chức | Các Chủ sở hữu (PRD05) | Email | BR-49 |
+
+## 11. Yêu cầu phi chức năng
+
+- **Tách biệt dữ liệu**: không màn hình, email, file xuất hay thông báo nào hiện dữ liệu của tổ chức cho người ngoài tổ chức, trừ ngoại lệ khách qua link riêng trong ma trận quyền. Quyền admin hệ thống không mở ngoại lệ nào: về một tổ chức, admin hệ thống chỉ thấy tên, số thành viên, dấu hiệu đã vô hiệu và kết quả khảo sát theo PRD07 (BR-21, BR-22), cộng với feedback chính mình gửi với tư cách khách, như mọi tài khoản (BR-06).
+- **Vai trò cấp hệ thống không vượt quyền vào tổ chức**: admin hệ thống là vai trò cấp hệ thống mới so với nền tảng hiện có, chỉ cấp được ngoài Hub (BR-20), và không mở đường nào vào dữ liệu bên trong tổ chức (BR-21, BR-22). Đây vẫn là thay đổi bảo mật (spec khảo sát §3), nên thiết kế kỹ thuật phải qua review bảo mật trước khi duyệt.
+- **Kiểm tra quyền không phụ thuộc giao diện**: ẩn nút trên màn hình không thay cho việc từ chối thao tác; mọi thao tác bị chặn trong ma trận đều bị từ chối khi gọi trực tiếp (FR-12).
+- **Không hiện nội dung khi không có quyền**: người không được thấy một feedback, sản phẩm hay dữ liệu khác bên trong tổ chức mà mở hoặc thao tác trên nó không thấy bất kỳ nội dung nào của nó, và thấy "không tìm thấy" giống như khi nó không tồn tại (BR-45). Thiết kế kỹ thuật cần review bảo mật xác nhận cách làm.
+- **Chống leo thang quyền**: không ai tự nâng quyền, tự thành Chủ sở hữu hay cấp quyền mình không có (BR-58); các quyền nền tảng khác không mở đường tới feedback (BR-59). Nền tảng hiện cho người có quyền quản lý thành viên gán mọi vai trò, kể cả Chủ sở hữu, kể cả cho chính mình, nên đây là thay đổi bảo mật cần review bảo mật ở thiết kế kỹ thuật.
+- **Quyền đổi có hiệu lực ngay**: mọi thay đổi quyền có hiệu lực từ thao tác tiếp theo của người bị đổi (BR-67).
+- **Ngôn ngữ**: giao diện có tiếng Việt và tiếng Anh; tên trạng thái, loại, ưu tiên, vai trò dịch thống nhất ở mọi nơi (BR-41). Email mặc định tiếng Việt theo quyết định nền tảng 2026-08-04.
+- **Truy vết**: mọi lần đổi trạng thái feedback, kể cả chuyển tự động, ghi lại ai (hoặc "Hệ thống"), lúc nào, từ trạng thái nào sang trạng thái nào (BR-26); lý do đổi trạng thái không sửa, không xoá được (§3.3, AC-216, AC-217). Chi tiết lịch sử và các ngoại lệ đã quyết (sửa, xoá bình luận; xoá feedback): PRD03 (§12).
+- **Quy mô**: một tổ chức có từ 20 sản phẩm trở lên vẫn dùng tốt (canvas đã duyệt).
+
+## 12. Phụ thuộc
+
+- **Nền tảng có sẵn**:
+  - Đăng ký bằng email (bắt buộc xác minh email), đăng nhập Google và Microsoft, quản lý phiên đăng nhập.
+  - Tổ chức: tạo tổ chức (người tạo thành Chủ sở hữu), vô hiệu tổ chức, chuyển tổ chức đang làm việc, quay về ngữ cảnh cá nhân không tổ chức (§3.1; điều người dùng thấy ở đó: trang chào, kèm bộ chọn tổ chức khi có tổ chức đang hoạt động, BR-68). Định danh ngắn của tổ chức đặt khi tạo; PRD này chốt nó không bao giờ đổi (BR-65). Nền tảng chưa có thao tác kích hoạt lại tổ chức; PRD này thêm cho admin hệ thống (FR-42). Nền tảng chưa có thao tác đổi tên tổ chức; PRD này thêm (FR-53).
+  - Thành viên: thêm thành viên bằng email của một tài khoản **đã đăng ký**, đổi vai trò, gỡ thành viên; luôn còn ít nhất một Chủ sở hữu. Hiện người có quyền quản lý thành viên gán được mọi vai trò, kể cả Chủ sở hữu, kể cả cho chính mình; PRD này thêm giới hạn chống leo thang quyền (FR-52, BR-58). PRD này thêm lời mời qua email cho cả người chưa có và đã có tài khoản (FR-25, BR-63).
+  - Vai trò tổ chức tự tạo từ danh mục quyền cố định (quyền quản lý tổ chức, quản lý thành viên, quản lý vai trò, quản lý khoá API, xem nhật ký kiểm toán, quản lý file, quản lý cài đặt); ba vai trò hệ thống Owner (mọi quyền), Admin (hiện chỉ có quyền quản lý thành viên), Member (không có quyền nào); vai trò hệ thống không sửa, không xoá được. PRD này thêm quyền Quản trị FeedbackHub vào danh mục, luôn có ở Admin (FR-23, BR-60), và chốt rằng bốn quyền khoá API, nhật ký kiểm toán, file, cài đặt không mở đường tới feedback (FR-56, BR-59).
+  - Hiện không có admin cấp hệ thống và không có đường vượt quyền giữa các tổ chức. PRD này thêm vai trò admin hệ thống (BR-20, BR-21) nhưng giữ nguyên việc không có đường vượt quyền vào dữ liệu bên trong tổ chức.
+  - Thông báo trong Hub, email, web push.
+- **PRD phụ thuộc vào PRD này**: PRD01–PRD07 dẫn chiếu §3 (thuật ngữ, vai trò, ma trận quyền, vòng đời) và phải ghi lại các quyết định đã có ở bảng dưới.
+- **Dịch vụ bên ngoài**: không có mới.
+
+### Chuyển cho PRD khác
+
+Các quyết định người dùng đã đưa ra khi soạn PRD này nhưng thuộc module khác, và các trường hợp biên PRD này để cho module khác tự quyết (ghi "chưa quyết"). PRD đích ghi lại và quy định chi tiết; ở đây ghi để không bị quên. "Câu n" là số câu hỏi ở §14; mã cũ (v0.8) để truy lại nội dung đầy đủ trong lịch sử git.
+
+| PRD đích | Điều cần quy định | Phát sinh từ |
+|---|---|---|
+| PRD01 | **Lưu trữ sản phẩm**: sản phẩm chỉ lưu trữ được, không ai xoá hẳn; chỉ Quản trị lưu trữ (ma trận §3.3). | Câu 56 |
+| PRD01 | **Sản phẩm chưa có Phụ trách**: feedback mới được báo cho Quản trị của tổ chức cho đến khi sản phẩm có Phụ trách; không ai được giao được; sản phẩm thành chưa có Phụ trách khi Phụ trách duy nhất bị bỏ gán hoặc rời tổ chức. Thông báo: §12 PRD05 *Sản phẩm chưa có Phụ trách*. Ưu tiên đã quyết: Must. | Câu 12, 8; ưu tiên xác nhận ở v0.3 (FR-32, BR-35 v0.8) |
+| PRD02 | **Gửi khi đã đăng nhập**: thành viên của tổ chức sở hữu sản phẩm gửi ngay với tư cách người báo, không cần chuyển tổ chức trước; người đã đăng nhập Hub nhưng không thuộc tổ chức gửi với tư cách khách, tên và email điền sẵn từ tài khoản (tư cách: PRD-00 BR-06). | Spec lõi §5 [Người dùng] (BR-06 v0.8) |
+| PRD02 | **Widget không cho gửi**: người đã đăng nhập Hub, không thuộc tổ chức sở hữu sản phẩm, và sản phẩm tắt chế độ khách → widget không cho gửi, báo sản phẩm chỉ nhận feedback từ thành viên của tổ chức, kèm gợi ý liên hệ người quản lý sản phẩm; lời nhắn chỉ nêu tên sản phẩm, không nêu tên, email hay cách liên hệ của bất kỳ ai trong tổ chức. Ưu tiên đã quyết: Must. | Câu 24, 58; ưu tiên xác nhận ở v0.3 (FR-36, BR-46 v0.8) |
+| PRD02 | **Chọn loại khi gửi**: người báo chọn một trong ba loại *Lỗi*, *Tính năng*, *Góp ý* (tên: PRD-00 BR-41). | Câu 19 (FR-22 v0.8) |
+| PRD03 | **Giao việc**: người được giao phải là một Phụ trách của sản phẩm; Phụ trách và Quản trị giao, đổi người được giao hoặc để *Chưa giao*; Quản trị không là Phụ trách của sản phẩm thì không là người được giao được, muốn nhận việc thì tự gán mình làm Phụ trách. Ưu tiên đã quyết: Must. | Câu 14, 60 (FR-50, BR-05, BR-36 v0.8) |
+| PRD03 | **Tự về Chưa giao**: người được giao mất vai trò Phụ trách (bị bỏ gán, đổi thành Viewer) hoặc bị gỡ khỏi tổ chức thì feedback về *Chưa giao*, trạng thái không đổi; lịch sử ghi người làm thao tác gây ra việc đó, kèm ghi chú "do mất vai trò Phụ trách" hoặc "do rời tổ chức". | Câu 48, 66, 8 (BR-61, BR-30 v0.8) |
+| PRD03 | **Thành viên đã rời tổ chức**: feedback họ đã gửi giữ nguyên, tên họ hiện kèm "(đã rời tổ chức)". | Câu 8 (BR-30 v0.8) |
+| PRD03 | **Loại và ưu tiên**: Phụ trách, Quản trị đổi loại, đặt và đổi ưu tiên (*Cao*, *Trung bình*, *Thấp*, mặc định chưa đặt; tên theo ngôn ngữ giao diện, PRD-00 BR-41); người báo thấy loại mới, không thấy ưu tiên. Ưu tiên đã quyết của yêu cầu đặt ưu tiên: Must. | Câu 19, 60 (FR-51 v0.8) |
+| PRD03 | **Mã feedback**: `FB-<số>` tăng dần, không trùng trong tổ chức, dùng chung cho mọi sản phẩm của tổ chức, mỗi tổ chức một dãy số riêng; mã của feedback đã xoá không bao giờ dùng lại. Ưu tiên đã quyết: Must. | Câu 20, 68; ưu tiên xác nhận ở v0.3 (FR-34, BR-42 v0.8) |
+| PRD03 | **Liên hệ của khách**: email và điện thoại của khách luôn che trong danh sách (ví dụ "an***@gmail.com"); ở chi tiết, Quản trị và Phụ trách thấy đầy đủ, Viewer chỉ thấy bản che. Ưu tiên đã quyết: Must. | Câu 16; ưu tiên xác nhận ở v0.3 (FR-33, BR-38 v0.8) |
+| PRD03 | **Trùng lặp và feedback gốc**: feedback gốc phải cùng sản phẩm và không đang ở *Trùng lặp* (danh sách chọn gốc chỉ có feedback không ở *Trùng lặp*, gọi thẳng cũng bị chặn); khi một gốc bị đánh dấu trùng với gốc khác, mọi bản trùng của nó chuyển sang gắn với gốc mới. | Câu 15, 63 (FR-18, BR-37, BR-69 v0.8) |
+| PRD03 | **Bình luận lưu lý do**: lý do *Từ chối*, *chưa đạt* (kể cả khi Phụ trách hay Quản trị đưa feedback từ In review về *Đang xử lý*) và mở lại được lưu thành bình luận gửi người báo, cùng lần đổi trạng thái; không ai sửa hay xoá được, kể cả tác giả và Quản trị; chỉ mất cùng feedback khi feedback bị xoá. | Câu 7, 13, 67, 78 (BR-11, BR-28, BR-29, BR-70 v0.8) |
+| PRD03 | **Sửa bình luận**: tác giả sửa được bình luận của chính mình, kể cả khách qua link riêng; không ai sửa được bình luận của người khác, kể cả Quản trị; người báo và khách không sửa được khi feedback ở *Đóng*, *Từ chối* hoặc *Trùng lặp*; việc sửa bình luận phải ra cùng một bản phát hành với ngoại lệ bình luận lưu lý do, không tách sang bản sau. Thời hạn sửa và dấu "đã sửa" do PRD03 quyết. Ưu tiên đã quyết: Should. | Câu 56, 67, 73, 77 (FR-57, BR-70 v0.8) |
+| PRD03 | **Xoá bình luận**: chỉ Quản trị xoá được, mọi bình luận kể cả của chính mình, trừ bình luận lưu lý do; người không là Quản trị không xoá được bình luận nào, kể cả của mình. | Câu 56, 67 (BR-70 v0.8) |
+| PRD03 | **Lịch sử**: chỉ thêm, không ai sửa hay xoá mục lịch sử; ghi mọi thay đổi trạng thái và thuộc tính (ai, lúc nào, từ giá trị nào sang giá trị nào); mỗi lần sửa, xoá bình luận chỉ ghi ai và lúc nào, không giữ nội dung cũ; người báo và khách chỉ thấy lịch sử đổi trạng thái (PRD-00 BR-07). | Spec lõi §6; câu 75 (FR-19, BR-14, BR-70 v0.8) |
+| PRD03 | **Xoá feedback**: chỉ Quản trị; xoá hẳn feedback cùng ảnh, file, bình luận (kể cả bình luận lưu lý do) và lịch sử, khỏi mọi màn hình (hộp feedback, "Feedback của tôi", link riêng); mở đường dẫn cũ thấy "không tìm thấy" (PRD-00 BR-45); việc xoá được ghi lại ở một nơi ngoài feedback để truy vết (nội dung bản ghi và ai xem được do PRD03 quyết). Ưu tiên đã quyết: Should. | Câu 56, 68, 73 (FR-58, BR-71 v0.8) |
+| PRD03 | **Không xoá feedback còn bản trùng**: feedback đang là gốc của bản trùng thì không xoá được; Hub báo số bản trùng và yêu cầu Quản trị chuyển chúng sang gốc khác hoặc đổi trạng thái của chúng trước; gọi thẳng vào hệ thống cũng bị chặn. | Câu 72 (BR-71 v0.8) |
+| PRD03 | **Nhãn**: Quản trị và Phụ trách tạo, sửa, xoá nhãn của tổ chức (ma trận §3.3). | Câu 56 |
+| PRD03 | **Sửa đồng thời** (chưa quyết): hai Phụ trách đổi trạng thái cùng một feedback cùng lúc; PRD03 quyết thay đổi nào được giữ và người kia thấy gì. | §8 v0.8 |
+| PRD04 | **Tên người trả lời**: người báo là thành viên thấy tên thật của người IT; khách thấy "Đội hỗ trợ <tên sản phẩm>", kể cả với lý do *Từ chối*, *chưa đạt*. | Spec lõi §5 [Người dùng] (BR-08 v0.8) |
+| PRD04 | **Nội dung mình đã gửi**: người báo và khách thấy mô tả, ảnh, file mình đã gửi gắn nhãn "Bạn đã gửi". | Spec lõi §5 [Người dùng] (BR-07 v0.8) |
+| PRD04 | **Link riêng khi tổ chức bị vô hiệu**: trong lúc vô hiệu khách không xin được link riêng mới; hạn của link riêng vẫn chạy, link hết hạn trong lúc vô hiệu vẫn hết hạn sau khi kích hoạt lại. | Câu 57, 40 (BR-31, BR-55 v0.8) |
+| PRD04 | **Khách sửa bình luận**: khách sửa được bình luận của mình trên trang link riêng, trừ khi feedback ở *Đóng*, *Từ chối* hoặc *Trùng lặp*. | Câu 67, 77 (BR-70 v0.8) |
+| PRD05 | **Email khi tổ chức bị vô hiệu**: dù ai vô hiệu, mọi Chủ sở hữu khác người thực hiện nhận email, kèm lý do nếu có; nêu tên người vô hiệu khi người đó là thành viên; admin hệ thống không là thành viên thì email ghi "admin hệ thống FeedbackHub", không nêu tên cá nhân. Ưu tiên đã quyết của story này (US-19 cũ): Must. | Câu 39, 42, 59, 69 (US-19, FR-46, BR-54 v0.8) |
+| PRD05 | **Email khi kích hoạt lại**: khi admin hệ thống kích hoạt lại tổ chức, mọi Chủ sở hữu khác người thực hiện nhận email báo tổ chức đã hoạt động lại; admin hệ thống đồng thời là Chủ sở hữu không nhận email về lần kích hoạt do chính mình làm. | Câu 39, 42, 69 (FR-46, BR-54 v0.8) |
+| PRD05 | **Tạm dừng thông báo khi tổ chức bị vô hiệu**: không thông báo nào phát sinh từ tổ chức (trong Hub, email, web push) được gửi cho bất kỳ ai, kể cả khi feedback tự đóng; lịch sử vẫn ghi đủ; ngoại lệ duy nhất là hai email ở trên; không gửi bù khi kích hoạt lại; lời mời khảo sát (gửi theo tài khoản) không thuộc quy tắc này. Ưu tiên đã quyết: Must. | Câu 43, 60 (FR-55, BR-56 v0.8) |
+| PRD05 | **Thông báo bản trùng**: khi feedback gốc lần đầu sang *Đã xử lý*, *Đóng* hoặc *Từ chối*, người báo của mọi bản trùng được báo, kể cả khách đã để email; bản trùng gắn vào gốc đã ở một trong ba trạng thái đó thì được báo ngay, với kết quả hiện tại; bản trùng chuyển sang gốc mới (khi gốc cũ bị đánh dấu trùng) tính như gắn vào gốc mới; mỗi bản trùng chỉ được báo một lần. Ưu tiên đã quyết: Must. | Câu 50, 60, 63, 64 và điểm suy ra xác nhận ở v0.8 (FR-48, BR-13, BR-69 v0.8) |
+| PRD05 | **Sản phẩm chưa có Phụ trách**: khi sản phẩm chưa có Phụ trách nào, Quản trị của tổ chức được báo có feedback mới ở sản phẩm đó, cho đến khi sản phẩm có Phụ trách; sản phẩm vừa có Phụ trách thì Quản trị thôi nhận thông báo này. Kênh và nội dung do PRD05 quy định. Ưu tiên đã quyết: Must. | Câu 12; ưu tiên xác nhận ở v0.3 (FR-32, BR-35 v0.8) |
+| PRD05 | **Xoá feedback không báo**: người báo và khách không được báo khi feedback của mình bị xoá. | Câu 68, 76 (BR-71 v0.8) |
+| PRD06 | **Định nghĩa chỉ số**: tỉ lệ từng vào *Cần thêm thông tin* = số feedback gửi trong kỳ đã từng vào *Cần thêm thông tin* ÷ số feedback gửi trong kỳ; trung vị chỉ dùng cho thời gian đến lần xử lý đầu tiên; kỳ đo mặc định 30 ngày gần nhất, đổi được trên Tổng quan; cách tính như nhau trên mọi màn hình số liệu. Ưu tiên đã quyết: Should. | Câu 22, 60 (US-12, FR-47, BR-44 v0.8) |
+| PRD06 | **Xử lý lần đầu**: tính một lần duy nhất cho mỗi feedback, tại lần đầu một người chuyển nó ra khỏi *Mới*, sang bất kỳ trạng thái nào; feedback quay lại *Mới* rồi rời *Mới* lần nữa không đổi mốc này. | Câu 47 (BR-17 v0.8) |
+| PRD06 | **Giờ lịch và danh sách cần chú ý**: mọi khoảng thời gian tính theo giờ lịch 24/7, không theo giờ làm việc; danh sách cần chú ý gồm feedback chưa được xử lý lần đầu sau 24 giờ kể từ lúc gửi. | Câu 18 (BR-40 v0.8) |
+| PRD06 | **Feedback đã xoá**: không tính vào tử số lẫn mẫu số của tỉ lệ, không tính vào trung vị, không có trong danh sách cần chú ý. | Câu 74 (BR-44, BR-71 v0.8) |
+| PRD07 | **Khảo sát và tổ chức bị vô hiệu**: đợt gửi "mọi tổ chức" không gồm tổ chức đang bị vô hiệu; khi tạo đợt, admin hệ thống không chọn được tổ chức đang bị vô hiệu (gọi thẳng cũng bị chặn); tổ chức bị vô hiệu sau khi đợt đã mở thì thành viên vẫn trả lời được, vì lời mời khảo sát gửi theo tài khoản. | Câu 57, 71 (BR-31, BR-72, FR-21, FR-30 v0.8) |
+
+## 13. Câu hỏi mở
+
+Chỉ những điều người dùng phải quyết: làm đổi thứ được xây, chạm bảo mật, tách dữ liệu, quyền, hoặc tốn công đáng kể.
+
+| # | Câu hỏi | Đề xuất trả lời | Vì sao quan trọng | Trạng thái |
+|---|---|---|---|---|
+| — | Không có. Mọi câu hỏi đến số 78 đã được người dùng trả lời (§14). | — | — | — |
+
+### Mặc định đề xuất
+
+Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả mức ưu tiên. Người dùng đã duyệt cả bảng cùng PRD ở v1.0 (2026-10-22).
+
+| # | Mặc định | Mã bị ảnh hưởng | Lý do |
+|---|---|---|---|
+| D1 | Mức ưu tiên ghi từ bản nháp đầu mà người dùng chưa xác nhận riêng: Must cho US-01–US-09 và FR-01–FR-17, FR-20; Should cho US-11. Các mức ưu tiên còn lại đã được người dùng quyết (câu 41, 45, 59, 60 và xác nhận ở v0.3) | US-01–US-09, US-11; FR-01–FR-17, FR-20 | Quy tắc mới: ưu tiên là mặc định đề xuất, soát một lần khi duyệt. Các mục này là nền phân quyền và vòng đời, mọi module khác cần; US-11 chỉ phục vụ khảo sát |
+
+## 14. Lịch sử thay đổi
+
+| Ngày | Phiên bản | Thay đổi | Nguồn |
+|---|---|---|---|
+| 2026-10-22 | 0.1 | Bản nháp đầu từ spec lõi, spec khảo sát, `docs/tech/README.md` và nền tảng hiện có | Spec 2026-10-21 (quyết định của người dùng) |
+| 2026-10-22 | 0.2 | Áp dụng câu 1–24; mở câu 25–32 | Quyết định của người dùng |
+| 2026-10-22 | 0.3 | Áp dụng câu 25–32; xác nhận ưu tiên US-13–15 và FR-23–38; mở câu 33–38 | Quyết định của người dùng |
+| 2026-10-22 | 0.4 | Câu 2 đảo lại: admin hệ thống theo mô hình giới hạn; câu 25, 26, 28, 29 và phần lớn câu 27 hết hiệu lực; bỏ câu 33, 34, 36–38 vì không còn đối tượng; áp dụng câu 35; mở câu 39–41 | Quyết định của người dùng |
+| 2026-10-22 | 0.5 | Áp dụng câu 39–41; xác nhận đánh dấu tổ chức đã vô hiệu trong danh sách của admin hệ thống; mở câu 42–45 | Quyết định của người dùng |
+| 2026-10-22 | 0.6 | Áp dụng câu 42–58 (46–58 từ review của business-analyst); sửa theo review (FR-47–51 cho các quy tắc chưa có yêu cầu, thuật ngữ còn thiếu, Given của một số AC, tách AC thành một hành vi mỗi tiêu chí); mở câu 59–71 | Quyết định của người dùng; BA review |
+| 2026-10-22 | 0.7 | Áp dụng câu 59–71; mở câu 72, 73 | Quyết định của người dùng |
+| 2026-10-22 | 0.8 | Áp dụng câu 72–78 (74–78 từ review cuối của business-analyst); xác nhận điểm suy ra từ câu 63, 64; sửa B1, B2, N1, N6, N7 theo review; §13 hết câu hỏi mở | Quyết định của người dùng; BA review |
+| 2026-10-22 | 0.9 | Gọt theo phạm vi, quy trình PR #15. Chuyển sang §12 *Chuyển cho PRD khác* (33 mục, mỗi mục dẫn câu hỏi đã trả lời hoặc spec lõi) mọi quy tắc thuộc PRD01–PRD07; ma trận quyền giữ đủ dòng, dòng nào có chi tiết ở PRD khác thì dẫn tới PRD đó. Xoá hẳn, không đánh lại số: các mục đã đánh dấu Removed (US-13, US-16; FR-39–41, FR-43; BR-47, BR-48, BR-50; AC-42, AC-46–50, AC-94–104, AC-108–114) và các mục đã chuyển (US-10, US-12, US-19; FR-18, FR-19, FR-22, FR-32–34, FR-36, FR-47, FR-48, FR-50, FR-51, FR-55, FR-57, FR-58; BR-05, BR-08, BR-13, BR-14, BR-17, BR-35–38, BR-40, BR-42, BR-44, BR-46, BR-56, BR-61, BR-69–72; AC-13, AC-19, AC-37–39, AC-44, AC-45, AC-75–81, AC-84, AC-88, AC-89, AC-93, AC-137, AC-140, AC-149, AC-150, AC-162–169, AC-174, AC-175, AC-202–209, AC-212, AC-213, AC-216–222, AC-224, AC-227–240, AC-242). Rút gọn phần thuộc module khác trong §2, §3.1, §3.3, BR-06, BR-07, BR-11, BR-28–31, BR-49, BR-52, BR-54, FR-06, FR-13, FR-16, FR-21, FR-27–30, FR-46, AC-20, AC-23, AC-31, AC-34, AC-67, AC-69, AC-133, AC-141, AC-146, AC-148, AC-170, AC-188, AC-192, AC-244, AC-246; AC-36 trỏ về FR-14, AC-120 về FR-13, AC-214, AC-215, AC-223, AC-241 về FR-12. Viết lại §8–§11 theo phạm vi; gọn §14 thành một dòng mỗi phiên bản và một dòng mỗi câu hỏi. Thêm D1 (ưu tiên chưa được xác nhận riêng). Sửa dẫn chiếu, không đổi nghĩa: BR-24 (thêm "Nội dung email mời: PRD05"), BR-25 (feedback gốc dẫn PRD03 thay FR-18), BR-27 và BR-55 (ghi "người thực hiện là hệ thống" thay "lịch sử ghi…"; BR-55 bỏ dẫn BR-40), BR-41 (*Áp dụng cho* bỏ FR-22, FR-51), BR-58 (email dẫn PRD05 thay BR-54), FR-11 (thêm "người báo hay khách" và BR-06), FR-14 (thêm "với các ràng buộc của BR-25"), FR-35 (thêm BR-43). Vẫn Draft | Quy trình (PR #15) |
+| 2026-10-22 | 0.9 | Sửa theo review BA v0.9 (PR #16): thêm §12 PRD03 *Sửa đồng thời* (chưa quyết) mà §8 đã trỏ tới; khôi phục AC-216, AC-217, AC-239 (cùng mã, cùng nội dung v0.8, AC-239 viết thẳng phần Cho trước của AC-238 đã chuyển), nay dưới FR-12; ghi "Ưu tiên đã quyết: Must" cho các mục §12 từ FR-32, FR-33, FR-34, FR-36 (xác nhận ở v0.3); thêm §12 PRD05 *Sản phẩm chưa có Phụ trách* (câu 12); BR-26 nêu rõ mọi lần đổi trạng thái, kể cả tự động, ghi ai (hoặc "Hệ thống"), lúc nào, từ → sang, FR-14 và §11 dẫn tới; AC-07 bỏ "và lọc được" (thuộc PRD03); bổ sung các sửa dẫn chiếu vào dòng 0.9 trên. Giữ phiên bản 0.9, vẫn Draft, D1 không đổi | BA review |
+| 2026-10-22 | 1.0 | Người dùng duyệt PRD cùng bảng Mặc định đề xuất | Quyết định của người dùng |
+
+### Quyết định của người dùng
+
+Mỗi câu hỏi đã trả lời và nơi quyết định đó nằm hiện nay. "§12 PRDxx *Tên*" là mục có tên đó ở bảng *Chuyển cho PRD khác*.
+
+| Câu | Phiên bản | Quyết định | Nơi ghi hiện nay |
+|---|---|---|---|
+| 1 | 0.2 | Quản trị là thành viên có quyền Quản trị FeedbackHub (Chủ sở hữu luôn có, Admin có sẵn, Member không, vai trò tự tạo thêm được); thêm, gỡ thành viên theo quyền quản lý thành viên | FR-23, BR-18, BR-19 |
+| 2 | 0.2; đảo lại ở 0.4 | Admin hệ thống chỉ do người vận hành máy chủ chỉ định. Mô hình giới hạn: danh sách tổ chức, khảo sát, vô hiệu và kích hoạt lại tổ chức; không truy cập dữ liệu bên trong tổ chức nào; muốn giúp thì tổ chức thêm họ làm thành viên thường, không nhãn, không nhật ký riêng | FR-21, FR-38, FR-44, FR-45, BR-20–22, BR-53, §3.2 |
+| 3 | 0.2 | Mọi tài khoản đã xác minh email tạo được tổ chức | FR-24, BR-23 |
+| 4 | 0.2 | Lời mời qua email, vào thẳng tổ chức, hết hạn 7 ngày, thu hồi được | FR-25, BR-24 |
+| 5 | 0.2 | Phụ trách, Quản trị chuyển giữa mọi trạng thái; chỉ có các chuyển tự động đã nêu | FR-14, BR-25, BR-26 |
+| 6 | 0.2 | Tự đóng sau 7 ngày ở *Đã xử lý*; đóng tay bất cứ lúc nào | FR-26, BR-27 |
+| 7 | 0.2 | *Từ chối* bắt buộc lý do, lưu thành bình luận gửi người báo | FR-27, BR-28; §12 PRD03 *Bình luận lưu lý do* |
+| 8 | 0.2 | Gỡ thành viên: giữ feedback đã gửi, bỏ vai trò theo sản phẩm, feedback đang giao về *Chưa giao*, mất quyền xem; vô hiệu tổ chức: widget tạm ngừng, link riêng hết hiệu lực, không ai vào | FR-29, FR-30, BR-30, BR-31; §12 PRD03 *Tự về Chưa giao*, *Thành viên đã rời tổ chức*; §12 PRD01 *Sản phẩm chưa có Phụ trách* |
+| 9 | 0.2 | Trang chào cho tài khoản chưa thuộc tổ chức nào | FR-31, BR-32 |
+| 10 | 0.2 | Viewer xem bình luận nội bộ, chỉ đọc | BR-33, §3.3 |
+| 11 | 0.2 | Viewer xem Tổng quan của sản phẩm được gán | BR-34, §3.3 |
+| 12 | 0.2 | Sản phẩm chưa có Phụ trách thì feedback mới báo cho Quản trị | §12 PRD01 *Sản phẩm chưa có Phụ trách*, PRD05 *Sản phẩm chưa có Phụ trách* |
+| 13 | 0.2 | Mở lại bắt buộc lý do ngắn | FR-28, BR-29 |
+| 14 | 0.2 | Người được giao luôn là Phụ trách; Quản trị tự gán mình làm Phụ trách nếu muốn nhận việc | §12 PRD03 *Giao việc* |
+| 15 | 0.2 | Feedback gốc cùng sản phẩm; *Trùng lặp* không nhận bình luận của người báo | FR-20; §12 PRD03 *Trùng lặp và feedback gốc* |
+| 16 | 0.2 | Email, điện thoại của khách che trong danh sách, đầy đủ ở chi tiết cho Quản trị, Phụ trách | §3.3 (dòng xem liên hệ của khách); §12 PRD03 *Liên hệ của khách* |
+| 17 | 0.2 | Người báo xem ngữ cảnh kỹ thuật (chỉ đọc), khách không | BR-39, §3.3 |
+| 18 | 0.2 | Mọi khoảng thời gian tính theo giờ lịch 24/7 | BR-27, BR-55; §12 PRD06 *Giờ lịch và danh sách cần chú ý* |
+| 19 | 0.2 | Loại *Lỗi* / *Tính năng* / *Góp ý*; ưu tiên *Cao* / *Trung bình* / *Thấp*, mặc định chưa đặt; tên tiếng Anh của trạng thái | BR-41, §3.1; §12 PRD02 *Chọn loại khi gửi*, PRD03 *Loại và ưu tiên* |
+| 20 | 0.2 | Mã feedback theo tổ chức, tăng dần, tiền tố `FB-` | §3.1 *Mã feedback*; §12 PRD03 *Mã feedback* |
+| 21 | 0.2 | Chặn *Cần thêm thông tin* với feedback của khách không để email | FR-35, BR-43 |
+| 22 | 0.2 | Công thức tỉ lệ; trung vị chỉ cho thời gian; kỳ đo mặc định 30 ngày | §2; §12 PRD06 *Định nghĩa chỉ số* |
+| 23 | 0.2 | Luôn báo "không tìm thấy"; review bảo mật xác nhận ở thiết kế kỹ thuật | FR-37, BR-45, §11 |
+| 24 | 0.2 | Widget không cho gửi khi người dùng không thuộc tổ chức và sản phẩm tắt chế độ khách | §12 PRD02 *Widget không cho gửi* |
+| 25, 26, 28, 29 | 0.3 | Nhãn admin hệ thống trong lịch sử; nhật ký admin hệ thống; admin hệ thống không làm Phụ trách hay người được giao; tên admin hệ thống trong bình luận | Hết hiệu lực khi câu 2 đảo lại (v0.4); không còn trong PRD |
+| 27 | 0.3 | Bộ chọn *Mọi tổ chức* cho admin hệ thống, vào được tổ chức bị vô hiệu; vô hiệu và kích hoạt lại tổ chức | Hết hiệu lực (v0.4), trừ vô hiệu và kích hoạt lại: FR-42, BR-49 |
+| 30 | 0.3 | Gửi, thu hồi lời mời theo quyền quản lý thành viên | BR-19, BR-24, §3.3 |
+| 31 | 0.3 | Lời mời chỉ dùng được bởi tài khoản có đúng email được mời | BR-51 |
+| 32 | 0.3 | Tên tiếng Anh của loại (Bug, Feature, Feedback) và ưu tiên (High, Medium, Low) | BR-41 |
+| 33, 34, 36, 37, 38 | — | Chưa được hỏi: bỏ ở v0.4 vì không còn đối tượng | — |
+| 35 | 0.4 | Chỉ admin hệ thống kích hoạt lại; kích hoạt lại đưa tổ chức về như trước | FR-42, BR-49 |
+| 39 | 0.5 | Admin hệ thống phải ghi lý do khi vô hiệu; các Chủ sở hữu nhận email khi admin hệ thống vô hiệu hoặc kích hoạt lại | FR-46, BR-54; §12 PRD05 *Email khi tổ chức bị vô hiệu*, *Email khi kích hoạt lại* |
+| 40 | 0.5 | Mốc thời gian vẫn chạy khi vô hiệu; kích hoạt lại chỉ khôi phục những gì còn hạn | BR-55; §12 PRD04 *Link riêng khi tổ chức bị vô hiệu* |
+| 41 | 0.5 | Ưu tiên US-17, US-18, FR-42, FR-44 Should; FR-45 Must | §4, §5 (US-18 Should, FR-45 Must; phần còn lại thay bởi câu 45, 59) |
+| 42 | 0.6 | Dù ai vô hiệu, mọi Chủ sở hữu khác người thực hiện nhận email; admin hệ thống kiêm Chủ sở hữu vẫn phải ghi lý do | BR-52, BR-54, FR-46; §12 PRD05 *Email khi tổ chức bị vô hiệu* |
+| 43 | 0.6 | Không thông báo nào của tổ chức trong lúc vô hiệu, kể cả khi tự đóng; không gửi bù | BR-31 (tóm tắt); §12 PRD05 *Tạm dừng thông báo khi tổ chức bị vô hiệu* |
+| 44 | 0.6 | Lời mời còn hạn không dùng được trong lúc vô hiệu, không bị huỷ | BR-57 |
+| 45 | 0.6 | FR-42 và FR-46 thành Must | §5 |
+| 46 | 0.6 | Chống leo thang quyền; bốn quyền nền tảng khác không mở đường tới feedback; thêm quyền quản lý vai trò | BR-58, BR-59, BR-60, FR-52, FR-56 |
+| 47 | 0.6 | Xử lý lần đầu là lần đầu rời *Mới*, sang bất kỳ trạng thái nào | §3.1 *Xử lý lần đầu*; §12 PRD06 *Xử lý lần đầu* |
+| 48 | 0.6 | Người được giao mất vai trò Phụ trách thì feedback về *Chưa giao* | §12 PRD03 *Tự về Chưa giao* |
+| 49 | 0.6 | Viewer có đủ quyền người báo trên feedback của mình; người báo kiêm Phụ trách bình luận thì tính là trả lời của người báo | BR-62, BR-12, FR-15 |
+| 50 | 0.6 | Thông báo bản trùng cả cho khách đã để email | §12 PRD05 *Thông báo bản trùng* |
+| 51 | 0.6 | Thao tác trên dữ liệu không được thấy cũng trả "không tìm thấy" | BR-45, FR-37 |
+| 52 | 0.6 | Trường hợp biên của lời mời | BR-63 |
+| 53 | 0.6 | "Tổ chức tạm ngừng" ở thao tác tiếp theo; tổ chức mờ trong bộ chọn; trang chào có lời giải thích | BR-64, FR-54 |
+| 54 | 0.6 | Đổi tên tổ chức theo quyền quản lý tổ chức; vai trò Admin luôn có quyền Quản trị FeedbackHub | FR-53, BR-65, BR-60 |
+| 55 | 0.6 | Tự đóng chậm nhất 1 giờ sau mốc; lý do tối đa 500 ký tự; đổi quyền có hiệu lực từ thao tác tiếp theo | BR-27, BR-66, BR-67 |
+| 56 | 0.6 | Ma trận quyền: xoá feedback chỉ Quản trị; tác giả sửa bình luận của mình, Quản trị xoá bình luận; Quản trị, Phụ trách quản lý nhãn; sản phẩm chỉ lưu trữ, do Quản trị | §3.3; §12 PRD01 *Lưu trữ sản phẩm*, PRD03 *Xoá feedback*, *Sửa bình luận*, *Xoá bình luận*, *Nhãn* |
+| 57 | 0.6 | Trong lúc vô hiệu, khách không xin được link riêng mới; khảo sát "mọi tổ chức" bỏ qua tổ chức đang vô hiệu | BR-31; §12 PRD04 *Link riêng khi tổ chức bị vô hiệu*, PRD07 *Khảo sát và tổ chức bị vô hiệu* |
+| 58 | 0.6 | Khách chỉ thấy tên sản phẩm, không thấy người nào trong tổ chức | BR-06, §3.2; §12 PRD02 *Widget không cho gửi* |
+| 59 | 0.7 | US-17, US-19, FR-21, FR-44 lên Must | §4, §5; US-19 ở §12 PRD05 *Email khi tổ chức bị vô hiệu* |
+| 60 | 0.7 | Xác nhận ưu tiên ghi ở v0.6 | §4, §5; FR-47, FR-48, FR-50, FR-51, FR-55 ở các mục §12 tương ứng (PRD06, PRD05, PRD03) |
+| 61 | 0.7 | Việc gỡ theo cùng giới hạn như việc cấp (BR-58 điểm 3) | BR-58 |
+| 62 | 0.7 | Người đang làm việc trong tổ chức vừa bị vô hiệu được đưa về ngữ cảnh cá nhân | BR-68, FR-54 |
+| 63 | 0.7 | Gốc bị đánh dấu trùng thì các bản trùng chuyển sang gốc mới; feedback ở *Trùng lặp* không làm gốc | §12 PRD03 *Trùng lặp và feedback gốc*, PRD05 *Thông báo bản trùng* |
+| 64 | 0.7 | Bản trùng gắn vào gốc đã có kết quả thì được báo ngay, một lần | §12 PRD05 *Thông báo bản trùng* |
+| 65 | 0.7 | Chỉ bình luận gửi người báo đưa feedback rời *Cần thêm thông tin*; người báo là Quản trị tính như người báo là Phụ trách | BR-12, FR-15 |
+| 66 | 0.7 | Feedback tự về *Chưa giao* thì lịch sử ghi người gây ra, kèm ghi chú | §12 PRD03 *Tự về Chưa giao* |
+| 67 | 0.7 | Khách sửa được bình luận của mình; chỉ Quản trị xoá bình luận; bình luận lưu lý do không ai sửa, xoá được | §3.3; §12 PRD03 *Bình luận lưu lý do*, *Sửa bình luận*, *Xoá bình luận*, PRD04 *Khách sửa bình luận* |
+| 68 | 0.7 | Xoá feedback là xoá hẳn; mã không dùng lại; người báo không được báo; việc xoá ghi lại ngoài feedback | §3.3; §12 PRD03 *Xoá feedback*, *Mã feedback*, PRD05 *Xoá feedback không báo* |
+| 69 | 0.7 | Email vô hiệu do admin hệ thống không là thành viên ghi "admin hệ thống FeedbackHub"; admin hệ thống kiêm Chủ sở hữu không nhận email kích hoạt lại do chính mình làm | §12 PRD05 *Email khi tổ chức bị vô hiệu*, *Email khi kích hoạt lại* |
+| 70 | 0.7 | Định danh ngắn không bao giờ đổi | BR-65 |
+| 71 | 0.7 | Khi tạo đợt khảo sát không chọn được tổ chức đang bị vô hiệu; tổ chức bị vô hiệu sau khi đợt mở thì thành viên vẫn trả lời | §12 PRD07 *Khảo sát và tổ chức bị vô hiệu* |
+| 72 | 0.8 | Không xoá được feedback còn bản trùng gắn vào | §12 PRD03 *Không xoá feedback còn bản trùng* |
+| 73 | 0.8 | FR-57, FR-58 giữ Should; sửa bình luận ra cùng bản phát hành với ngoại lệ bình luận lưu lý do | §12 PRD03 *Sửa bình luận*, *Xoá feedback* |
+| 74 | 0.8 | Feedback đã xoá không tính vào chỉ số | §12 PRD06 *Feedback đã xoá* |
+| 75 | 0.8 | Sửa, xoá bình luận ghi lịch sử ai và lúc nào, không giữ nội dung cũ | §12 PRD03 *Lịch sử* |
+| 76 | 0.8 | Khách không được báo khi feedback của mình bị xoá | §12 PRD05 *Xoá feedback không báo* |
+| 77 | 0.8 | Người báo và khách không sửa được bình luận khi feedback ở *Đóng*, *Từ chối*, *Trùng lặp* | §3.3; §12 PRD03 *Sửa bình luận*, PRD04 *Khách sửa bình luận* |
+| 78 | 0.8 | Phụ trách hay Quản trị đưa feedback từ In review về *Đang xử lý* phải ghi lý do như *chưa đạt* | BR-11, BR-25, FR-16 |
