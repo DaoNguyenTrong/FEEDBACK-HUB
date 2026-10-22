@@ -61,6 +61,8 @@ Không chắc thì coi là lớn. Để lệch lớn lộ ra sớm, kế hoạch
 
 Mặc định chỉ push hay mở PR khi người dùng ra lệnh. Ở giai đoạn 4, khi duyệt kế hoạch, người dùng có thể cấp **một lần cho cả kế hoạch**: khi mọi task xong và `scripts/test-gate.sh` đạt, `implementer` được push nhánh và mở một PR vào `dev`. Quyền này ghi trong đầu kế hoạch và trong brief giao cho `implementer`; không áp dụng cho `main`, và không thay cho cổng `pr-reviewer`.
 
+**Mỗi PR một mục đích.** Không gộp việc khác loại vào một PR, nhất là tài liệu đang chờ duyệt với thay đổi tooling hay cấu hình: PR gộp chỉ merge được khi phần chậm nhất xong, và phải đi qua cổng chặt nhất trong các phần của nó. Khi người dùng yêu cầu gộp, phiên chính nói rõ cái giá đó trước khi làm.
+
 **Thứ tự merge — lịch sử gần thẳng.** Mỗi lúc chỉ một PR vào `dev` được review và merge. Trước khi review, nhánh phải được rebase lên `origin/dev` mới nhất (`git rebase origin/dev`, rồi `git push --force-with-lease`); merge bằng `gh pr merge --merge` để mỗi PR vẫn có một merge commit đánh dấu ranh giới. Merge xong PR này mới rebase nhánh kế tiếp. Nhánh chưa được rebase thì `pr-reviewer` và `/git-accept` trả *chưa sẵn sàng*, không tính là một lượt. Phiên chính điều phối thứ tự và yêu cầu rebase.
 
 **Dọn nhánh sau khi merge.** Ngay sau khi merge, người merge (`pr-reviewer`, `/git-accept`, hoặc phiên chính khi người dùng cho merge) xoá nhánh trên remote, chỉ sau khi xác nhận nhánh đã nằm trong `origin/dev`: `git fetch --prune origin && git merge-base --is-ancestor origin/<branch> origin/dev && git push origin --delete <branch>`. Phiên chính đưa checkout về `dev` (`git switch dev && git pull --ff-only`) rồi xoá nhánh local bằng `git branch -d <branch>` — `-d`, không bao giờ `-D`, để git từ chối nếu nhánh còn commit chưa merge. Không xoá nhánh của PR chưa merge, bị đóng, hoặc đang chờ `ESCALATE`.
@@ -89,6 +91,17 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 ## 9. Quyết định quy trình
 
 Quyết định về cách làm việc (agent, cổng duyệt, review) ghi ở đây, mới nhất ở trên; quyết định kỹ thuật theo `AGENTS.md` § Decision Log.
+
+### 2026-10-22 — Soạn PRD: khoanh phạm vi, chỉ hỏi điều người dùng phải quyết, BA review sớm
+Bản nháp đầu của PRD-00 đi qua 8 phiên bản và 78 câu hỏi; người dùng chấp nhận đề xuất ở 77 câu, PRD phình tới 246 AC vì quyết luôn chi tiết của PRD-03/04/05/07, và lỗi nặng nhất (đường leo quyền có sẵn trong nền tảng) chỉ lộ ra khi BA review ở bản 0.5. Vì vậy:
+- Mỗi PRD chỉ quyết phần của module mình; phần thuộc module khác chuyển vào §12 *Chuyển cho PRD khác*.
+- Câu hỏi mở chỉ dành cho điều người dùng phải quyết, tối đa khoảng 8 câu mỗi lượt; phần còn lại, kể cả mức ưu tiên, là *Mặc định đề xuất*, được duyệt một lần cùng PRD.
+- BA review ngay bản nháp đầu, và báo cáo được giữ lại cho lần review sau.
+- Phiên chính trình hệ quả ngay khi một câu trả lời chạm bảo mật hay tách dữ liệu, trước khi chuyển cho agent viết.
+- Mã yêu cầu chỉ cố định từ khi PRD được duyệt lần đầu; trong bản nháp, mục bị bỏ được xoá thẳng.
+- Mỗi PR một mục đích (§ Quyền push và mở PR).
+
+Phương án loại: giữ nguyên quy trình và chỉ nhắc agent hỏi ít hơn (không có tiêu chí để phân loại, lặp lại vẫn xảy ra).
 
 ### 2026-10-22 — Bật lại `quick` qua PR khi release-kit hỗ trợ
 release-kit v2.0.2 thêm `devWrites: "pr"` và `devMergeCommand`, nên phát hành nhanh và việc đưa `main` về `dev` không còn ghi thẳng vào `dev`; `quick` được bật lại. `pushAfterRebase` và `prExtraSections` cho phép dùng `git-sync`/`git-mr` đúng quy trình rebase và mẫu mô tả PR. Thay thế mục "Phát hành theo release-kit" ở điểm tắt `quick`.

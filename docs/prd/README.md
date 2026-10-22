@@ -4,12 +4,13 @@ Mỗi module một PRD, viết từ `_template.md` bởi agent `product-manager`
 
 ## Quy trình
 
-1. **Soạn**: `product-manager` soạn từ các quyết định đã có và trả về câu hỏi mở kèm đề xuất; phiên chính hỏi người dùng và chuyển câu trả lời cho agent đến khi hết câu hỏi.
-2. **Review**: `business-analyst` soát quy tắc còn thiếu và tiêu chí nghiệm thu không test được.
-3. **Duyệt**: người dùng duyệt; trạng thái thành *Approved*, và phiên chính commit PRD qua PR chỉ chứa tài liệu (`docs/process/lifecycle.md` § Commit tài liệu).
-4. **Thiết kế**: `ui-designer` thiết kế theo PRD đã duyệt, ghi mã yêu cầu lên từng bảng. Câu hỏi nghiệp vụ phát sinh khi thiết kế quay lại sửa PRD.
-5. **Thiết kế kỹ thuật**: `tech-lead` viết tài liệu trong `docs/tech/` từ PRD và thiết kế đã duyệt. Câu hỏi nghiệp vụ phát sinh quay lại sửa PRD.
-6. **Kế hoạch và triển khai**: kế hoạch triển khai dẫn chiếu mã FR/AC của PRD và các mục của tài liệu kỹ thuật; feature-map cập nhật cùng PR; `pr-reviewer` kiểm tra rồi merge vào `dev`.
+1. **Soạn**: `product-manager` soạn bản nháp đầu từ các quyết định đã có. Mỗi PRD chỉ quyết phần của module mình; điều thuộc module khác ghi vào §12 *Chuyển cho PRD khác*. Chỗ hở nào người dùng phải quyết thì thành câu hỏi mở (tối đa khoảng 8 câu mỗi lượt); chỗ còn lại agent viết theo đề xuất và liệt kê ở bảng *Mặc định đề xuất* (`.claude/agents/product-manager.md` quy tắc 5, 7, 8).
+2. **Review sớm**: `business-analyst` review ngay bản nháp đầu, song song với việc chờ câu trả lời, để người dùng nhận một danh sách câu hỏi gộp thay vì nhiều lượt nhỏ. Phiên chính giữ nguyên văn mỗi báo cáo review và đưa lại cho BA ở lần review sau; khi PRD đã có PR thì đăng báo cáo thành comment trên PR.
+3. **Hỏi người dùng**: phiên chính gộp câu hỏi của `product-manager` và BA thành một lượt. Câu trả lời nào chạm bảo mật, tách dữ liệu giữa tổ chức, hoặc làm phạm vi phình lớn thì phiên chính trình ngay hệ quả và phương án khác **trước khi** chuyển cho agent viết. Lặp đến khi hết câu hỏi mở.
+4. **Review cuối và duyệt**: `business-analyst` review lại; người dùng duyệt PRD cùng bảng *Mặc định đề xuất* (gồm cả mức ưu tiên). Trạng thái thành *Approved*, và phiên chính commit PRD qua PR chỉ chứa tài liệu (`docs/process/lifecycle.md` § Commit tài liệu).
+5. **Thiết kế**: `ui-designer` thiết kế theo PRD đã duyệt, ghi mã yêu cầu lên từng bảng. Câu hỏi nghiệp vụ phát sinh khi thiết kế quay lại sửa PRD.
+6. **Thiết kế kỹ thuật**: `tech-lead` viết tài liệu trong `docs/tech/` từ PRD và thiết kế đã duyệt. Câu hỏi nghiệp vụ phát sinh quay lại sửa PRD.
+7. **Kế hoạch và triển khai**: kế hoạch triển khai dẫn chiếu mã FR/AC của PRD và các mục của tài liệu kỹ thuật; feature-map cập nhật cùng PR; `pr-reviewer` kiểm tra rồi merge vào `dev`.
 
 Mọi thay đổi trên PRD đã duyệt đưa PRD về *In review*.
 
