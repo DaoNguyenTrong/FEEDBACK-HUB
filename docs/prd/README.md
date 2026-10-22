@@ -18,7 +18,7 @@ Mọi thay đổi trên PRD đã duyệt đưa PRD về *In review*.
 
 | Mã | PRD | Trạng thái | Phiên bản | Phụ thuộc | Thiết kế |
 |---|---|---|---|---|---|
-| PRD00 | Tổng quan và nền tảng: thuật ngữ, vai trò và quyền, vòng đời trạng thái, tổ chức và sản phẩm | Chưa bắt đầu | — | — | — |
+| PRD00 | [Tổng quan và nền tảng: thuật ngữ, vai trò và quyền, vòng đời trạng thái, tổ chức và sản phẩm](00-tong-quan-va-nen-tang.md) | Draft | 0.1 | — | — |
 | PRD01 | Quản lý sản phẩm: sản phẩm, domain được phép, khoá công khai, nút widget, người phụ trách | Chưa bắt đầu | — | 00 | — |
 | PRD02 | Thu thập feedback (widget web): form, chụp và đánh dấu ảnh, thông tin kỹ thuật, định danh thành viên, chế độ khách, chống lạm dụng | Chưa bắt đầu | — | 00, 01 | — |
 | PRD03 | Xử lý feedback: hộp feedback (danh sách và bảng), chi tiết, đổi trạng thái, giao việc, bình luận, trùng lặp, nhãn | Chưa bắt đầu | — | 00, 02 | — |
