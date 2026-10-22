@@ -73,8 +73,9 @@ Dùng skill `release-kit:git-release` (cấu hình ở `.claude/release-kit.json
 - **Ổn định:** lỗi tìm thấy khi QA được sửa trên nhánh `fix/*` cắt từ `release/vX.Y.Z` (`implementer`), PR vào chính nhánh release đó, rebase lên `origin/release/vX.Y.Z` trước khi review. `pr-reviewer` review như PR vào `dev` nhưng **không merge**: PASS được ghi lại và người dùng cho merge.
 - **Phát hành (Phase 2):** skill chạy cổng bắt buộc, hỏi người dùng xác nhận, rồi tự mở và merge PR `release/vX.Y.Z → main` và gắn tag. Đó là cổng duy nhất của PR vào `main`.
 - **Hotfix:** `implementer` sửa trên `hotfix/<tên>` cắt từ `main`; phiên chính chạy `code-reviewer` trên diff `origin/main...hotfix/<tên>`; rồi `git-release` lo CHANGELOG, cổng bắt buộc, PR vào `main` (người dùng xác nhận) và tag.
-- **Đưa `main` về `dev` sau mỗi lần phát hành hoặc hotfix:** không push thẳng vào `dev`. Phiên chính tạo `chore/reconcile-main-vX.Y.Z` từ `dev`, `git merge origin/main`, mở PR vào `dev`; người dùng cho merge. PR này là ngoại lệ của quy tắc rebase: nó chính là một merge của `main`.
-- **Không dùng `quick`**: chế độ này commit CHANGELOG thẳng vào `dev`, nên đã bị tắt trong `modes`.
+- **Đưa `main` về `dev` sau mỗi lần phát hành hoặc hotfix:** không push thẳng vào `dev`. `git-release` tự mở PR `chore/reconcile-main-vX.Y.Z` vào `dev` (`devWrites: "pr"`) và không merge; người dùng cho merge. PR này là ngoại lệ của quy tắc rebase: nó chính là một merge của `main`.
+- **Phát hành nhanh (`quick`, `dev → main`, không có giai đoạn ổn định):** CHANGELOG đi qua PR `chore/release-vX.Y.Z-changelog` vào `dev`, merge bằng `/git-accept` (`devMergeCommand`), rồi skill mới mở PR vào `main`. Chỉ dùng khi bạn yêu cầu rõ `quick` và không cần QA riêng.
+- **Cấu hình liên quan** trong `.claude/release-kit.json`: `devWrites: "pr"`, `devMergeCommand: "/git-accept"`, `pushAfterRebase: "force-with-lease"` (`release-kit:git-sync` và `git-mr` tự push sau khi rebase, chỉ ghi đè đúng head cũ của nhánh), `prExtraSections` (các mục mô tả PR mà quy trình yêu cầu; `release-kit:git-mr` tạo sẵn).
 
 ## 7. Truy vết
 
@@ -87,6 +88,9 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 ## 9. Quyết định quy trình
 
 Quyết định về cách làm việc (agent, cổng duyệt, review) ghi ở đây, mới nhất ở trên; quyết định kỹ thuật theo `AGENTS.md` § Decision Log.
+
+### 2026-10-22 — Bật lại `quick` qua PR khi release-kit hỗ trợ
+release-kit v2.0.2 thêm `devWrites: "pr"` và `devMergeCommand`, nên phát hành nhanh và việc đưa `main` về `dev` không còn ghi thẳng vào `dev`; `quick` được bật lại. `pushAfterRebase` và `prExtraSections` cho phép dùng `git-sync`/`git-mr` đúng quy trình rebase và mẫu mô tả PR. Thay thế mục "Phát hành theo release-kit" ở điểm tắt `quick`.
 
 ### 2026-10-22 — Agent review không dùng skill `code-review`
 Skill này chạy một lượt review nền có thể kết thúc sau khi agent đã kết luận. Ở PR #7, `pr-reviewer` merge rồi lượt nền mới báo một lỗi mất dữ liệu. Lỗi lặp hai lần (PR #4, #7) nên đổi thành quy tắc: agent tự review trong lượt chạy và chỉ merge khi mọi kiểm tra đã xong. Phương án loại: giữ skill và chờ (agent không có cách chờ đáng tin).
