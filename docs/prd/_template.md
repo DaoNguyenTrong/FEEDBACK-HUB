@@ -76,11 +76,29 @@ Bảo mật và quyền riêng tư, kỳ vọng hiệu năng, trợ năng, ngôn
 
 PRD khác, tính năng nền tảng có sẵn, dịch vụ bên ngoài.
 
+### Chuyển cho PRD khác
+
+Quy tắc hoặc trường hợp biên thuộc module khác, phát hiện khi soạn PRD này. PRD đích quy định chi tiết; ở đây chỉ ghi để không bị quên.
+
+| PRD đích | Điều cần quy định | Phát sinh từ |
+|---|---|---|
+| PRDXX | | |
+
 ## 13. Câu hỏi mở
+
+Chỉ những điều người dùng phải quyết: làm đổi thứ được xây, chạm bảo mật, tách dữ liệu, quyền, hoặc tốn công đáng kể.
 
 | # | Câu hỏi | Đề xuất trả lời | Vì sao quan trọng | Trạng thái |
 |---|---|---|---|---|
 | 1 | | | | Mở / Đã trả lời (ngày) |
+
+### Mặc định đề xuất
+
+Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả mức ưu tiên. Người dùng soát cả bảng một lần khi duyệt; điểm nào bị bác thì thành câu hỏi mở.
+
+| # | Mặc định | Mã bị ảnh hưởng | Lý do |
+|---|---|---|---|
+| D1 | | | |
 
 ## 14. Lịch sử thay đổi
 

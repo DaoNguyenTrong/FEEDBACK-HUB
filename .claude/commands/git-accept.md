@@ -24,7 +24,7 @@ gh pr view <number> --json files --jq '.files[].path'
 
 Check each path in turn, in this order:
 
-1. Under `.claude/` or `.github/`, or `AGENTS.md`, or under `docs/process/` → fail, even when it ends in `.md` (rules, agent prompts and the process itself are reviewed by the user).
+1. Under `.claude/` or `.github/`, or `AGENTS.md`, or under `docs/process/` other than `docs/process/progress.md` → fail, even when it ends in `.md` (rules, agent prompts and the process itself are reviewed by the user; the progress table is status the main session updates in the same PR as an approved document, `docs/process/lifecycle.md` § Tiến độ module).
 2. Under `docs/`, or ends in `.md` → pass.
 3. Anything else → fail.
 
