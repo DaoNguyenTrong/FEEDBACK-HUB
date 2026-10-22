@@ -4,7 +4,7 @@
 |---|---|
 | Mã | `PRD00` (tiền tố cho mọi mã trong tài liệu này) |
 | Trạng thái | Draft |
-| Phiên bản | 0.4 |
+| Phiên bản | 0.5 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-10-22 |
 | Phụ thuộc | Không có (mọi PRD khác phụ thuộc PRD này) |
@@ -117,7 +117,7 @@ Ký hiệu: **✓** được làm · **—** không được · **R** chỉ xem 
 | Thêm, gỡ thành viên tổ chức, đổi vai trò tổ chức | BR-19 | BR-19 | BR-19 | BR-19 | — | — (kể cả tự thêm mình, BR-53) |
 | Gửi, thu hồi lời mời qua email | BR-19 | BR-19 | BR-19 | BR-19 | — | — |
 | Chuyển tổ chức đang làm việc (giữa các tổ chức mình là thành viên) | ✓ | ✓ | ✓ | ✓ | — | như mọi tài khoản (BR-53); không vào được tổ chức mình không là thành viên |
-| Vô hiệu tổ chức | BR-52 | BR-52 | BR-52 | BR-52 | — | ✓ (BR-49) |
+| Vô hiệu tổ chức | BR-52 | BR-52 | BR-52 | BR-52 | — | ✓ kèm lý do (BR-49, BR-54) |
 | Kích hoạt lại tổ chức đã vô hiệu | — | — | — | — | — | ✓ (BR-49) |
 | **Sản phẩm** | | | | | | |
 | Tạo, sửa sản phẩm và cấu hình widget | ✓ | — | — | — | — | — |
@@ -200,6 +200,7 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-US-16 | ~~Removed~~ (2026-10-22) | ~~biết khi nào admin hệ thống vào tổ chức mình và họ đã thay đổi gì~~ | ~~tin tưởng dùng chung Hub dù có người toàn quyền ở cấp hệ thống~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — |
 | PRD00-US-17 | admin hệ thống | xem danh sách các tổ chức (tên, số thành viên), vô hiệu và kích hoạt lại tổ chức | vận hành Hub mà không chạm vào dữ liệu bên trong tổ chức nào | Should |
 | PRD00-US-18 | người quản lý thành viên của tổ chức | thêm admin hệ thống làm thành viên khi cần họ giúp, và họ chỉ làm được đúng vai trò mình gán | nhận hỗ trợ mà không phải mở dữ liệu cho người ngoài tổ chức | Should |
+| PRD00-US-19 | Chủ sở hữu của một tổ chức | nhận email khi admin hệ thống vô hiệu tổ chức mình (kèm lý do) hoặc kích hoạt lại nó | không chỉ biết khi widget ngừng nhận feedback, và biết vì sao tổ chức bị ngừng | Should |
 
 ## 5. Yêu cầu chức năng
 
@@ -246,10 +247,11 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-FR-39 | ~~Removed~~ (2026-10-22) — ~~ghi thay đổi của admin hệ thống trên feedback vào lịch sử với nhãn riêng (BR-47)~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — | — |
 | PRD00-FR-40 | ~~Removed~~ (2026-10-22) — ~~ghi mỗi lần admin hệ thống vào một tổ chức vào nhật ký riêng của tổ chức (BR-48)~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — | — |
 | PRD00-FR-41 | ~~Removed~~ (2026-10-22) — ~~cho admin hệ thống vào mọi tổ chức qua bộ chọn tổ chức, với dấu hiệu tư cách admin hệ thống (BR-49 cũ)~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. Danh sách tổ chức của admin hệ thống: FR-44 | — | — |
-| PRD00-FR-42 | Hệ thống phải cho admin hệ thống vô hiệu và kích hoạt lại bất kỳ tổ chức nào, và khi kích hoạt lại thì đưa tổ chức về như trước khi vô hiệu (BR-49). | US-17 | Should |
+| PRD00-FR-42 | Hệ thống phải cho admin hệ thống vô hiệu và kích hoạt lại bất kỳ tổ chức nào, và khi kích hoạt lại thì đưa tổ chức về như trước khi vô hiệu, trừ những gì đã hết hạn trong thời gian vô hiệu (BR-49, BR-55). | US-17 | Should |
 | PRD00-FR-43 | ~~Removed~~ (2026-10-22) — ~~giới hạn quyền của admin hệ thống trong tổ chức mình không là thành viên (BR-50)~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — | — |
 | PRD00-FR-44 | Hệ thống phải cho admin hệ thống xem danh sách mọi tổ chức của Hub, mỗi tổ chức với tên, số thành viên hiện tại và dấu hiệu đã vô hiệu nếu có; danh sách không hiện thành viên, sản phẩm hay feedback nào (BR-21, BR-49). | US-17 | Should |
 | PRD00-FR-45 | Hệ thống phải xử lý admin hệ thống được một tổ chức thêm làm thành viên đúng như mọi thành viên khác của tổ chức đó: quyền theo vai trò được gán, tên thường trong lịch sử và bình luận, không nhãn hay nhật ký riêng (BR-53). | US-18 | Must |
+| PRD00-FR-46 | Hệ thống phải yêu cầu admin hệ thống ghi lý do khi vô hiệu một tổ chức, và gửi email cho mọi Chủ sở hữu của tổ chức khi admin hệ thống vô hiệu tổ chức (kèm lý do) hoặc kích hoạt lại tổ chức (BR-54). | US-17, US-19 | Should |
 
 ## 6. Quy tắc nghiệp vụ
 
@@ -278,10 +280,10 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-BR-21 | Admin hệ thống chỉ có quyền ở cấp hệ thống: xem danh sách mọi tổ chức của Hub với tên và số thành viên; tạo, mở, đóng đợt khảo sát, chọn tổ chức nhận và xem kết quả (chi tiết: PRD07); vô hiệu và kích hoạt lại tổ chức (BR-49). Admin hệ thống không thấy và không thao tác được trên sản phẩm, feedback, thành viên hay cài đặt của bất kỳ tổ chức nào; họ mở feedback hay sản phẩm của tổ chức thì thấy "không tìm thấy" như mọi người ngoài tổ chức (BR-45). Không có đường truy cập xuyên tổ chức nào, kể cả cho admin hệ thống. Thông tin về người trả lời khảo sát mà admin hệ thống thấy trong kết quả do PRD07 quy định; ngoài đó admin hệ thống không thấy thành viên của tổ chức. Các thao tác gắn với tài khoản (tạo tổ chức, gửi feedback qua widget, trả lời khảo sát khi là thành viên của tổ chức được chọn) admin hệ thống làm như mọi tài khoản. | FR-01, FR-21, FR-44 |
 | PRD00-BR-22 | Quyền của admin hệ thống không mở thêm đường nào để bất kỳ ai, kể cả chính admin hệ thống, thấy dữ liệu bên trong một tổ chức mình không là thành viên. | FR-01, FR-21 |
 | PRD00-BR-23 | Mọi tài khoản đã xác minh email tự tạo được tổ chức và trở thành Chủ sở hữu của tổ chức đó. | FR-24 |
-| PRD00-BR-24 | Lời mời gửi tới một email chưa có tài khoản, kèm vai trò tổ chức đã chọn. Người nhận đăng ký xong thì vào thẳng tổ chức với vai trò đó. Lời mời hết hạn sau 7 ngày và thu hồi được trước khi được dùng; lời mời hết hạn hoặc đã thu hồi không đưa ai vào tổ chức. Ai gửi và thu hồi: người có quyền quản lý thành viên (BR-19), vì mời là một cách thêm thành viên; Quản trị không có quyền đó thì không gửi, không thu hồi được. Ai dùng được lời mời: BR-51. | FR-25 |
+| PRD00-BR-24 | Lời mời gửi tới một email chưa có tài khoản, kèm vai trò tổ chức đã chọn. Người nhận đăng ký xong thì vào thẳng tổ chức với vai trò đó. Lời mời hết hạn sau 7 ngày, kể cả khi tổ chức đang bị vô hiệu (BR-55), và thu hồi được trước khi được dùng; lời mời hết hạn hoặc đã thu hồi không đưa ai vào tổ chức. Ai gửi và thu hồi: người có quyền quản lý thành viên (BR-19), vì mời là một cách thêm thành viên; Quản trị không có quyền đó thì không gửi, không thu hồi được. Ai dùng được lời mời: BR-51. | FR-25, FR-42 |
 | PRD00-BR-25 | Phụ trách và Quản trị chuyển được feedback giữa mọi trạng thái, kể cả mở lại từ *Đóng*, *Từ chối*, *Trùng lặp*; sơ đồ §3.4 là luồng chính, không phải ràng buộc cứng. Các ràng buộc riêng vẫn áp dụng: *Trùng lặp* cần feedback gốc (FR-18), *Từ chối* cần lý do (BR-28), *Cần thêm thông tin* bị chặn với khách không để email (BR-43). | FR-14 |
 | PRD00-BR-26 | Chỉ có hai chuyển trạng thái tự động: rời *Cần thêm thông tin* (BR-12) và tự đóng (BR-27). | FR-15, FR-26 |
-| PRD00-BR-27 | Feedback ở *Đã xử lý* đủ 7 ngày liên tục mà không ai mở lại thì tự sang *Đóng*; lịch sử ghi người thực hiện là hệ thống. Phụ trách và Quản trị vẫn đóng tay được bất cứ lúc nào. | FR-26 |
+| PRD00-BR-27 | Feedback ở *Đã xử lý* đủ 7 ngày liên tục mà không ai mở lại thì tự sang *Đóng*; lịch sử ghi người thực hiện là hệ thống. 7 ngày vẫn chạy khi tổ chức đang bị vô hiệu (BR-55). Phụ trách và Quản trị vẫn đóng tay được bất cứ lúc nào. | FR-26, FR-42 |
 | PRD00-BR-28 | Chuyển sang *Từ chối* phải có lý do; lý do được lưu thành bình luận gửi người báo. | FR-27 |
 | PRD00-BR-29 | Người báo hoặc khách mở lại phải ghi một câu lý do ngắn; lý do được lưu thành bình luận gửi người báo, như *chưa đạt*. | FR-28 |
 | PRD00-BR-30 | Thành viên bị gỡ khỏi tổ chức: feedback họ đã gửi giữ nguyên, tên hiện kèm "(đã rời tổ chức)"; họ mất quyền xem và không nhận thông báo của tổ chức; vai trò theo sản phẩm của họ bị bỏ; feedback đang giao cho họ về *Chưa giao*. | FR-29 |
@@ -303,11 +305,13 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-BR-46 | Người đã đăng nhập Hub, không thuộc tổ chức sở hữu sản phẩm, và sản phẩm tắt chế độ khách: widget không cho gửi, báo sản phẩm này chỉ nhận feedback từ thành viên của tổ chức, kèm gợi ý liên hệ người quản lý sản phẩm. | FR-36 |
 | PRD00-BR-47 | ~~Removed~~ (2026-10-22) — ~~thay đổi của admin hệ thống trên feedback hiện với nhãn riêng trong lịch sử~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. Admin hệ thống không thay đổi được feedback nào nếu không là thành viên; khi là thành viên: BR-53 | — |
 | PRD00-BR-48 | ~~Removed~~ (2026-10-22) — ~~nhật ký mỗi lần admin hệ thống vào một tổ chức~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. | — |
-| PRD00-BR-49 | Admin hệ thống vô hiệu và kích hoạt lại được mọi tổ chức. Chỉ admin hệ thống kích hoạt lại được: Chủ sở hữu và thành viên không vào được tổ chức đã vô hiệu (BR-31), muốn kích hoạt lại thì liên hệ admin hệ thống. Kích hoạt lại đưa tổ chức về như trước khi vô hiệu: thành viên vào lại được và giữ nguyên vai trò tổ chức và vai trò theo sản phẩm, widget nhận feedback lại, link riêng của khách còn hạn hoạt động lại. Trong danh sách tổ chức của admin hệ thống, tổ chức đã vô hiệu được đánh dấu, để admin hệ thống biết tổ chức nào cần kích hoạt lại. | FR-30, FR-42, FR-44 |
+| PRD00-BR-49 | Admin hệ thống vô hiệu và kích hoạt lại được mọi tổ chức. Chỉ admin hệ thống kích hoạt lại được: Chủ sở hữu và thành viên không vào được tổ chức đã vô hiệu (BR-31), muốn kích hoạt lại thì liên hệ admin hệ thống. Admin hệ thống phải ghi lý do khi vô hiệu; mọi Chủ sở hữu được báo qua email khi admin hệ thống vô hiệu hoặc kích hoạt lại (BR-54). Kích hoạt lại đưa tổ chức về như trước khi vô hiệu, trừ những gì đã hết hạn trong thời gian vô hiệu (BR-55): thành viên vào lại được và giữ nguyên vai trò tổ chức và vai trò theo sản phẩm, widget nhận feedback lại, link riêng của khách còn hạn hoạt động lại. Trong danh sách tổ chức của admin hệ thống, tổ chức đã vô hiệu được đánh dấu, để admin hệ thống biết tổ chức nào cần kích hoạt lại. | FR-30, FR-42, FR-44, FR-46 |
 | PRD00-BR-50 | ~~Removed~~ (2026-10-22) — ~~admin hệ thống không tính là Chủ sở hữu, không làm Phụ trách hay người được giao ở tổ chức mình không là thành viên~~. Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. Admin hệ thống không thao tác được gì bên trong tổ chức mình không là thành viên (BR-21) | — |
 | PRD00-BR-51 | Lời mời chỉ dùng được bởi tài khoản có đúng email được mời. Người khác mở lời mời (đăng ký bằng email khác, hoặc đang đăng nhập tài khoản có email khác) thấy báo lời mời không dành cho mình và không được đưa vào tổ chức. | FR-25 |
-| PRD00-BR-52 | Vô hiệu tổ chức đi theo quyền quản lý tổ chức sẵn có của nền tảng, không theo quyền Quản trị FeedbackHub. Admin hệ thống vô hiệu được mọi tổ chức (BR-49). | FR-30, FR-42 |
+| PRD00-BR-52 | Vô hiệu tổ chức đi theo quyền quản lý tổ chức sẵn có của nền tảng, không theo quyền Quản trị FeedbackHub. Admin hệ thống vô hiệu được mọi tổ chức (BR-49), kèm lý do (BR-54). | FR-30, FR-42 |
 | PRD00-BR-53 | Muốn admin hệ thống giúp bên trong một tổ chức, tổ chức thêm họ làm thành viên như mọi tài khoản (người có quyền quản lý thành viên, BR-19); admin hệ thống không tự thêm mình được. Ở tổ chức đó họ làm việc thuần tuý như thành viên ấy: quyền theo vai trò tổ chức và vai trò theo sản phẩm được gán, lịch sử và bình luận ghi tên như mọi thành viên, không có nhãn hay nhật ký riêng. Quyền admin hệ thống không cộng thêm quyền nào bên trong tổ chức. | FR-02, FR-21, FR-45 |
+| PRD00-BR-54 | Admin hệ thống vô hiệu một tổ chức thì phải ghi lý do; không có lý do thì không vô hiệu được. Khi admin hệ thống vô hiệu một tổ chức, mọi Chủ sở hữu của tổ chức nhận email báo tổ chức bị vô hiệu, có lý do trong email. Khi admin hệ thống kích hoạt lại một tổ chức, mọi Chủ sở hữu nhận email báo tổ chức đã hoạt động lại. Chủ sở hữu tự vô hiệu tổ chức (BR-52) thì không có email nào theo quy tắc này. Nội dung email: PRD05. Người có quyền quản lý tổ chức nhưng không phải Chủ sở hữu tự vô hiệu tổ chức: câu hỏi mở 42. | FR-46 |
+| PRD00-BR-55 | Trong thời gian tổ chức bị vô hiệu, mọi mốc thời gian vẫn chạy theo giờ lịch (như BR-40): 7 ngày tự đóng ở *Đã xử lý* (BR-27), hạn 7 ngày của lời mời (BR-24), hạn của link riêng (PRD04). Kích hoạt lại chỉ khôi phục những gì còn hạn: feedback đã đủ 7 ngày ở *Đã xử lý* trong lúc vô hiệu thì ở *Đóng* khi kích hoạt lại, lịch sử ghi người thực hiện là hệ thống (BR-27); lời mời đã hết hạn thì không dùng được, muốn mời lại phải gửi lời mời mới; link riêng đã hết hạn thì vẫn hết hạn. | FR-25, FR-26, FR-42 |
 
 ## 7. Tiêu chí nghiệm thu
 
@@ -417,7 +421,7 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-AC-102 | ~~Removed~~ (2026-10-22) | ~~Như trên~~ | ~~S chọn Z~~ | ~~S vào được Z và thấy dữ liệu của Z~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
 | PRD00-AC-103 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, đang làm việc ở X mà S không là thành viên~~ | ~~S mở bất kỳ màn hình nào của X~~ | ~~Màn hình hiện rõ S đang ở tư cách admin hệ thống~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
 | PRD00-AC-104 | ~~Removed~~ (2026-10-22) | ~~A là thành viên của X, không phải admin hệ thống~~ | ~~A mở bộ chọn tổ chức~~ | ~~Không có mục *Mọi tổ chức*; chỉ có các tổ chức A là thành viên (AC-05)~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
-| PRD00-AC-105 | FR-42 | S là admin hệ thống; X đang hoạt động, có sản phẩm P | S vô hiệu X | X bị vô hiệu; widget của P báo tạm ngừng nhận feedback (BR-31) |
+| PRD00-AC-105 | FR-42 | S là admin hệ thống; X đang hoạt động, có sản phẩm P | S vô hiệu X, ghi lý do "Tổ chức yêu cầu tạm dừng" | X bị vô hiệu; widget của P báo tạm ngừng nhận feedback (BR-31) |
 | PRD00-AC-106 | FR-42 | S là admin hệ thống; Z đang bị vô hiệu | S kích hoạt lại Z | Z hết trạng thái vô hiệu; danh sách tổ chức của S không còn đánh dấu Z đã vô hiệu |
 | PRD00-AC-107 | FR-30, FR-12 | M là thành viên X không có quyền quản lý tổ chức của nền tảng (BR-52) | M gửi yêu cầu vô hiệu X trực tiếp, không qua màn hình | Bị từ chối vì không đủ quyền; X vẫn hoạt động |
 | PRD00-AC-108 | ~~Removed~~ (2026-10-22) | ~~S là admin hệ thống, không là thành viên X; P là sản phẩm của X~~ | ~~S tìm cách gán chính mình làm Phụ trách của P~~ | ~~Không có thao tác đó; gửi trực tiếp bị từ chối, S không thành Phụ trách của P~~ — Bỏ vì câu hỏi 2 đổi sang mô hình admin hệ thống giới hạn. |
@@ -449,12 +453,21 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | PRD00-AC-134 | FR-45, FR-37 | Như trên; Q là sản phẩm khác của X, S không được gán vào Q | S mở đường dẫn trực tiếp tới một feedback của Q | Hệ thống báo "không tìm thấy"; quyền admin hệ thống không mở thêm gì |
 | PRD00-AC-135 | FR-45, FR-12 | S là admin hệ thống, không là thành viên X | S gửi yêu cầu tự thêm mình làm thành viên X trực tiếp, không qua màn hình | Bị từ chối; S không thành thành viên X |
 | PRD00-AC-136 | FR-21, FR-12 | S là admin hệ thống, không là thành viên X; X có 20 sản phẩm | S gửi yêu cầu xem danh sách sản phẩm của X trực tiếp, không qua màn hình | Bị từ chối; không có tên sản phẩm nào của X được trả về |
+| PRD00-AC-137 | FR-46 | X đang hoạt động, có hai Chủ sở hữu O1 và O2; S là admin hệ thống | S vô hiệu X, ghi lý do "Tổ chức yêu cầu tạm dừng" | O1 và O2 mỗi người nhận một email báo X bị vô hiệu, trong email có lý do "Tổ chức yêu cầu tạm dừng" |
+| PRD00-AC-138 | FR-46 | X đang hoạt động; S là admin hệ thống | S chọn vô hiệu X mà không ghi lý do | Không vô hiệu được; hệ thống yêu cầu nhập lý do; X vẫn hoạt động, không email nào được gửi |
+| PRD00-AC-139 | FR-46, FR-12 | X đang hoạt động; S là admin hệ thống | S gửi yêu cầu vô hiệu X trực tiếp, không qua màn hình, không kèm lý do | Bị từ chối; X vẫn hoạt động, không email nào được gửi |
+| PRD00-AC-140 | FR-46 | Z bị vô hiệu, có hai Chủ sở hữu O1 và O2; S là admin hệ thống | S kích hoạt lại Z | O1 và O2 mỗi người nhận một email báo Z đã hoạt động lại |
+| PRD00-AC-141 | FR-46 | X đang hoạt động, có hai Chủ sở hữu O1 và O2 | O1 vô hiệu X (BR-52) | X bị vô hiệu; O1 và O2 không nhận email nào báo X bị vô hiệu |
+| PRD00-AC-142 | FR-26, FR-42 | F ở *Đã xử lý* được 5 ngày thì tổ chức X bị vô hiệu; X bị vô hiệu 3 ngày | S kích hoạt lại X, rồi Phụ trách mở F | F ở *Đóng*; lịch sử ghi người thực hiện việc tự đóng là hệ thống |
+| PRD00-AC-143 | FR-26, FR-42 | F ở *Đã xử lý* được 2 ngày thì X bị vô hiệu; X bị vô hiệu 1 ngày rồi được kích hoạt lại; không ai mở lại F | Đến mốc 7 ngày kể từ lúc F sang *Đã xử lý* (4 ngày sau khi kích hoạt lại) | F tự sang *Đóng*; không có ngày nào được cộng thêm vì thời gian vô hiệu |
+| PRD00-AC-144 | FR-25, FR-42 | Lời mời tới B gửi 3 ngày trước khi X bị vô hiệu, B chưa dùng; X bị vô hiệu 5 ngày rồi được kích hoạt lại | B mở lời mời | B không vào được X; hệ thống báo lời mời đã hết hạn (như AC-58) |
+| PRD00-AC-145 | FR-42 | Khách K có link riêng của G thuộc Z; link hết hạn trong lúc Z bị vô hiệu | S kích hoạt lại Z, rồi K mở link | Trang báo link đã hết hạn như mọi link hết hạn (PRD04); không hiện nội dung G |
 
 ## 8. Trạng thái và trường hợp biên
 
 - **Không có tổ chức**: tài khoản chưa thuộc tổ chức nào (ví dụ chỉ từng gửi với tư cách khách) mở Hub → trang chào (BR-32, AC-74).
 - **Thành viên bị gỡ khỏi tổ chức** khi đang là người báo, Phụ trách hoặc người được giao → BR-30 (AC-69, AC-70). Nếu họ là Phụ trách duy nhất của một sản phẩm, sản phẩm đó trở thành chưa có Phụ trách (BR-35).
-- **Tổ chức bị vô hiệu** (nền tảng đã có thao tác này): widget tạm ngừng, link riêng hết hiệu lực, không ai chuyển vào được, kể cả Chủ sở hữu và admin hệ thống (BR-31). Chỉ admin hệ thống kích hoạt lại được; kích hoạt lại đưa tổ chức về như trước (BR-49, AC-106, AC-128–131). Các mốc thời gian (tự đóng 7 ngày, hạn lời mời, hạn link riêng) trong lúc tổ chức bị vô hiệu: câu hỏi mở 40.
+- **Tổ chức bị vô hiệu** (nền tảng đã có thao tác này): widget tạm ngừng, link riêng hết hiệu lực, không ai chuyển vào được, kể cả Chủ sở hữu và admin hệ thống (BR-31). Admin hệ thống phải ghi lý do khi vô hiệu, Chủ sở hữu được báo qua email (BR-54, AC-137–141). Chỉ admin hệ thống kích hoạt lại được; kích hoạt lại đưa tổ chức về như trước (BR-49, AC-106, AC-128–131). Các mốc thời gian (tự đóng 7 ngày, hạn lời mời, hạn link riêng) vẫn chạy trong lúc vô hiệu; kích hoạt lại chỉ khôi phục những gì còn hạn (BR-55, AC-142–145). Thông báo phát sinh trong lúc vô hiệu: câu hỏi mở 43. Mở lời mời còn hạn trong lúc vô hiệu: câu hỏi mở 44.
 - **Quyền bị thu hồi** (bỏ gán sản phẩm, đổi vai trò tổ chức) có hiệu lực ở thao tác tiếp theo của người đó, theo cơ chế sẵn có của nền tảng (trong vài giây); không cần đăng xuất (AC-12).
 - **Sản phẩm không có Phụ trách**: không ai được giao được; feedback mới báo cho Quản trị của tổ chức (BR-35).
 - **Một người là người báo và cũng là Phụ trách** của cùng sản phẩm: được làm mọi thao tác của Phụ trách trên feedback mình gửi; ở "Feedback của tôi" vẫn thấy feedback đó.
@@ -478,7 +491,8 @@ Mới ──► Đã tiếp nhận ──► Đang xử lý ──► In review 
 | Vai trò tổ chức của thành viên | Một hoặc nhiều vai trò tổ chức | Có, ít nhất một | Tổ chức luôn còn ít nhất một Chủ sở hữu (nền tảng đã có); Chủ sở hữu luôn có quyền Quản trị FeedbackHub | Người có quyền quản lý thành viên (BR-19) |
 | Số thành viên của tổ chức | Số thành viên hiện tại, hiện trong danh sách tổ chức của admin hệ thống (FR-44) | Tự tính | Không kèm tên thành viên | Không ai |
 | Trạng thái tổ chức | Đang hoạt động hoặc đã vô hiệu | Có | Mặc định đang hoạt động | Vô hiệu: người có quyền quản lý tổ chức (BR-52), admin hệ thống; kích hoạt lại: chỉ admin hệ thống (BR-49) |
-| Lời mời | Email được mời, vai trò tổ chức, thời điểm gửi | Có email và vai trò | Hết hạn sau 7 ngày; thu hồi được trước khi dùng; chỉ tài khoản có đúng email được mời dùng được (BR-51) | Người có quyền quản lý thành viên (BR-19) |
+| Lý do vô hiệu tổ chức | Lý do admin hệ thống ghi khi vô hiệu một tổ chức; có trong email gửi các Chủ sở hữu (BR-54) | Có khi admin hệ thống vô hiệu | Không để trống | Admin hệ thống, khi vô hiệu |
+| Lời mời | Email được mời, vai trò tổ chức, thời điểm gửi | Có email và vai trò | Hết hạn sau 7 ngày, kể cả khi tổ chức bị vô hiệu (BR-55); thu hồi được trước khi dùng; chỉ tài khoản có đúng email được mời dùng được (BR-51) | Người có quyền quản lý thành viên (BR-19) |
 | Vai trò theo sản phẩm | Phụ trách hoặc Viewer, cho một thành viên ở một sản phẩm | Không | Tối đa một vai trò mỗi người mỗi sản phẩm | Quản trị |
 | Mã feedback | `FB-<số>` | Tự sinh | Tăng dần, không trùng trong tổ chức | Không ai |
 | Loại | Lỗi / Tính năng / Góp ý | Có | Đúng ba giá trị | Người báo khi gửi; Phụ trách, Quản trị sau đó |
@@ -499,6 +513,8 @@ Ai nhận gì qua kênh nào được định nghĩa ở PRD05. PRD này chỉ �
 | Feedback gốc sang *Đã xử lý* | Người báo của mọi bản trùng lặp | Theo PRD05 | BR-13 |
 | Feedback mới ở sản phẩm chưa có Phụ trách | Quản trị của tổ chức | Theo PRD05 | BR-35, cho đến khi sản phẩm có Phụ trách |
 | Lời mời vào tổ chức | Email được mời | Email | BR-24; nội dung email: PRD05 |
+| Admin hệ thống vô hiệu tổ chức | Mọi Chủ sở hữu của tổ chức | Email | BR-54; email có lý do vô hiệu; nội dung email: PRD05. Chủ sở hữu tự vô hiệu thì không gửi |
+| Admin hệ thống kích hoạt lại tổ chức | Mọi Chủ sở hữu của tổ chức | Email | BR-54; nội dung email: PRD05 |
 
 ## 11. Yêu cầu phi chức năng
 
@@ -526,9 +542,10 @@ Ai nhận gì qua kênh nào được định nghĩa ở PRD05. PRD này chỉ �
 
 | # | Câu hỏi | Đề xuất trả lời | Vì sao quan trọng | Trạng thái |
 |---|---|---|---|---|
-| 39 | Khi admin hệ thống vô hiệu hay kích hoạt lại một tổ chức, Chủ sở hữu có được báo không, và có phải ghi lý do không? Chủ sở hữu không vào được tổ chức đã vô hiệu (BR-31), nên nếu không được báo thì chỉ biết khi widget ngừng nhận feedback. | Có: mọi Chủ sở hữu của tổ chức nhận email khi tổ chức bị admin hệ thống vô hiệu hoặc được kích hoạt lại; admin hệ thống phải ghi lý do khi vô hiệu, lý do có trong email. Khi Chủ sở hữu tự vô hiệu (BR-52) thì không cần báo. | Quyết định thêm sự kiện vào §10 (kênh và nội dung: PRD05) và một trường lý do. Không báo thì một tổ chức có thể bị ngừng mà không ai trong tổ chức biết vì sao. | Mở |
-| 40 | Trong thời gian tổ chức bị vô hiệu, các mốc thời gian có tiếp tục chạy không: tự đóng sau 7 ngày ở *Đã xử lý* (BR-27), hạn 7 ngày của lời mời (BR-24), hạn của link riêng (PRD04)? | Có, tất cả tiếp tục chạy theo giờ lịch (như BR-40). Kích hoạt lại chỉ khôi phục những gì còn hạn, đúng với quyết định "link riêng còn hạn hoạt động lại". Feedback tự đóng trong lúc vô hiệu thì ở *Đóng* khi kích hoạt lại; lời mời đã hết hạn thì phải gửi lại. | Quyết định "như trước khi vô hiệu" nghĩa là gì sau một thời gian dài vô hiệu; ảnh hưởng BR-24, BR-27, BR-49 và kiểm thử AC-128–130. Dừng đồng hồ thì phải định nghĩa thêm cách tính thời gian còn lại. | Mở |
-| 41 | Ưu tiên của các mục mới hoặc chưa được xác nhận: US-17 (Should), US-18 (Should), FR-42 (Should), FR-44 (Should), FR-45 (Must). Câu 38, nơi FR-42 từng được hỏi, đã bỏ. | Giữ như đang ghi. FR-45 là Must vì nó bảo đảm admin hệ thống không có quyền vượt vai trò khi được thêm vào tổ chức, cùng nhóm với FR-01 và FR-38; danh sách tổ chức và kích hoạt lại đi theo khảo sát (FR-21, Should). | Quyết định phần nào bắt buộc ở bản đầu. | Mở |
+| 42 | Người có quyền quản lý tổ chức nhưng **không phải** Chủ sở hữu (vai trò tự tạo có quyền này, BR-52) vô hiệu tổ chức: các Chủ sở hữu có được báo qua email không, và có bắt buộc lý do không? BR-54 chỉ miễn báo khi chính Chủ sở hữu tự vô hiệu. | Có báo: mọi Chủ sở hữu nhận email báo tổ chức bị vô hiệu, như BR-54, nêu ai đã vô hiệu. Không bắt buộc lý do vì đây là thao tác bên trong tổ chức. | Chủ sở hữu không vào được tổ chức đã vô hiệu (BR-31) và chỉ admin hệ thống kích hoạt lại được (BR-49); nếu không được báo, Chủ sở hữu chỉ biết khi widget ngừng nhận feedback, đúng điều câu 39 muốn tránh. Quyết định phạm vi của BR-54 và §10. | Mở |
+| 43 | Trong lúc tổ chức bị vô hiệu, các thông báo phát sinh từ tổ chức (ví dụ feedback tự đóng theo BR-55) có được gửi cho người báo, khách, Phụ trách không? | Không gửi: trong lúc vô hiệu không thông báo nào của tổ chức (trong Hub, email, web push) được gửi, kể cả khi feedback tự đóng; lịch sử vẫn ghi đủ. Ngoại lệ duy nhất là email BR-54 cho Chủ sở hữu. Kích hoạt lại không gửi bù. | Người nhận không mở được feedback (không vào được tổ chức, link riêng của khách báo hết hiệu lực, BR-31), nên một thông báo dẫn tới chỗ không mở được gây nhầm lẫn. Ảnh hưởng BR-31 và quy tắc gửi của PRD05. | Mở |
+| 44 | Người được mời mở lời mời còn hạn trong lúc tổ chức bị vô hiệu thì sao? | Không đưa vào tổ chức; báo tổ chức đang tạm ngừng hoạt động. Lời mời không bị huỷ: nếu còn hạn sau khi kích hoạt lại (hạn vẫn chạy, BR-55) thì dùng được như thường. | BR-31 chặn chuyển vào tổ chức nhưng chưa nói về việc trở thành thành viên qua lời mời; cần một AC cho trường hợp này. | Mở |
+| 45 | Ưu tiên của mục mới: US-19 và FR-46 (email báo Chủ sở hữu, lý do vô hiệu). | Should, đi cùng FR-42 và US-17 (Should): báo Chủ sở hữu là một phần của thao tác vô hiệu và kích hoạt lại của admin hệ thống. | Quyết định phần nào bắt buộc ở bản đầu. | Mở |
 
 ## 14. Lịch sử thay đổi
 
@@ -575,3 +592,8 @@ Ai nhận gì qua kênh nào được định nghĩa ở PRD05. PRD này chỉ �
 | 2026-10-22 | 0.4 | Câu 35 (theo đề xuất, người dùng chấp nhận cùng mô hình giới hạn): chỉ admin hệ thống kích hoạt lại; Chủ sở hữu không vào được tổ chức đã vô hiệu, muốn kích hoạt lại thì liên hệ admin hệ thống; kích hoạt lại đưa mọi thứ về như trước: thành viên giữ vai trò, widget nhận feedback lại, link riêng còn hạn hoạt động lại → BR-49, FR-42, ô *Kích hoạt lại* trong ma trận quyền (hết ô chưa quyết), §8, §9, AC-106 (sửa), AC-128–131 | Quyết định của người dùng |
 | 2026-10-22 | 0.4 | Bỏ (~~Removed~~, không đánh lại số): US-13, US-16; FR-39, FR-40, FR-41, FR-43; BR-47, BR-48, BR-50; AC-46–50, AC-94–104, AC-108–114. Bỏ khỏi §3.1 các thuật ngữ *Tư cách admin hệ thống*, *Nhật ký admin hệ thống*; bỏ khỏi ma trận quyền dòng *Xem nhật ký admin hệ thống*; thêm dòng *Xem danh sách mọi tổ chức*. AC-121 khôi phục hành vi của AC-42 cũ, theo BR-45 ("không tìm thấy") | Quyết định của người dùng |
 | 2026-10-22 | 0.4 | Danh sách tổ chức đánh dấu tổ chức đã vô hiệu (FR-44, BR-49): suy ra từ câu 35 (chỉ admin hệ thống kích hoạt lại được, nên cần biết tổ chức nào đang bị vô hiệu); nhãn này trước đây thuộc câu 27; chờ người dùng xác nhận khi duyệt. Thêm câu hỏi mở 39–41 | Suy ra từ quyết định của người dùng (câu 35) |
+| 2026-10-22 | 0.5 | Áp dụng câu trả lời của người dùng cho câu hỏi mở 39–41 (đều theo đề xuất); bỏ các câu này khỏi §13; thêm US-19, FR-46, BR-54, BR-55, AC-137–145, trường *Lý do vô hiệu tổ chức* ở §9, hai sự kiện ở §10; thêm câu hỏi mở 42–45 | Quyết định của người dùng |
+| 2026-10-22 | 0.5 | Câu 39: admin hệ thống phải ghi lý do khi vô hiệu tổ chức; mọi Chủ sở hữu nhận email khi admin hệ thống vô hiệu (kèm lý do) hoặc kích hoạt lại; Chủ sở hữu tự vô hiệu thì không báo → US-19, FR-46, BR-54, BR-49 (sửa), BR-52 (sửa), AC-105 (sửa), AC-137–141, ô *Vô hiệu tổ chức* của admin hệ thống trong ma trận quyền, §8, §9, §10; phát sinh câu hỏi 42, 45 | Quyết định của người dùng |
+| 2026-10-22 | 0.5 | Câu 40: các mốc thời gian (tự đóng 7 ngày, hạn lời mời, hạn link riêng) vẫn chạy theo giờ lịch khi tổ chức bị vô hiệu; kích hoạt lại chỉ khôi phục những gì còn hạn; feedback tự đóng trong lúc vô hiệu ở *Đóng*; lời mời hết hạn phải gửi lại → BR-55, FR-42 (sửa), BR-24, BR-27, BR-49 (sửa), AC-142–145, §8, §9; phát sinh câu hỏi 43, 44 | Quyết định của người dùng |
+| 2026-10-22 | 0.5 | Câu 41: giữ ưu tiên đã ghi: US-17 Should, US-18 Should, FR-42 Should, FR-44 Should, FR-45 Must | Quyết định của người dùng |
+| 2026-10-22 | 0.5 | Xác nhận danh sách tổ chức của admin hệ thống đánh dấu tổ chức đã vô hiệu (FR-44, BR-49, AC-124), điểm ghi "chờ người dùng xác nhận" ở v0.4 | Quyết định của người dùng |
