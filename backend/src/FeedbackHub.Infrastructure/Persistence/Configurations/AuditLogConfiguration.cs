@@ -27,7 +27,7 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 
         builder.Property(x => x.Action)
             .HasColumnName("action")
-            .HasMaxLength(20)
+            .HasMaxLength(50)
             .IsRequired();
 
         builder.Property(x => x.OldValues)
@@ -57,10 +57,28 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
             .HasColumnName("timestamp")
             .IsRequired();
 
+        // Sentinel 0 is not an enum member, so the default only applies to raw inserts that omit the column.
+        builder.Property(x => x.Kind)
+            .HasColumnName("kind")
+            .HasConversion<string>()
+            .HasMaxLength(10)
+            .HasDefaultValue(AuditLogKind.Change)
+            .IsRequired();
+
+        builder.Property(x => x.ActorKind)
+            .HasColumnName("actor_kind")
+            .HasMaxLength(20);
+
         builder.HasIndex(x => x.EntityName);
         builder.HasIndex(x => x.EntityId);
         builder.HasIndex(x => x.UserId);
         builder.HasIndex(x => x.OrganizationId);
         builder.HasIndex(x => x.Timestamp);
+
+        // Keyset paging of the organization's event feed (TECH00 §3.7); Change rows stay out of it.
+        builder.HasIndex(x => new { x.OrganizationId, x.Timestamp, x.Id })
+            .IsDescending(false, true, true)
+            .HasFilter("kind = 'Event'")
+            .HasDatabaseName("IX_audit_logs_event_keyset");
     }
 }
