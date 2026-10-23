@@ -41,6 +41,7 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
     private readonly ILogger logger;
     private readonly TimeProvider timeProvider;
     private long lastAcquireMs;
+    private int inFlight;
 
     public RedisFixedWindowRateLimiter(
         IConnectionMultiplexer redis,
@@ -55,6 +56,12 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
         ArgumentNullException.ThrowIfNull(fallback);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        if (fallback is ReplenishingRateLimiter { IsAutoReplenishing: false })
+        {
+            // This class is not a ReplenishingRateLimiter, so the partitioned limiter never replenishes the fallback.
+            throw new ArgumentException("The fallback must replenish itself (AutoReplenishment = true).", nameof(fallback));
+        }
+
         ArgumentOutOfRangeException.ThrowIfLessThan(permitLimit, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(window, TimeSpan.FromMilliseconds(1));
         policy = PolicyOf(key);
@@ -77,7 +84,8 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
     {
         get
         {
-            if (fallback.IdleDuration is null)
+            // An acquire still waiting on Redis must not look idle, or it could be evicted and disposed mid-call.
+            if (Volatile.Read(ref inFlight) > 0 || fallback.IdleDuration is null)
             {
                 return null;
             }
@@ -100,6 +108,7 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
         ArgumentOutOfRangeException.ThrowIfNotEqual(permitCount, 1);
         Volatile.Write(ref lastAcquireMs, timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
 
+        Interlocked.Increment(ref inFlight);
         try
         {
             RedisResult result = await redis.GetDatabase()
@@ -117,6 +126,11 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
         {
             WarnOncePerMinute(ex);
             return await fallback.AcquireAsync(permitCount, cancellationToken);
+        }
+        finally
+        {
+            Volatile.Write(ref lastAcquireMs, timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
+            Interlocked.Decrement(ref inFlight);
         }
     }
 
