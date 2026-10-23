@@ -27,7 +27,7 @@ Work runs from idea to release, not only from code. Full detail (work sizes S/M/
 | 6 Review and merge | PR merged into `dev`           | `pr-reviewer` (docs-only PR: `/git-accept`)                        |
 | 7 Release          | tag, changelog                 | `release-kit:git-release`; user approves                           |
 
-The main session orchestrates: it asks the user, relays answers, and calls agents in order. Subagents cannot ask the user or call each other. A business question found at any later stage goes back to the PRD; nothing downstream proceeds on an unapproved upstream document.
+The main session orchestrates: it sends every question first to `solution-architect`, which answers on the user's behalf, asks the user only what that agent escalates, relays answers, and calls agents in order. Subagents cannot ask the user or call each other. A business question found at any later stage goes back to the PRD; nothing downstream proceeds on an unapproved upstream document.
 
 ## Common Commands
 
