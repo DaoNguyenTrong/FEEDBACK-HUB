@@ -1,7 +1,6 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Storage;
 using FeedbackHub.Application.Common.Authorization;
-using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Services.Roles;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
@@ -144,6 +143,21 @@ public sealed class RoleGrantReaderTests(PostgresContainerFixture fixture) : IAs
     }
 
     [Fact]
+    public async Task LoadCallerAsync_RoleLinkCrossingOrganizations_IsIgnored()
+    {
+        SeededOrganization mine = await SeedOrganizationAsync();
+        SeededOrganization other = await SeedOrganizationAsync();
+        OrganizationMember member = await SeedMemberAsync(
+            mine.Organization.Id, [mine.System[SystemRoleKind.Member], other.System[SystemRoleKind.Owner]]);
+
+        RoleGrantCaller caller = await reader.LoadCallerAsync(
+            mine.Organization.Id, member.AccountId, CancellationToken.None);
+
+        Assert.False(caller.IsOwner);
+        Assert.Empty(caller.Permissions);
+    }
+
+    [Fact]
     public async Task LoadCallerAsync_SeveralRoles_UnionOfRolePermissions()
     {
         SeededOrganization seeded = await SeedOrganizationAsync();
@@ -224,6 +238,19 @@ public sealed class RoleGrantReaderTests(PostgresContainerFixture fixture) : IAs
     }
 
     [Fact]
+    public async Task LoadRolesAsync_DuplicateIds_ReturnsEachRoleOnce()
+    {
+        SeededOrganization seeded = await SeedOrganizationAsync();
+        Guid admin = seeded.System[SystemRoleKind.Admin].Id;
+        Guid member = seeded.System[SystemRoleKind.Member].Id;
+
+        IReadOnlyList<RoleGrantRole> roles = await reader.LoadRolesAsync(
+            seeded.Organization.Id, [member, admin, member, admin], CancellationToken.None);
+
+        Assert.Equal([admin, member], roles.Select(role => role.Id));
+    }
+
+    [Fact]
     public async Task LoadRolesAsync_NoIds_ReturnsEmpty()
     {
         SeededOrganization seeded = await SeedOrganizationAsync();
@@ -248,7 +275,7 @@ public sealed class RoleGrantReaderTests(PostgresContainerFixture fixture) : IAs
             seeded.Organization.Id, [seeded.System[SystemRoleKind.Admin]]);
 
         IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrantRole>> rolesByMember =
-            await reader.LoadRolesOfMembersAsync([first.Id, second.Id], CancellationToken.None);
+            await reader.LoadRolesOfMembersAsync(seeded.Organization.Id, [first.Id, second.Id], CancellationToken.None);
 
         Assert.Equal(2, rolesByMember.Count);
         Assert.Equal(
@@ -265,16 +292,45 @@ public sealed class RoleGrantReaderTests(PostgresContainerFixture fixture) : IAs
         OrganizationMember member = await SeedMemberAsync(seeded.Organization.Id, []);
 
         IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrantRole>> rolesByMember =
-            await reader.LoadRolesOfMembersAsync([member.Id], CancellationToken.None);
+            await reader.LoadRolesOfMembersAsync(seeded.Organization.Id, [member.Id], CancellationToken.None);
 
         Assert.Empty(Assert.Contains(member.Id, rolesByMember));
+    }
+
+    [Fact]
+    public async Task LoadRolesOfMembersAsync_MemberOfAnotherOrganization_HasNoEntry()
+    {
+        SeededOrganization mine = await SeedOrganizationAsync();
+        SeededOrganization other = await SeedOrganizationAsync();
+        OrganizationMember member = await SeedMemberAsync(mine.Organization.Id, [mine.System[SystemRoleKind.Member]]);
+        OrganizationMember outsider = await SeedMemberAsync(other.Organization.Id, [other.System[SystemRoleKind.Owner]]);
+
+        IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrantRole>> rolesByMember =
+            await reader.LoadRolesOfMembersAsync(mine.Organization.Id, [member.Id, outsider.Id], CancellationToken.None);
+
+        Assert.Equal([member.Id], rolesByMember.Keys);
+    }
+
+    // No foreign key ties a member-role link to the member's organization, so the reader must not trust it.
+    [Fact]
+    public async Task LoadRolesOfMembersAsync_RoleLinkCrossingOrganizations_IsLeftOut()
+    {
+        SeededOrganization mine = await SeedOrganizationAsync();
+        SeededOrganization other = await SeedOrganizationAsync();
+        OrganizationMember member = await SeedMemberAsync(
+            mine.Organization.Id, [mine.System[SystemRoleKind.Member], other.System[SystemRoleKind.Owner]]);
+
+        IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrantRole>> rolesByMember =
+            await reader.LoadRolesOfMembersAsync(mine.Organization.Id, [member.Id], CancellationToken.None);
+
+        Assert.Equal([mine.System[SystemRoleKind.Member].Id], rolesByMember[member.Id].Select(role => role.Id));
     }
 
     [Fact]
     public async Task LoadRolesOfMembersAsync_NoIds_ReturnsEmpty()
     {
         IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrantRole>> rolesByMember =
-            await reader.LoadRolesOfMembersAsync([], CancellationToken.None);
+            await reader.LoadRolesOfMembersAsync(Guid.NewGuid(), [], CancellationToken.None);
 
         Assert.Empty(rolesByMember);
     }
@@ -290,6 +346,5 @@ public sealed class RoleGrantReaderTests(PostgresContainerFixture fixture) : IAs
         Type[] parameterTypes = constructor.GetParameters().Select(parameter => parameter.ParameterType).ToArray();
 
         Assert.Equal([typeof(AppDbContext)], parameterTypes);
-        Assert.DoesNotContain(typeof(IPermissionResolver), parameterTypes);
     }
 }
