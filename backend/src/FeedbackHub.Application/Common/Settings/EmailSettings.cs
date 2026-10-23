@@ -17,6 +17,9 @@ public sealed class EmailSettings
     /// <summary>Implicit TLS on connect (port 465). Leave false for STARTTLS (port 587, the default here).</summary>
     public bool UseSsl { get; init; } = false;
 
+    /// <summary>SslOnConnect, StartTls or StartTlsWhenAvailable. Empty derives from <see cref="UseSsl"/>.</summary>
+    public string SecureSocket { get; init; } = string.Empty;
+
     public int VerificationTokenExpiryHours { get; init; } = 24;
 
     /// <summary>One deadline for connect, authenticate and send together (not per step). Keep it below the proxy timeout.</summary>

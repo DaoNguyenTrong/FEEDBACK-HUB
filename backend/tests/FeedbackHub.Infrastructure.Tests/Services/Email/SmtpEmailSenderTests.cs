@@ -44,7 +44,7 @@ public class SmtpEmailSenderTests
         }
     }
 
-    private static Fixture CreateFixture(string username = "", bool useSsl = false, int sendTimeoutSeconds = 15)
+    private static Fixture CreateFixture(string username = "", bool useSsl = false, int sendTimeoutSeconds = 15, string secureSocket = "")
     {
         IOptions<EmailSettings> options = Options.Create(new EmailSettings
         {
@@ -55,6 +55,7 @@ public class SmtpEmailSenderTests
             FromAddress = "noreply@example.com",
             FromName = "FeedbackHub",
             UseSsl = useSsl,
+            SecureSocket = secureSocket,
             SendTimeoutSeconds = sendTimeoutSeconds
         });
 
@@ -88,6 +89,17 @@ public class SmtpEmailSenderTests
 
         await f.Client.Received(1).ConnectAsync(
             Arg.Any<string>(), Arg.Any<int>(), SecureSocketOptions.SslOnConnect, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendAsync_SecureSocketStartTls_ConnectsWithStartTls()
+    {
+        Fixture f = CreateFixture(useSsl: true, secureSocket: "StartTls");
+
+        await f.Sender.SendAsync("to@example.com", "Subject", "<p>Body</p>", CancellationToken.None);
+
+        await f.Client.Received(1).ConnectAsync(
+            Arg.Any<string>(), Arg.Any<int>(), SecureSocketOptions.StartTls, Arg.Any<CancellationToken>());
     }
 
     [Fact]

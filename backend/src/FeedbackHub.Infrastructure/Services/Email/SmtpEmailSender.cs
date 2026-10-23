@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using MailKit.Net.Smtp;
-using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
@@ -49,7 +48,7 @@ internal sealed class SmtpEmailSender(
             await client.ConnectAsync(
                 emailSettings.Host,
                 emailSettings.Port,
-                emailSettings.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTlsWhenAvailable,
+                EmailSecureSocket.Resolve(emailSettings),
                 deadline.Token);
 
             if (!string.IsNullOrWhiteSpace(emailSettings.Username))
