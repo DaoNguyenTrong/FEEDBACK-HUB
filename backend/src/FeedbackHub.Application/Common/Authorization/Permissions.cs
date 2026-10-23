@@ -12,19 +12,9 @@ public static class Permissions
     public const string FeedbackHubAdmin = "feedbackhub.admin";
 
     /// <summary>
-    /// Permission codes checked against the caller's active organization (the JWT <c>org_id</c> claim, via
-    /// <c>ICurrentTenantProvider</c>) rather than an <c>{id}</c> route segment; see
-    /// <c>OrganizationContextAuthorizationHandler</c>. Every code here must also appear in <see cref="All"/>.
+    /// Every code is checked in the caller's active organization (the JWT <c>org_id</c> claim) by
+    /// <c>OrganizationContextAuthorizationHandler</c>; no route carries an organization id.
     /// </summary>
-    public static readonly IReadOnlyList<string> ActiveOrganizationScoped =
-    [
-        OrganizationManage,
-        FilesManage,
-        ApiKeysManage,
-        AuditLogsView,
-        SettingsManage
-    ];
-
     public static readonly IReadOnlyList<string> All =
     [
         OrganizationManage,

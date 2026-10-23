@@ -2,7 +2,9 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.SignalR;
+using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Domain.Auditing;
 using FeedbackHub.Domain.Entities;
@@ -106,6 +108,47 @@ public sealed class ArchitectureTests
     }
 
     /// <summary>
+    /// QĐ-06: organization administration takes the organization from the JWT <c>org_id</c>; a route naming one would
+    /// let a caller checked in organization B act on organization A.
+    /// </summary>
+    [Fact]
+    public void ControllerRoutes_NameNoOrganizationUnderApiOrganizations()
+    {
+        string[] offenders = [.. ControllerRoutes()
+            .Where(route => route.Template.StartsWith("api/organizations/{", StringComparison.OrdinalIgnoreCase))
+            .Select(route => $"{route.Action}: {route.Template}")];
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>Every <see cref="Permissions"/> code is checked in the JWT's organization: no such route names one.</summary>
+    [Fact]
+    public void PermissionPolicies_HaveNoRouteParameterNamingAnOrganization()
+    {
+        string[] offenders = [.. ControllerRoutes()
+            .Where(route => route.Policies.Any(Permissions.All.Contains) && NamesAnOrganization(route.Template))
+            .Select(route => $"{route.Action}: {route.Template}")];
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>System-administrator routes may name an organization only because their policy ignores org_id.</summary>
+    [Fact]
+    public void SystemOrganizationRoutes_RequireSystemAdministratorAndNoPermissionCode()
+    {
+        RouteInfo[] routes = [.. ControllerRoutes()
+            .Where(route => route.Template.StartsWith("api/system/organizations", StringComparison.OrdinalIgnoreCase))];
+        Assert.NotEmpty(routes);
+
+        string[] offenders = [.. routes
+            .Where(route => !route.Policies.Contains(AuthorizationPolicies.SystemAdministrator)
+                || route.Policies.Any(Permissions.All.Contains))
+            .Select(route => $"{route.Action}: {route.Template}")];
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
     /// Exceptions defined in Domain/Application must go through <see cref="AppException"/> so the middleware maps
     /// them to the right status code and localization key — a bare <see cref="Exception"/> escaping becomes a 500.
     /// </summary>
@@ -194,6 +237,76 @@ public sealed class ArchitectureTests
             .Where(name => forbiddenPrefixes.Any(prefix => name.StartsWith(prefix, StringComparison.Ordinal)))];
 
         Assert.Empty(offenders);
+    }
+
+    private sealed record RouteInfo(string Action, string Template, string[] Policies);
+
+    private static IEnumerable<RouteInfo> ControllerRoutes()
+    {
+        foreach (Type controller in Api.GetTypes()
+            .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(ControllerBase).IsAssignableFrom(type)))
+        {
+            string[] prefixes = [.. controller.GetCustomAttributes(inherit: true).OfType<IRouteTemplateProvider>()
+                .Select(provider => provider.Template ?? string.Empty)
+                .DefaultIfEmpty(string.Empty)];
+
+            foreach (MethodInfo action in controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .Where(action => action.DeclaringType != typeof(object) && action.DeclaringType != typeof(ControllerBase))
+                .Where(action => !action.IsSpecialName && !action.IsDefined(typeof(NonActionAttribute), inherit: true)))
+            {
+                string[] policies = [.. new MemberInfo[] { controller, action }
+                    .SelectMany(member => member.GetCustomAttributes(inherit: true).OfType<IAuthorizeData>())
+                    .Select(data => data.Policy)
+                    .OfType<string>()];
+                string[] templates = [.. action.GetCustomAttributes(inherit: true).OfType<IRouteTemplateProvider>()
+                    .Select(provider => provider.Template ?? string.Empty)
+                    .DefaultIfEmpty(string.Empty)];
+
+                foreach (string prefix in prefixes)
+                {
+                    foreach (string template in templates)
+                    {
+                        yield return new RouteInfo(
+                            $"{controller.Name}.{action.Name}", CombineTemplates(prefix, template), policies);
+                    }
+                }
+            }
+        }
+    }
+
+    private static string CombineTemplates(string prefix, string template)
+    {
+        if (template.StartsWith("~/", StringComparison.Ordinal) || template.StartsWith('/'))
+        {
+            return template.TrimStart('~', '/');
+        }
+
+        return string.Join('/', new[] { prefix, template }.Where(part => part.Length > 0)).Trim('/');
+    }
+
+    // A parameter names an organization by its own name or by following an "organization(s)" segment.
+    private static bool NamesAnOrganization(string template)
+    {
+        string[] segments = template.Split('/');
+        for (int i = 0; i < segments.Length; i++)
+        {
+            Match parameter = Regex.Match(segments[i], @"^\{\**([^}:=?]+)");
+            if (!parameter.Success)
+            {
+                continue;
+            }
+
+            string name = parameter.Groups[1].Value;
+            bool followsOrganization = i > 0 && segments[i - 1].ToLowerInvariant() is "organization" or "organizations";
+            if (followsOrganization
+                || name.StartsWith("org", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("organization", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool DeclaresAccess(MemberInfo member) =>

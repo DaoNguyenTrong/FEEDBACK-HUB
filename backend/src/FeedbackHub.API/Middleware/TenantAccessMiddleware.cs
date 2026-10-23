@@ -18,7 +18,7 @@ public sealed class TenantAccessMiddleware(RequestDelegate next)
     [
         // Logout and switch-organization must still work once the active organization is out of reach.
         "/api/auth",
-        // Self-authorizes against the organization in its URL; the caller's own list and create are org-independent.
+        // The caller's own organization list and organization creation work whatever organization the token names.
         "/api/organizations",
         // Static, organization-independent catalogue.
         "/api/permissions",

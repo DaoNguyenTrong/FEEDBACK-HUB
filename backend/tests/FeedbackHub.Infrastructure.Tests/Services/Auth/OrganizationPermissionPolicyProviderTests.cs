@@ -24,16 +24,14 @@ public class OrganizationPermissionPolicyProviderTests
         return new Fixture(provider, options);
     }
 
-    public static TheoryData<string> ActiveOrganizationScopedCodes() => [.. Permissions.ActiveOrganizationScoped];
-
-    public static TheoryData<string> RouteScopedCodes() =>
-        [.. Permissions.All.Except(Permissions.ActiveOrganizationScoped)];
+    public static TheoryData<string> EveryPermissionCode() => [.. Permissions.All];
 
     // GetPolicyAsync
 
+    // QĐ-06: every code is checked in the JWT's organization; none may fall back to a route-scoped check.
     [Theory]
-    [MemberData(nameof(ActiveOrganizationScopedCodes))]
-    public async Task GetPolicyAsync_ActiveOrganizationScopedCode_BuildsOrganizationContextRequirement(string code)
+    [MemberData(nameof(EveryPermissionCode))]
+    public async Task GetPolicyAsync_EveryPermissionCode_BuildsGateRequirementForbidden(string code)
     {
         Fixture f = CreateFixture();
 
@@ -47,61 +45,11 @@ public class OrganizationPermissionPolicyProviderTests
         Assert.Empty(policy.AuthenticationSchemes);
     }
 
-    [Theory]
-    [MemberData(nameof(RouteScopedCodes))]
-    public async Task GetPolicyAsync_RouteScopedCode_BuildsRouteOrganizationRequirement(string code)
-    {
-        Fixture f = CreateFixture();
-
-        AuthorizationPolicy? policy = await f.Provider.GetPolicyAsync(code);
-
-        Assert.NotNull(policy);
-        IAuthorizationRequirement requirement = Assert.Single(policy.Requirements);
-        OrganizationPermissionRequirement typed = Assert.IsType<OrganizationPermissionRequirement>(requirement);
-        Assert.Equal(code, typed.PermissionCode);
-    }
-
-    // API-04, API-05 act on the JWT's organization: the code must never fall back to an {id} route check.
-    [Fact]
-    public async Task GetPolicyAsync_OrganizationManage_BuildsOrganizationContextRequirement()
-    {
-        Fixture f = CreateFixture();
-
-        AuthorizationPolicy? policy = await f.Provider.GetPolicyAsync(Permissions.OrganizationManage);
-
-        Assert.NotNull(policy);
-        OrganizationContextRequirement typed =
-            Assert.IsType<OrganizationContextRequirement>(Assert.Single(policy.Requirements));
-        Assert.Equal(Permissions.OrganizationManage, typed.PermissionCode);
-        Assert.Equal(DenyMode.Forbidden, typed.DenyMode);
-    }
-
-    [Fact]
-    public void Permissions_ActiveOrganizationScoped_IsSubsetOfAll()
-    {
-        // The provider checks ActiveOrganizationScoped first precisely because every scoped code is
-        // also in All — this pins the overlap the precedence test below depends on.
-        Assert.All(Permissions.ActiveOrganizationScoped, code => Assert.Contains(code, Permissions.All));
-    }
-
-    [Fact]
-    public async Task GetPolicyAsync_ActiveOrganizationScopedCode_NeverResolvesToRouteRequirement()
-    {
-        Fixture f = CreateFixture();
-
-        foreach (string code in Permissions.ActiveOrganizationScoped)
-        {
-            AuthorizationPolicy? policy = await f.Provider.GetPolicyAsync(code);
-
-            Assert.DoesNotContain(policy!.Requirements, r => r is OrganizationPermissionRequirement);
-        }
-    }
-
     [Fact]
     public async Task GetPolicyAsync_StaticallyRegisteredPolicy_FallsThroughToOptions()
     {
         AuthorizationPolicy registered = new AuthorizationPolicyBuilder()
-            .AddRequirements(new OrganizationMembershipRequirement())
+            .AddRequirements(new SystemAdministratorRequirement())
             .Build();
         Fixture f = CreateFixture(options => options.AddPolicy(RegisteredPolicyName, registered));
 

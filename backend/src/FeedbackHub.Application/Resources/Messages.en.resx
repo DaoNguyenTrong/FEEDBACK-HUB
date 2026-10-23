@@ -123,9 +123,6 @@
   <data name="FieldRegularExpression" xml:space="preserve">
     <value>This field does not match the required format.</value>
   </data>
-  <data name="AccountNotFound" xml:space="preserve">
-    <value>Account not found.</value>
-  </data>
   <data name="EmailVerificationTokenRequired" xml:space="preserve">
     <value>Email verification token is required.</value>
   </data>
@@ -179,9 +176,6 @@
   </data>
   <data name="ResourceNotFound" xml:space="preserve">
     <value>Not found.</value>
-  </data>
-  <data name="OrganizationMemberAlreadyExists" xml:space="preserve">
-    <value>This account is already a member of the organization.</value>
   </data>
   <data name="OrganizationCannotRemoveLastOwner" xml:space="preserve">
     <value>Cannot remove or change the role of the last owner in an organization.</value>

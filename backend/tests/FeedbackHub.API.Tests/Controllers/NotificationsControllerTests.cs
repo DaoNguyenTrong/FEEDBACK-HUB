@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
 using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Services.Notifications;
-using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
 
@@ -87,43 +86,6 @@ public sealed class NotificationsControllerTests(ApiFactoryFixture fixture) : IA
         HttpResponseMessage response = await client.GetAsync("/api/notifications?readState=archived");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task AddOrganizationMember_NotifiesTargetAccount()
-    {
-        (HttpClient ownerClient, Account owner) = await CreateAuthedClientAsync();
-        Account target;
-        Organization organization;
-        Guid memberRoleId;
-        await using (AppDbContext context = CreateDbContext())
-        {
-            organization = await AuthTestHelper.SeedOrganizationAsync(context);
-            await AuthTestHelper.SeedOrganizationMemberAsync(context, organization.Id, owner.Id, SystemRoleKind.Owner);
-            target = await AuthTestHelper.SeedConfirmedAccountAsync(
-                context, username: $"target-{Guid.NewGuid():N}", email: $"target-{Guid.NewGuid():N}@example.com");
-            memberRoleId = (await AuthTestHelper.SeedSystemRolesAsync(context, organization.Id))[SystemRoleKind.Member].Id;
-        }
-
-        HttpResponseMessage addResponse = await ownerClient.PostAsJsonAsync(
-            $"/api/organizations/{organization.Id}/members",
-            new AddMemberRequest(target.Email, [memberRoleId]),
-            JsonTestExtensions.Options);
-        Assert.Equal(HttpStatusCode.NoContent, addResponse.StatusCode);
-
-        HttpClient targetClient = fixture.CreateTestClient();
-        targetClient.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(target, null));
-
-        HttpResponseMessage listResponse = await targetClient.GetAsync("/api/notifications");
-        PagedResult<NotificationDto>? result = await listResponse.Content.ReadJsonAsync<PagedResult<NotificationDto>>();
-        NotificationDto notification = Assert.Single(result!.Items);
-        Assert.Equal(NotificationTypes.OrganizationMemberAdded, notification.Type);
-        Assert.Contains(organization.Id.ToString(), notification.Data);
-        Assert.False(notification.IsRead);
-
-        HttpResponseMessage countResponse = await targetClient.GetAsync("/api/notifications/unread-count");
-        UnreadCountDto? count = await countResponse.Content.ReadJsonAsync<UnreadCountDto>();
-        Assert.Equal(1, count!.Count);
     }
 
     [Fact]

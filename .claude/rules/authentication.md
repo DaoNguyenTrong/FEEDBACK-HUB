@@ -46,7 +46,6 @@ Each organization has its own roles (`Role`, system kinds `Owner`/`Admin`/`Membe
 `Permissions`. Endpoints gate with `[Authorize(Policy = Permissions.X)]` (resolved by
 `OrganizationPermissionPolicyProvider`) or one of the `AuthorizationPolicies`:
 
-- `OrganizationMember` — active member of the organization in the `{id}` route segment.
 - `ActiveOrganizationMember` — active member of the JWT's organization; outside it → 403 `OrganizationAccessDenied`.
 - `ActiveOrganizationMemberOrNotFound` — the same, but outside it → 404 `ResourceNotFound` (BR-45).
 - `SignedInUser` — a signed-in person's JWT; never an API key.
@@ -57,13 +56,14 @@ Each organization has its own roles (`Role`, system kinds `Owner`/`Admin`/`Membe
   the TTL), never from a JWT claim.
 
 The organization gate (`OrganizationContextAuthorizationHandler`, TECH00 §5.1) backs the two
-`ActiveOrganizationMember*` policies and the `Permissions.ActiveOrganizationScoped` codes. It checks in this order
-and answers the first failure: not signed in (401), outside the organization — personal context, API key or
-non-member (403 or 404), organization suspended (403 `OrganizationSuspended` with `organizationName`), missing
-permission (403 `OrganizationAccessDenied`). `organizations.manage` is in `Permissions.ActiveOrganizationScoped` too and
-is checked against the JWT organization: the `DELETE api/organizations/{id}` route is gone. Only the route-scoped codes
-`organizations.members.manage` and `organizations.roles.manage` (and `OrganizationMember`) still check the `{id}`
-organization, with no suspended step, until those routes go (phase 4).
+`ActiveOrganizationMember*` policies and every `Permissions` code (`OrganizationContextRequirement(code,
+DenyMode.Forbidden)`). It checks in this order and answers the first failure: not signed in (401), outside the
+organization — personal context, API key or non-member (403 or 404), organization suspended (403
+`OrganizationSuspended` with `organizationName`), missing permission (403 `OrganizationAccessDenied`). The organization
+is always the JWT's `org_id`: no route takes an organization id (QĐ-06) — `api/organizations` serves only the caller's
+own list and create, and the `api/system/organizations/{id}` routes use `SystemAdministrator`, never a permission code.
+`ArchitectureTests` fails CI on a route under `api/organizations/{…}` or a permission-coded route naming an
+organization.
 Effective permissions resolve per request through a short-TTL cache, not the JWT. The frontend's
 `meta.permission` route gate is UI-only (`frontend-conventions.md`).
 

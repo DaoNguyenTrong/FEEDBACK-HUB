@@ -50,8 +50,6 @@ internal static class AuthExtensions
         services.AddScoped<IPermissionResolver, PermissionResolver>();
         services.AddScoped<ISystemAdministratorResolver, SystemAdministratorResolver>();
         services.AddSingleton<IAuthorizationPolicyProvider, OrganizationPermissionPolicyProvider>();
-        services.AddScoped<IAuthorizationHandler, OrganizationPermissionAuthorizationHandler>();
-        services.AddScoped<IAuthorizationHandler, OrganizationMembershipAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, OrganizationContextAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, SystemAdministratorAuthorizationHandler>();
 
@@ -99,10 +97,6 @@ internal static class AuthExtensions
             // Fail closed: an endpoint or middleware path that declares no access requires a signed-in caller.
             // Anonymous ones opt out with [AllowAnonymous] / .AllowAnonymous() (authentication.md).
             options.FallbackPolicy = options.DefaultPolicy;
-
-            options.AddPolicy(
-                AuthorizationPolicies.OrganizationMember,
-                policy => policy.AddRequirements(new OrganizationMembershipRequirement()));
 
             options.AddPolicy(
                 AuthorizationPolicies.ActiveOrganizationMember,
