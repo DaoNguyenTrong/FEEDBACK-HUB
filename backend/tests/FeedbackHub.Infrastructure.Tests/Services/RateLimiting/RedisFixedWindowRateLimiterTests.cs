@@ -47,9 +47,18 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
         CountingFallback fallback = new(Math.Max(1, limit));
         time ??= new ManualTime();
         logger ??= new CapturingLogger();
-        RedisFixedWindowRateLimiter limiter = new(
-            multiplexer ?? owned ?? redis.Multiplexer, key, limit, window ?? Window, fallback, logger, time);
-        return new Fixture(limiter, fallback, time, logger, key, owned);
+        try
+        {
+            RedisFixedWindowRateLimiter limiter = new(
+                multiplexer ?? owned ?? redis.Multiplexer, key, limit, window ?? Window, fallback, logger, time);
+            return new Fixture(limiter, fallback, time, logger, key, owned);
+        }
+        catch
+        {
+            fallback.Dispose();
+            owned?.Dispose();
+            throw;
+        }
     }
 
     // AcquireAsync
@@ -167,15 +176,16 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     }
 
     [Fact]
-    public async Task AcquireAsync_CancelledToken_Propagates()
+    public async Task AcquireAsync_CancelledWhileScriptPending_Propagates()
     {
-        await using Fixture f = CreateFixture();
+        (IConnectionMultiplexer pending, _) = PendingRedis();
+        await using Fixture f = CreateFixture(multiplexer: pending);
         using CancellationTokenSource cts = new();
+
+        Task<RateLimitLease> acquire = f.Limiter.AcquireAsync(1, cts.Token).AsTask();
         await cts.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            async () => await f.Limiter.AcquireAsync(1, cts.Token));
-
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await acquire);
         Assert.Equal(0, f.Fallback.AcquireCount);
     }
 
@@ -252,6 +262,24 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     }
 
     [Fact]
+    public async Task IdleDuration_AcquireInFlight_IsNullUntilItEnds()
+    {
+        (IConnectionMultiplexer pending, _) = PendingRedis();
+        await using Fixture f = CreateFixture(multiplexer: pending);
+        using CancellationTokenSource cts = new();
+
+        Task<RateLimitLease> acquire = f.Limiter.AcquireAsync(1, cts.Token).AsTask();
+        f.Time.Advance(TimeSpan.FromSeconds(20));
+
+        Assert.Null(f.Limiter.IdleDuration);
+
+        await cts.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await acquire);
+
+        Assert.Equal(TimeSpan.Zero, f.Limiter.IdleDuration);
+    }
+
+    [Fact]
     public async Task IdleDuration_AfterAnotherAcquire_RestartsFromZero()
     {
         await using Fixture f = CreateFixture();
@@ -291,6 +319,20 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     // Constructor
 
     [Fact]
+    public async Task Constructor_FallbackNotAutoReplenishing_Throws()
+    {
+        await using FixedWindowRateLimiter manual = new(new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = Window,
+            AutoReplenishment = false,
+        });
+
+        Assert.Throws<ArgumentException>(() => new RedisFixedWindowRateLimiter(
+            redis.Multiplexer, "feedbackhub:ratelimit:p:1.2.3.4", 5, Window, manual, new CapturingLogger(), new ManualTime()));
+    }
+
+    [Fact]
     public void Constructor_PermitLimitBelowOne_Throws() =>
         Assert.Throws<ArgumentOutOfRangeException>(() => CreateFixture(limit: 0));
 
@@ -304,6 +346,17 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     [InlineData("feedbackhub:ratelimit::203.0.113.7")]
     public void Constructor_InvalidKey_Throws(string key) =>
         Assert.Throws<ArgumentException>(() => CreateFixture(key: key));
+
+    /// <summary>A Redis whose script call never completes: the acquire stays in flight until its token is cancelled.</summary>
+    private static (IConnectionMultiplexer Multiplexer, TaskCompletionSource<RedisResult> Script) PendingRedis()
+    {
+        TaskCompletionSource<RedisResult> script = new();
+        IDatabase database = Substitute.For<IDatabase>();
+        database.ScriptEvaluateAsync(Arg.Any<LuaScript>(), Arg.Any<object?>(), Arg.Any<CommandFlags>()).Returns(script.Task);
+        IConnectionMultiplexer multiplexer = Substitute.For<IConnectionMultiplexer>();
+        multiplexer.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(database);
+        return (multiplexer, script);
+    }
 
     private sealed class ManualTime : TimeProvider
     {
