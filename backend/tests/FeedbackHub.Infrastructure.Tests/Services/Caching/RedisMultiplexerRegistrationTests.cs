@@ -24,4 +24,21 @@ public sealed class RedisMultiplexerRegistrationTests
 
         Assert.False(multiplexer.IsConnected);
     }
+
+    [Fact]
+    public void CreateRedisOptions_Always_FailsFastInsteadOfQueueingDuringAnOutage()
+    {
+        ConfigurationOptions options = CachingExtensions.CreateRedisOptions("redis:6379");
+
+        Assert.False(options.AbortOnConnectFail);
+        Assert.Same(BacklogPolicy.FailFast, options.BacklogPolicy);
+    }
+
+    [Fact]
+    public void CreateRedisOptions_ConnectionStringSaysAbortConnect_StillDoesNotAbort()
+    {
+        ConfigurationOptions options = CachingExtensions.CreateRedisOptions("redis:6379,abortConnect=true");
+
+        Assert.False(options.AbortOnConnectFail);
+    }
 }
