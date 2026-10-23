@@ -11,6 +11,8 @@ internal sealed class MicrosoftAuthProvider(
     IOptions<ExternalAuthSettings> externalAuthOptions,
     IMicrosoftJwtValidator microsoftJwtValidator) : IExternalAuthProvider
 {
+    private const string PersonalTenantId = "9188040d-6c67-4c5b-b112-36a304b66dad";
+
     private readonly ExternalAuthSettings externalAuthSettings = externalAuthOptions.Value;
 
     public string ProviderName => "Microsoft";
@@ -34,12 +36,14 @@ internal sealed class MicrosoftAuthProvider(
             throw new UnauthorizedException(ApplicationMessages.InvalidExternalCredential);
         }
 
-        // Microsoft ID tokens carry no email_verified claim — unlike Google, Microsoft itself
-        // guarantees the email on both work/school (tenant-verified) and personal (MSA-verified)
-        // accounts, so there is no equivalent provider-side flag to check here.
+        // Microsoft ID tokens carry no email_verified claim: the email counts as verified only for a personal
+        // (MSA) account or when the tenant reports xms_edov = true (TECH00 6.6).
         string email = payload.Email
             ?? throw new UnauthorizedException(ApplicationMessages.InvalidExternalCredential);
 
-        return new ExternalUserInfo(payload.Subject, email, payload.Name, EmailVerified: true);
+        bool emailVerified = string.Equals(payload.TenantId, PersonalTenantId, StringComparison.OrdinalIgnoreCase)
+            || payload.EmailDomainOwnerVerified;
+
+        return new ExternalUserInfo(payload.Subject, email, payload.Name, EmailVerified: emailVerified);
     }
 }

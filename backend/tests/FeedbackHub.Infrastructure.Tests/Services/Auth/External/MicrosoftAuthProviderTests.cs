@@ -38,7 +38,7 @@ public class MicrosoftAuthProviderTests
     public async Task ValidateAsync_ValidPayload_MapsToExternalUserInfo()
     {
         Fixture f = CreateFixture();
-        MicrosoftTokenPayload payload = new("microsoft-oid-1", "user@example.com", "Test User");
+        MicrosoftTokenPayload payload = new("microsoft-oid-1", "user@example.com", "Test User", "9188040d-6c67-4c5b-b112-36a304b66dad", false);
         f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(payload);
 
@@ -55,7 +55,7 @@ public class MicrosoftAuthProviderTests
     {
         Fixture f = CreateFixture(clientId: "configured-client-id", tenantId: "configured-tenant-id");
         f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new MicrosoftTokenPayload("sub", "e@example.com", null));
+            .Returns(new MicrosoftTokenPayload("sub", "e@example.com", null, "t", false));
 
         await f.Provider.ValidateAsync("some-credential", CancellationToken.None);
 
@@ -92,10 +92,46 @@ public class MicrosoftAuthProviderTests
     {
         Fixture f = CreateFixture();
         f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new MicrosoftTokenPayload("sub", null, "Test User"));
+            .Returns(new MicrosoftTokenPayload("sub", null, "Test User", "t", false));
 
         UnauthorizedException ex = await Assert.ThrowsAsync<UnauthorizedException>(
             () => f.Provider.ValidateAsync("some-credential", CancellationToken.None));
         Assert.Equal(ApplicationMessages.InvalidExternalCredential, ex.Message);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_PersonalTenant_EmailVerifiedTrue()
+    {
+        Fixture f = CreateFixture();
+        f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new MicrosoftTokenPayload("s", "e@example.com", null, "9188040D-6C67-4C5B-B112-36A304B66DAD", false));
+
+        ExternalUserInfo result = await f.Provider.ValidateAsync("c", CancellationToken.None);
+
+        Assert.True(result.EmailVerified);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WorkTenantWithoutXmsEdov_EmailVerifiedFalse()
+    {
+        Fixture f = CreateFixture();
+        f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new MicrosoftTokenPayload("s", "e@example.com", null, "11111111-1111-1111-1111-111111111111", false));
+
+        ExternalUserInfo result = await f.Provider.ValidateAsync("c", CancellationToken.None);
+
+        Assert.False(result.EmailVerified);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WorkTenantWithXmsEdov_EmailVerifiedTrue()
+    {
+        Fixture f = CreateFixture();
+        f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new MicrosoftTokenPayload("s", "e@example.com", null, "11111111-1111-1111-1111-111111111111", true));
+
+        ExternalUserInfo result = await f.Provider.ValidateAsync("c", CancellationToken.None);
+
+        Assert.True(result.EmailVerified);
     }
 }
