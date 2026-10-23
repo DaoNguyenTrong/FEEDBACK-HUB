@@ -129,6 +129,47 @@ public partial class ProductionTopologyValidatorTests
         Assert.Equal(EmailSecureSocket.SslOnConnect, ProductionTopologyValidator.SslOnConnect);
         Assert.Equal(EmailSecureSocket.StartTls, ProductionTopologyValidator.StartTls);
         Assert.Equal(StorageExtensions.MinioProvider, ProductionTopologyValidator.MinioStorage);
+        Assert.Equal(new MinioSettings().BucketName, ProductionTopologyValidator.MinioBucket);
+    }
+
+    [Fact]
+    public void Validate_BucketNameOtherThanDefault_IsError()
+    {
+        Dictionary<string, string?> values = Complete();
+        values["MinioSettings:BucketName"] = "other";
+
+        Assert.Contains("MinioSettings:BucketName", Assert.Single(Run(values)));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("feedbackhub")]
+    public void Validate_BucketNameUnsetOrDefault_IsAccepted(string? bucket)
+    {
+        Dictionary<string, string?> values = Complete();
+        values["MinioSettings:BucketName"] = bucket;
+
+        Assert.Empty(Run(values));
+    }
+
+    [Fact]
+    public void NginxConfig_ProxiesPublicStorageToTheDefaultBucket()
+    {
+        string nginx = File.ReadAllText(Path.Combine(RepositoryRoot(), "frontend", "nginx.conf"));
+
+        Assert.Contains($"proxy_pass http://minio:9000/{new MinioSettings().BucketName}/public/;", nginx);
+    }
+
+    private static string RepositoryRoot()
+    {
+        string? directory = AppContext.BaseDirectory;
+        while (directory is not null && !File.Exists(Path.Combine(directory, "docker-compose.prod.yml")))
+        {
+            directory = Path.GetDirectoryName(directory);
+        }
+
+        Assert.NotNull(directory);
+        return directory;
     }
 
     [Fact]
@@ -225,15 +266,7 @@ public partial class ProductionTopologyValidatorTests
     /// </summary>
     private static Dictionary<string, string?> ComposeEnvironment(string service)
     {
-        string? directory = AppContext.BaseDirectory;
-        while (directory is not null && !File.Exists(Path.Combine(directory, "docker-compose.prod.yml")))
-        {
-            directory = Path.GetDirectoryName(directory);
-        }
-
-        Assert.NotNull(directory);
-
-        using StreamReader reader = new(Path.Combine(directory, "docker-compose.prod.yml"));
+        using StreamReader reader = new(Path.Combine(RepositoryRoot(), "docker-compose.prod.yml"));
         Dictionary<string, object> compose = new DeserializerBuilder().Build()
             .Deserialize<Dictionary<string, object>>(new MergingParser(new Parser(reader)));
         Dictionary<object, object> services = (Dictionary<object, object>)compose["services"];

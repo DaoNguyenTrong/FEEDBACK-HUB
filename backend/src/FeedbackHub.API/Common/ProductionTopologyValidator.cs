@@ -16,6 +16,9 @@ public static class ProductionTopologyValidator
     internal const string SslOnConnect = "SslOnConnect";
     internal const string StartTls = "StartTls";
 
+    // frontend/nginx.conf proxies /storage/public/ to this bucket by name, so another one would serve nothing.
+    internal const string MinioBucket = "feedbackhub";
+
     /// <summary>Whether Program.cs must run <see cref="Validate"/>: Production only, never for CLI verbs or the OpenAPI export.</summary>
     public static bool ShouldValidate(bool isOpenApiExport, bool isCliCommand, IHostEnvironment env)
     {
@@ -55,6 +58,13 @@ public static class ProductionTopologyValidator
                     errors.Add($"{key} must be set.");
                 }
             }
+        }
+
+        // Unset keeps the default; only an explicit other name is wrong.
+        string? bucket = configuration["MinioSettings:BucketName"];
+        if (!string.IsNullOrWhiteSpace(bucket) && !Is(bucket, MinioBucket) && Is(configuration["StorageSettings:Provider"], MinioStorage))
+        {
+            errors.Add($"MinioSettings:BucketName must be {MinioBucket} (or unset): frontend/nginx.conf serves public files from that bucket.");
         }
 
         if (!Is(configuration["RateLimiterSettings:Store"], Redis))
