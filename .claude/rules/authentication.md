@@ -52,8 +52,9 @@ Each organization has its own roles (`Role`, system kinds `Owner`/`Admin`/`Membe
 - `SignedInUser` — a signed-in person's JWT; never an API key.
 - `SystemAdministrator` — a system administrator's JWT (API key → 401), whatever `org_id` it carries; anyone
   else → 403 `SystemAdministratorRequired`. Membership in `system_administrators` resolves per request through
-  `ISystemAdministratorResolver` (60-second cache that `InvalidateAsync` drops on every instance), never from a JWT
-  claim.
+  `ISystemAdministratorResolver` (60-second cache; `InvalidateAsync` drops it on every instance sharing the Redis
+  cache, as production does; with the Memory provider in dev a CLI grant or revoke reaches a running API only after
+  the TTL), never from a JWT claim.
 
 The organization gate (`OrganizationContextAuthorizationHandler`, TECH00 §5.1) backs the two
 `ActiveOrganizationMember*` policies and the `Permissions.ActiveOrganizationScoped` codes. It checks in this order
