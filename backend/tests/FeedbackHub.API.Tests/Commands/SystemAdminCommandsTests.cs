@@ -34,25 +34,21 @@ public sealed class SystemAdminCommandsTests(ApiFactoryFixture fixture) : IAsync
         return account;
     }
 
-    // Console is process-wide; the tests of this collection run one at a time, so redirecting it here is safe.
+    // Each run writes to writers of its own, so parallel test classes printing to Console can't leak in.
     private async Task<(int? ExitCode, string Output, string Error)> RunAsync(params string[] args)
     {
-        TextWriter originalOut = Console.Out;
-        TextWriter originalError = Console.Error;
         StringWriter output = new();
         StringWriter error = new();
-        Console.SetOut(output);
-        Console.SetError(error);
-        try
+        ICliCommand command = args[0] switch
         {
-            int? exitCode = await CliCommands.TryRunAsync(fixture.Services, args, CancellationToken.None);
-            return (exitCode, output.ToString(), error.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
+            "grant-system-admin" => new GrantSystemAdminCommand(output, error),
+            "revoke-system-admin" => new RevokeSystemAdminCommand(output, error),
+            _ => throw new ArgumentException("Not a system administrator command.", nameof(args))
+        };
+
+        await using AsyncServiceScope scope = fixture.Services.CreateAsyncScope();
+        int exitCode = await command.RunAsync(scope.ServiceProvider, args[1..], CancellationToken.None);
+        return (exitCode, output.ToString(), error.ToString());
     }
 
     private async Task<bool> IsAdministratorAsync(Guid accountId)
@@ -66,15 +62,38 @@ public sealed class SystemAdminCommandsTests(ApiFactoryFixture fixture) : IAsync
     [InlineData("grant-system-admin", "--email")]
     [InlineData("grant-system-admin", "--email", "a@example.com", "--force")]
     [InlineData("grant-system-admin", "--mail", "a@example.com")]
+    [InlineData("grant-system-admin", "--email", " ")]
     [InlineData("revoke-system-admin")]
     [InlineData("revoke-system-admin", "--email")]
     [InlineData("revoke-system-admin", "--email", "a@example.com", "--force")]
     public async Task Command_BadArguments_ExitsOneWithUsage(params string[] args)
     {
-        (int? exitCode, _, string error) = await RunAsync(args);
+        (int? exitCode, string output, string error) = await RunAsync(args);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains($"{args[0]} --email <email>", error);
+        Assert.Equal(string.Empty, output + error);
+    }
+
+    // The registered command carries the usage line CliCommands prints on exit 1.
+    [Theory]
+    [InlineData("grant-system-admin")]
+    [InlineData("revoke-system-admin")]
+    public void All_SystemAdminCommands_DeclareTheEmailUsage(string verb)
+    {
+        ICliCommand command = Assert.Single(CliCommands.All, candidate => candidate.Verb == verb);
+
+        Assert.Equal("--email <email>", command.Usage);
+    }
+
+    [Fact]
+    public async Task Grant_EmailOptionInOtherCase_IsAccepted()
+    {
+        Account account = await SeedAccountAsync("boss@example.com");
+
+        (int? exitCode, _, _) = await RunAsync("grant-system-admin", "--EMAIL", "boss@example.com");
+
+        Assert.Equal(0, exitCode);
+        Assert.True(await IsAdministratorAsync(account.Id));
     }
 
     // AC-51

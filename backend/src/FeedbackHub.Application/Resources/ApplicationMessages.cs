@@ -13,6 +13,7 @@ public static class ApplicationMessages
     public const string InvalidRefreshToken = nameof(InvalidRefreshToken);
     public const string AccountUsernameAlreadyExists = nameof(AccountUsernameAlreadyExists);
     public const string AccountEmailAlreadyExists = nameof(AccountEmailAlreadyExists);
+    public const string SystemAdministratorAlreadyGranted = nameof(SystemAdministratorAlreadyGranted);
     public const string FileIsRequired = nameof(FileIsRequired);
     public const string FileSizeExceeded = nameof(FileSizeExceeded);
     public const string AvatarInvalidImage = nameof(AvatarInvalidImage);
