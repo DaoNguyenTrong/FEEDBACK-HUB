@@ -92,6 +92,28 @@ public sealed class AccountService(
         return ToProfile(account);
     }
 
+    public async Task ResendEmailChangeAsync(CancellationToken cancellationToken)
+    {
+        Account account = await GetCurrentAccountAsync(cancellationToken);
+
+        if (account.PendingEmail is null)
+        {
+            throw new ConflictException(ApplicationMessages.EmailChangeNotPending);
+        }
+
+        await emailChangeLink.IssueAsync(account, cancellationToken);
+    }
+
+    public async Task CancelEmailChangeAsync(CancellationToken cancellationToken)
+    {
+        Account account = await GetCurrentAccountAsync(cancellationToken);
+
+        account.CancelEmailChange();
+        await emailChangeLink.ConsumeAllAsync(account.Id, EmailVerificationPurpose.ChangeEmail, cancellationToken);
+        unitOfWork.Repository<Account, Guid>().Update(account);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<ProfileDto> UploadAvatarAsync(AvatarUploadRequest request, CancellationToken cancellationToken)
     {
         IRepository<Account, Guid> repository = unitOfWork.Repository<Account, Guid>();
