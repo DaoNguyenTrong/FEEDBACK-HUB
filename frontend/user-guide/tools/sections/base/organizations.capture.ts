@@ -101,16 +101,6 @@ for (const locale of locales) {
     await capture.shot({ locale, chapter, name: 'manage-members' })
   })
 
-  test(`deactivate [${locale}]`, async ({ page, capture }) => {
-    await capture.open(locale, '/#/organizations', owned)
-    await openMembers(page)
-    await capture.annotate([
-      { selector: '[data-testid="organization-deactivate"]', n: 1, at: 'after' },
-    ])
-    await capture.blur([account, `${members} li p`])
-    await capture.shot({ locale, chapter, name: 'deactivate' })
-  })
-
   test(`roles [${locale}]`, async ({ page, capture }) => {
     await capture.open(locale, '/#/organizations', owned)
     await openRoles(page)

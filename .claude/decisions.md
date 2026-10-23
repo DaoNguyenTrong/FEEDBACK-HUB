@@ -24,7 +24,7 @@ The organization of an entry must come from the entity that changed, never from 
 
 ### 2026-10-23 — One organization gate with a distinct code per refusal reason, evaluated in a fixed order
 
-A client must tell "not a member", "organization suspended" and "missing permission" apart to show the right screen, and the same request must always get the same answer. A single requirement checks the cases in the order BR-77 sets and reports the first failure; access has three states (allowed, denied, suspended). Rejected: one generic 403 and per-endpoint checks.
+A client must tell "not a member", "organization suspended" and "missing permission" apart to show the right screen, and the same request must always get the same answer. A single requirement checks the cases in a fixed order (not signed in, then not a member, then suspended, then missing permission) and reports the first failure; access has three states (allowed, denied, suspended). Rejected: one generic 403 and per-endpoint checks.
 
 ### 2026-10-23 — Production file storage moves to MinIO AIStor Free (single node)
 Supersedes: 2026-08-25 — SeaweedFS storage provider: S3 Gateway API, bucket auto-created at startup

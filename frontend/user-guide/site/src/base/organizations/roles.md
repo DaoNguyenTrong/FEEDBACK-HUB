@@ -22,7 +22,7 @@ Mỗi tổ chức có sẵn ba vai trò có nhãn **Hệ thống**. Không sửa
 
 | Quyền                  | Cho phép                                                                |
 | ---------------------- | ----------------------------------------------------------------------- |
-| **Quản lý tổ chức**    | [Ngưng hoạt động tổ chức](./deactivate)                                 |
+| **Quản lý tổ chức**    | Đổi tên và quản lý trạng thái của tổ chức                               |
 | **Quản lý thành viên** | [Thêm](./add-member), đổi vai trò và [xoá thành viên](./manage-members) |
 | **Quản lý vai trò**    | Tạo, sửa và xoá vai trò (trang này)                                     |
 

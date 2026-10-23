@@ -40,10 +40,6 @@ export const baseChapters: Chapter[] = [
       { slug: 'add-member', text: { vi: 'Thêm thành viên', en: 'Add a member' } },
       { slug: 'manage-members', text: { vi: 'Quản lý thành viên', en: 'Manage members' } },
       { slug: 'roles', text: { vi: 'Quản lý vai trò', en: 'Manage roles' } },
-      {
-        slug: 'deactivate',
-        text: { vi: 'Ngưng hoạt động tổ chức', en: 'Deactivate an organization' },
-      },
     ],
   },
   { slug: 'notifications', text: { vi: 'Thông báo', en: 'Notifications' }, hideable: true },

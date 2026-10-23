@@ -50,9 +50,9 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Tổ chức đang làm việc và admin hệ thống
 
-- **PRD:** PRD00-FR-42, FR-44, FR-46, FR-53, FR-63, FR-38. Đối chiếu AC cụ thể (đổi tên API-04 AC-226, tạo tổ chức không ghi nhật ký AC-364) theo test trong mục Test.
+- **PRD:** PRD00-FR-42, FR-44, FR-46, FR-53, FR-63, FR-38. Đối chiếu AC cụ thể (đổi tên API-04 AC-226 (slug không đổi), tạo tổ chức không ghi nhật ký AC-364) theo test trong mục Test.
 - **Vào bằng:** chưa có màn hình (phần 8 của kế hoạch). Gọi API bằng token của thành viên tổ chức, hoặc của admin hệ thống cho `api/system/*`. Cấp và thu hồi admin hệ thống chỉ qua CLI trên server: `dotnet run --project backend/src/FeedbackHub.API -- grant-system-admin --email <email>` và `revoke-system-admin --email <email>` (mã thoát 0 xong hoặc không có gì để làm, 1 sai cú pháp, 2 không có tài khoản, 3 email chưa xác minh).
-- **Frontend:** phần 3 không thêm màn hình. `OrganizationsView` và `OrganizationMembersDialog` không còn nút ngưng hoạt động (route `DELETE api/organizations/{id}` đã bỏ); phần 8 thay các màn hình này.
+- **Frontend:** phần 3 không thêm màn hình. `OrganizationMembersDialog` không còn nút ngưng hoạt động (route `DELETE api/organizations/{id}` đã bỏ); phần 8 thay các màn hình này.
 - **Backend:**
   - `GET /api/organization`, `PATCH /api/organization` (đổi tên, API-04; cùng tên thì 200 không ghi), `POST /api/organization/deactivate` → `CurrentOrganizationController` → `IOrganizationContextService`
   - `POST /api/organizations`, `GET /api/organizations` (API-01, API-02) → `OrganizationsController`
@@ -71,4 +71,4 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
   2. Đăng nhập tài khoản đó rồi `GET /api/system/organizations` trả 200; với tài khoản thường trả 403.
   3. `POST /api/system/organizations/{id}/deactivate` kèm `reason`, rồi gọi API của thành viên tổ chức đó: 403 `OrganizationSuspended`. `reactivate` đưa về 200.
   4. `PATCH /api/organization` với tên mới trả 200 và có đúng một mục `OrganizationRenamed`; gửi lại cùng tên không thêm mục.
-- **Rủi ro hay gặp:** thân `PATCH /api/organization` chỉ có `slug` trả 400 `OrganizationNameRequired`; lý do vô hiệu không bao giờ nằm trong nhật ký hay log.
+- **Rủi ro hay gặp:** thân `PATCH /api/organization` chỉ có `slug` trả 400 `OrganizationNameRequired`; lý do vô hiệu không nằm trong mục sự kiện (API-33) hay log ứng dụng; chỉ có trong snapshot `Change` của `audit_logs`.

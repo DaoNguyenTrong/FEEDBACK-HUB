@@ -22,7 +22,7 @@ Every organization comes with three roles tagged **System**. They cannot be edit
 
 | Permission              | Allows                                                                                 |
 | ----------------------- | -------------------------------------------------------------------------------------- |
-| **Manage organization** | [Deactivating the organization](./deactivate)                                          |
+| **Manage organization** | Renaming the organization and managing its status                                      |
 | **Manage members**      | [Adding](./add-member), changing the roles of and [removing members](./manage-members) |
 | **Manage roles**        | Creating, editing and deleting roles (this page)                                       |
 
