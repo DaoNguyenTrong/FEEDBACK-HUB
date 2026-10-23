@@ -270,7 +270,8 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
             account.SetPasswordHash("hash");
             context.Accounts.Add(account);
             EmailVerificationToken token = EmailVerificationToken.Create(new EmailVerificationTokenParams(
-                account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddHours(1)));
+                account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddHours(1),
+                EmailVerificationPurpose.VerifyEmail, account.Email));
             context.EmailVerificationTokens.Add(token);
             await context.SaveChangesAsync();
         }

@@ -128,7 +128,9 @@ public class RegistrationServiceTests
         return EmailVerificationToken.Create(new EmailVerificationTokenParams(
             accountId,
             tokenHash,
-            expiresAt ?? DateTime.UtcNow.AddHours(1)));
+            expiresAt ?? DateTime.UtcNow.AddHours(1),
+            EmailVerificationPurpose.VerifyEmail,
+            "nva@example.com"));
     }
 
     private static RegisterRequest CreateRegisterRequest(

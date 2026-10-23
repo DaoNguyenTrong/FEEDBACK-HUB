@@ -21,6 +21,12 @@
   <data name="AccountEmailRequired" xml:space="preserve">
     <value>Account email is required.</value>
   </data>
+  <data name="EmailChangeSameAsCurrent" xml:space="preserve">
+    <value>The new email is the same as the current email.</value>
+  </data>
+  <data name="EmailChangeNotPending" xml:space="preserve">
+    <value>No email change is pending confirmation.</value>
+  </data>
   <data name="PasswordHashRequired" xml:space="preserve">
     <value>Password hash is required.</value>
   </data>

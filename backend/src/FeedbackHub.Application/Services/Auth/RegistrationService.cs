@@ -57,7 +57,7 @@ public sealed class RegistrationService(
         EmailVerificationToken? token = await tokenRepository
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
-        if (token is null || !token.IsActive)
+        if (token is null || !token.IsActiveAt(DateTime.UtcNow))
         {
             throw new UnauthorizedException(ApplicationMessages.EmailVerificationTokenInvalidOrExpired);
         }
@@ -126,7 +126,8 @@ public sealed class RegistrationService(
         DateTime expiresAt = DateTime.UtcNow.AddHours(emailSettings.VerificationTokenExpiryHours);
 
         EmailVerificationToken token = EmailVerificationToken.Create(
-            new EmailVerificationTokenParams(account.Id, tokenHash, expiresAt));
+            new EmailVerificationTokenParams(
+                account.Id, tokenHash, expiresAt, EmailVerificationPurpose.VerifyEmail, account.Email));
 
         await unitOfWork.Repository<EmailVerificationToken, Guid>().AddAsync(token, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);

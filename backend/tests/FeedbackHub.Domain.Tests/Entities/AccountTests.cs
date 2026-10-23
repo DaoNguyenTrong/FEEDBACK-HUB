@@ -277,4 +277,69 @@ public class AccountTests
 
         Assert.Null(account.AvatarPath);
     }
+
+    [Fact]
+    public void RequestEmailChange_NewAddress_SetsNormalizedPendingAndKeepsEmail()
+    {
+        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+
+        account.RequestEmailChange(" B@X.com ");
+
+        Assert.Equal("b@x.com", account.PendingEmail);
+        Assert.Equal("a@x.com", account.Email);
+        Assert.False(account.EmailConfirmed);
+    }
+
+    [Fact]
+    public void RequestEmailChange_SameAsCurrentIgnoringCase_Throws()
+    {
+        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+
+        DomainAssert.ThrowsWithMessage(
+            DomainMessages.EmailChangeSameAsCurrent, () => account.RequestEmailChange("A@X.COM"));
+    }
+
+    [Fact]
+    public void CancelEmailChange_ClearsPending()
+    {
+        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+        account.RequestEmailChange("b@x.com");
+
+        account.CancelEmailChange();
+
+        Assert.Null(account.PendingEmail);
+    }
+
+    [Fact]
+    public void ApplyEmailChange_MovesPendingToEmailAndConfirms()
+    {
+        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+        account.RequestEmailChange("b@x.com");
+
+        account.ApplyEmailChange();
+
+        Assert.Equal("b@x.com", account.Email);
+        Assert.Null(account.PendingEmail);
+        Assert.True(account.EmailConfirmed);
+    }
+
+    [Fact]
+    public void ApplyEmailChange_NoPending_Throws()
+    {
+        Account account = Account.Create(ValidParams());
+
+        DomainAssert.ThrowsWithMessage(
+            DomainMessages.EmailChangeNotPending, () => account.ApplyEmailChange());
+    }
+
+    [Fact]
+    public void Update_DoesNotTouchPendingEmail()
+    {
+        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+        account.RequestEmailChange("b@x.com");
+
+        account.Update(ValidParams() with { Email = "a@x.com", Name = "Other" });
+
+        Assert.Equal("b@x.com", account.PendingEmail);
+    }
 }

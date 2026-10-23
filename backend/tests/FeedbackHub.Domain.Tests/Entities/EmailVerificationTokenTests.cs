@@ -10,7 +10,9 @@ public class EmailVerificationTokenTests
         return new EmailVerificationTokenParams(
             AccountId: Guid.NewGuid(),
             TokenHash: "hashed-token-value",
-            ExpiresAt: DateTime.UtcNow.AddHours(24));
+            ExpiresAt: DateTime.UtcNow.AddHours(24),
+            Purpose: EmailVerificationPurpose.ChangeEmail,
+            Email: "A@X.com");
     }
 
     [Fact]
@@ -71,7 +73,7 @@ public class EmailVerificationTokenTests
     {
         EmailVerificationToken token = EmailVerificationToken.Create(ValidParams());
 
-        Assert.True(token.IsActive);
+        Assert.True(token.IsActiveAt(DateTime.UtcNow));
     }
 
     [Fact]
@@ -81,7 +83,7 @@ public class EmailVerificationTokenTests
 
         token.Consume();
 
-        Assert.False(token.IsActive);
+        Assert.False(token.IsActiveAt(DateTime.UtcNow));
     }
 
     [Fact]
@@ -105,5 +107,44 @@ public class EmailVerificationTokenTests
 
         Assert.NotNull(token.ConsumedAt);
         Assert.Equal(firstConsumedAt, token.ConsumedAt);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void Create_EmptyEmail_Throws(string email)
+    {
+        EmailVerificationTokenParams p = ValidParams() with { Email = email };
+
+        DomainAssert.ThrowsWithMessage(
+            DomainMessages.AccountEmailRequired, () => EmailVerificationToken.Create(p));
+    }
+
+    [Fact]
+    public void Create_StoresPurposeAndNormalizedEmail()
+    {
+        EmailVerificationToken token = EmailVerificationToken.Create(ValidParams() with { Email = " B@X.com " });
+
+        Assert.Equal(EmailVerificationPurpose.ChangeEmail, token.Purpose);
+        Assert.Equal("b@x.com", token.Email);
+    }
+
+    [Fact]
+    public void IsActiveAt_AfterExpiry_IsFalse()
+    {
+        DateTime now = DateTime.UtcNow;
+        EmailVerificationToken token = EmailVerificationToken.Create(
+            ValidParams() with { ExpiresAt = now.AddHours(1) });
+
+        Assert.False(token.IsActiveAt(now.AddHours(2)));
+    }
+
+    [Fact]
+    public void IsActiveAt_Consumed_IsFalse()
+    {
+        EmailVerificationToken token = EmailVerificationToken.Create(ValidParams());
+        token.Consume();
+
+        Assert.False(token.IsActiveAt(DateTime.UtcNow));
     }
 }
