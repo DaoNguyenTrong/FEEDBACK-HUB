@@ -1,6 +1,6 @@
 namespace FeedbackHub.Application.Common.Interfaces;
 
-public sealed record ExternalUserInfo(string ProviderUserId, string Email, string? Name, bool EmailVerified);
+public sealed record ExternalUserInfo(string ProviderUserId, string? Email, string? Name, bool EmailVerified);
 
 public interface IExternalAuthProvider
 {

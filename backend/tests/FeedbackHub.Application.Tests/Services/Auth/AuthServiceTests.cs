@@ -493,7 +493,7 @@ public class AuthServiceTests
             () => f.Service.ExternalLoginAsync("github", request, null, null, CancellationToken.None));
     }
 
-    private static ExternalUserInfo Info(string sub, string email, bool verified)
+    private static ExternalUserInfo Info(string sub, string? email, bool verified)
         => new(sub, email, "Some User", EmailVerified: verified);
 
     private static void SeedExternalLogin(Fixture f, Account? linked, string provider = GoogleProviderName, string sub = "sub-1")
@@ -535,6 +535,7 @@ public class AuthServiceTests
         await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
 
         Assert.True(account.EmailConfirmed);
+        f.AccountRepo.Received(1).Update(account);
     }
 
     [Theory]
@@ -569,6 +570,7 @@ public class AuthServiceTests
             () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
 
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -586,6 +588,7 @@ public class AuthServiceTests
             () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
 
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -603,6 +606,41 @@ public class AuthServiceTests
             () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
 
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_LinkedBySub_TokenWithoutEmail_SignsIn()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(emailConfirmed: false);
+        SeedExternalLogin(f, account);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-1", null, true));
+
+        AuthResult result = await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.Equal("fake-access-token", result.AccessToken);
+        Assert.False(account.EmailConfirmed);
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_UnlinkedTokenWithoutEmail_ThrowsNotVerifiedByProviderAndCreatesNothing()
+    {
+        Fixture f = CreateFixture();
+        SeedExternalLogin(f, null);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-n", null, true));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.AccountRepo.DidNotReceive().FirstOrDefaultAsync(
+            Arg.Any<Expression<Func<Account, bool>>>(), Arg.Any<CancellationToken>());
+        await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -620,6 +658,7 @@ public class AuthServiceTests
 
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
     }
 
     // Review Focus 4: matching is on Account.Email only, never PendingEmail.
@@ -652,9 +691,11 @@ public class AuthServiceTests
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Info("g-1", "g@example.com", false), Info("g-2", "fresh@example.com", false));
 
-        await Assert.ThrowsAsync<UnauthorizedException>(
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
             () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
-        await Assert.ThrowsAsync<UnauthorizedException>(
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
             () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
 
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
@@ -758,6 +799,7 @@ public class AuthServiceTests
 
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

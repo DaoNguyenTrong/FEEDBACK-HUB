@@ -38,12 +38,10 @@ internal sealed class MicrosoftAuthProvider(
 
         // Microsoft ID tokens carry no email_verified claim: the email counts as verified only for a personal
         // (MSA) account or when the tenant reports xms_edov = true (TECH00 6.6).
-        string email = payload.Email
-            ?? throw new UnauthorizedException(ApplicationMessages.InvalidExternalCredential);
-
+        // A missing email claim is not an error: a user already linked by sub still signs in (TECH00 6.6).
         bool emailVerified = string.Equals(payload.TenantId, PersonalTenantId, StringComparison.OrdinalIgnoreCase)
             || payload.EmailDomainOwnerVerified;
 
-        return new ExternalUserInfo(payload.Subject, email, payload.Name, EmailVerified: emailVerified);
+        return new ExternalUserInfo(payload.Subject, payload.Email, payload.Name, EmailVerified: emailVerified);
     }
 }

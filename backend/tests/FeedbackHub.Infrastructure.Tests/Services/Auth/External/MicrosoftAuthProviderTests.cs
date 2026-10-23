@@ -88,15 +88,16 @@ public class MicrosoftAuthProviderTests
     }
 
     [Fact]
-    public async Task ValidateAsync_NoEmailClaim_ThrowsUnauthorized()
+    public async Task ValidateAsync_NoEmailClaim_ReturnsNullEmailWithoutThrowing()
     {
         Fixture f = CreateFixture();
         f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new MicrosoftTokenPayload("sub", null, "Test User", "t", false));
 
-        UnauthorizedException ex = await Assert.ThrowsAsync<UnauthorizedException>(
-            () => f.Provider.ValidateAsync("some-credential", CancellationToken.None));
-        Assert.Equal(ApplicationMessages.InvalidExternalCredential, ex.Message);
+        ExternalUserInfo result = await f.Provider.ValidateAsync("some-credential", CancellationToken.None);
+
+        Assert.Null(result.Email);
+        Assert.Equal("sub", result.ProviderUserId);
     }
 
     [Fact]
