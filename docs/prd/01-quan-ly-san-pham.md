@@ -3,12 +3,12 @@
 | Mục | Giá trị |
 |---|---|
 | Mã | `PRD01` (tiền tố cho mọi mã trong tài liệu này) |
-| Trạng thái | In review |
+| Trạng thái | Approved |
 | Phiên bản | 1.1 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-10-23 |
-| Phụ thuộc | PRD-00 v1.3 (PRD01 được duyệt cùng lúc hoặc sau PRD-00 v1.3) |
-| Thiết kế | Chưa có; thiết kế ở giai đoạn 2 sau khi PRD được duyệt, mỗi màn hình một bảng sáng và một bảng tối |
+| Phụ thuộc | PRD-00 v1.4 (màn hình nhật ký kiểm toán PRD00-FR-68 là nơi đọc các mục của FR-20) |
+| Thiết kế | https://claude.ai/artifact/21QUWu78AZFfwSxcaWmjQn — người dùng duyệt 2026-10-23. Mỗi nhóm một bảng sáng và một bảng tối, ở máy tính, máy tính bảng và điện thoại: *Products* (danh sách sản phẩm), *Product* (trang sản phẩm, mã nhúng), *ProductConfig* (domain, khoá, nút widget, chế độ khách), *ProductPeople* (người phụ trách), *ProductArchive* (lưu trữ, khôi phục); dùng chung *OrgContext* (mẫu "Không tìm thấy"/"Không đủ quyền"), *AuditLog* (nhật ký kiểm toán) và mẫu nút sao chép trên *Components* |
 | Kế hoạch | Chưa có |
 
 Thuật ngữ (*Sản phẩm*, *Khoá công khai*, *Domain được phép*, *Widget*, *Chế độ khách*, *Vai trò theo sản phẩm*), vai trò, ma trận quyền và vòng đời feedback: xem PRD-00 §3. Tài liệu này chỉ quy định cách quản lý sản phẩm diễn ra.
@@ -345,6 +345,7 @@ Ai nhận, kênh và nội dung: PRD05. Module này chỉ nêu sự kiện phát
 | 2026-10-23 | 1.0 | Người dùng duyệt PRD cùng bảng Mặc định đề xuất và các câu trả lời của SA thay người dùng (1–3, 5–17); câu 4 là quyết định của người dùng | Quyết định của người dùng |
 | 2026-10-23 | 1.0 | Sửa ghi chép theo review merge: §11 *Ngôn ngữ* dẫn PRD-00 §11 thay cho FR-13; BR-15 *Áp dụng cho* thêm FR-04; §13 ghi câu 1–17 đã trả lời; §10 bỏ nhãn "(đề xuất)" ở hai dòng đã thành D15 | Review merge (code-reviewer) |
 | 2026-10-23 | 1.1 | Áp dụng câu 18 từ review thiết kế: sản phẩm đã lưu trữ không mang dấu *Chưa có domain*, như *Chưa có Phụ trách* (BR-07, AC-47; §13 ghi câu 1–18). Chuyển trạng thái về *In review*, phiên bản 1.1 | SA (thay người dùng) |
+| 2026-10-23 | 1.1 | Người dùng duyệt PRD cùng câu 18 của SA thay người dùng và thiết kế module 01 | Quyết định của người dùng |
 
 ### Quyết định
 
@@ -369,4 +370,4 @@ Mỗi câu hỏi đã trả lời và nơi quyết định đó nằm hiện nay
 | 15 | 0.3 | Gán người đã rời tổ chức hay tài khoản chỉ có lời mời đang chờ bằng yêu cầu trực tiếp: "không tìm thấy" | SA (thay người dùng) | BR-11, AC-34 |
 | 16 | 0.3 | Danh sách sản phẩm: kết quả tìm trống hiện "Không có sản phẩm nào khớp"; tìm lọc cả danh sách đang hoạt động và mục *Đã lưu trữ*; sắp theo thứ tự chữ cái tiếng Việt, không phân biệt hoa thường, ở cả hai ngôn ngữ giao diện; p95 dưới 1 giây với 100 sản phẩm trong một tổ chức | SA (thay người dùng) | BR-21, §2, §11, AC-07, AC-74–76 |
 | 17 | 0.3 | Nút widget: chữ trắng hoặc đen, màu nào có độ tương phản WCAG cao hơn; màu nút chỉ là màu đặc `#RRGGBB`; chữ trên nút bỏ khoảng trắng đầu cuối trước khi đếm, chỉ có khoảng trắng thì dùng chữ mặc định, giới hạn 24 ký tự tính sau khi bỏ | SA (thay người dùng) | BR-09, §9, AC-27, AC-28, AC-77 |
-| 18 | 1.1 | Sản phẩm đã lưu trữ không mang dấu *Chưa có domain*, ở mục *Đã lưu trữ* lẫn trên trang của nó, như dấu *Chưa có Phụ trách* (BR-13). Giả định: cả hai dấu là việc cần làm, không phải mô tả trạng thái; độ tự tin vừa | SA (thay người dùng) | BR-07, AC-47 |
+| 18 | 1.1 | Sản phẩm đã lưu trữ không mang dấu *Chưa có domain*, ở mục *Đã lưu trữ* lẫn trên trang của nó, như dấu *Chưa có Phụ trách* (BR-13). Giả định: cả hai dấu là việc cần làm, không phải mô tả trạng thái; độ tự tin vừa. Người dùng xác nhận khi duyệt v1.1 (2026-10-23) | SA (thay người dùng) | BR-07, AC-47 |
