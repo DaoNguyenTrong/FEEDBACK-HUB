@@ -21,6 +21,8 @@ public class AuditEventCatalogTests
 
     private static Dictionary<string, object> Renamed() => new() { ["nameBefore"] = "A", ["nameAfter"] = "B" };
 
+    // Get
+
     [Fact]
     public void Get_EveryEnumValue_HasDefinition()
     {
@@ -60,7 +62,9 @@ public class AuditEventCatalogTests
     }
 
     [Fact]
-    public void Get_Catalogue_HasThirteenTypes() => Assert.Equal(13, Enum.GetValues<AuditEventType>().Length);
+    public void AuditEventType_Values_AreTheThirteenOfTech00() => Assert.Equal(13, Enum.GetValues<AuditEventType>().Length);
+
+    // Validate
 
     [Fact]
     public void Validate_UndeclaredParameter_Throws()
@@ -77,20 +81,50 @@ public class AuditEventCatalogTests
         Assert.Throws<InvalidOperationException>(() => AuditEventCatalog.Validate(
             Event(AuditEventType.OrganizationRenamed, new Dictionary<string, object> { ["nameBefore"] = "A" })));
 
-    [Fact]
-    public void Validate_WrongValueKind_Throws() =>
-        Assert.Throws<InvalidOperationException>(() => AuditEventCatalog.Validate(Event(
-            AuditEventType.RoleDeleted, new Dictionary<string, object> { ["role"] = "Admin" })));
-
-    [Fact]
-    public void Validate_AccountOrSystemAdministratorWithoutActor_Throws()
+    [Theory]
+    [MemberData(nameof(WrongKinds))]
+    public void Validate_WrongValueKind_Throws(AuditEventType type, string name, object? value)
     {
-        foreach (ActorKind kind in new[] { ActorKind.Account, ActorKind.SystemAdministrator })
-        {
-            AuditEvent auditEvent = AuditEvent.For(NewOrganization(), AuditEventType.OrganizationDeactivated, kind, null);
+        Dictionary<string, object> parameters = Valid(type);
+        parameters[name] = value!;
 
-            Assert.Throws<InvalidOperationException>(() => AuditEventCatalog.Validate(auditEvent));
-        }
+        Assert.Throws<InvalidOperationException>(() => AuditEventCatalog.Validate(Event(type, parameters)));
+    }
+
+    public static TheoryData<AuditEventType, string, object?> WrongKinds() => new()
+    {
+        { AuditEventType.RoleDeleted, "role", "Admin" },
+        { AuditEventType.RoleCreated, "permissionCodes", "a.b" },
+        { AuditEventType.MemberRolesChanged, "rolesAfter", new AuditRoleRef(Guid.NewGuid(), "Admin", null) },
+        { AuditEventType.OrganizationRenamed, "nameAfter", null },
+    };
+
+    private static Dictionary<string, object> Valid(AuditEventType type) => type switch
+    {
+        AuditEventType.RoleDeleted => new() { ["role"] = Role() },
+        AuditEventType.RoleCreated => new()
+        {
+            ["role"] = Role(),
+            ["permissionCodes"] = (IReadOnlyList<string>)["a.b"],
+        },
+        AuditEventType.MemberRolesChanged => new()
+        {
+            ["accountName"] = "An",
+            ["email"] = "an@example.com",
+            ["rolesBefore"] = (IReadOnlyList<AuditRoleRef>)[Role()],
+            ["rolesAfter"] = (IReadOnlyList<AuditRoleRef>)[],
+        },
+        _ => Renamed(),
+    };
+
+    [Theory]
+    [InlineData(ActorKind.Account)]
+    [InlineData(ActorKind.SystemAdministrator)]
+    public void Validate_AccountOrSystemAdministratorWithoutActor_Throws(ActorKind kind)
+    {
+        AuditEvent auditEvent = AuditEvent.For(NewOrganization(), AuditEventType.OrganizationDeactivated, kind, null);
+
+        Assert.Throws<InvalidOperationException>(() => AuditEventCatalog.Validate(auditEvent));
     }
 
     [Fact]
@@ -116,33 +150,22 @@ public class AuditEventCatalogTests
         Assert.Throws<InvalidOperationException>(() => AuditEventCatalog.Validate(auditEvent));
     }
 
-    [Fact]
-    public void Validate_ValidEvent_DoesNotThrow()
-    {
-        Guid actor = Guid.NewGuid();
-        AuditEvent roleDeleted = Event(AuditEventType.RoleDeleted, new() { ["role"] = Role() }, actor: actor);
-        AuditEvent changed = Event(AuditEventType.MemberRolesChanged, new()
-        {
-            ["accountName"] = "An",
-            ["email"] = "an@example.com",
-            ["rolesBefore"] = (IReadOnlyList<AuditRoleRef>)[Role()],
-            ["rolesAfter"] = (IReadOnlyList<AuditRoleRef>)[],
-        });
-        AuditEvent created = Event(AuditEventType.RoleCreated, new()
-        {
-            ["role"] = Role(),
-            ["permissionCodes"] = (IReadOnlyList<string>)["a.b"],
-        }, ActorKind.SystemAdministrator);
-        AuditEvent system = Event(AuditEventType.OrganizationDeactivated, null, ActorKind.System);
+    [Theory]
+    [MemberData(nameof(ValidEvents))]
+    public void Validate_ValidEvent_DoesNotThrow(AuditEvent auditEvent) => AuditEventCatalog.Validate(auditEvent);
 
-        foreach (AuditEvent auditEvent in new[] { roleDeleted, changed, created, system })
-        {
-            AuditEventCatalog.Validate(auditEvent);
-        }
-    }
+    public static TheoryData<AuditEvent> ValidEvents() =>
+    [
+        Event(AuditEventType.RoleDeleted, new() { ["role"] = Role() }),
+        Event(AuditEventType.MemberRolesChanged, Valid(AuditEventType.MemberRolesChanged)),
+        Event(AuditEventType.RoleCreated, Valid(AuditEventType.RoleCreated), ActorKind.SystemAdministrator),
+        Event(AuditEventType.OrganizationDeactivated, null, ActorKind.System),
+    ];
 
     [Fact]
     public void Validate_Null_Throws() => Assert.Throws<ArgumentNullException>(() => AuditEventCatalog.Validate(null!));
+
+    // TryResolve
 
     [Theory]
     [MemberData(nameof(AllTypes))]

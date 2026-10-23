@@ -68,7 +68,24 @@ public sealed class AuditEvent
             Type = type,
             ActorKind = actorKind,
             ActorAccountId = actorAccountId,
-            Parameters = (parameters is null ? [] : new Dictionary<string, object>(parameters)).AsReadOnly()
+            Parameters = CopyParameters(parameters)
         };
+    }
+
+    // Lists are copied too, so a caller mutating a list it passed in cannot rewrite the event afterwards.
+    private static IReadOnlyDictionary<string, object> CopyParameters(IReadOnlyDictionary<string, object>? parameters)
+    {
+        Dictionary<string, object> copy = [];
+        foreach ((string name, object value) in parameters ?? new Dictionary<string, object>())
+        {
+            copy[name] = value switch
+            {
+                IReadOnlyList<string> texts => texts.ToArray(),
+                IReadOnlyList<AuditRoleRef> roles => roles.ToArray(),
+                _ => value
+            };
+        }
+
+        return copy.AsReadOnly();
     }
 }

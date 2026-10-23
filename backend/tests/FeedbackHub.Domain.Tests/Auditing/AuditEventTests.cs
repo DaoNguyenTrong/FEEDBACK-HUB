@@ -52,15 +52,26 @@ public class AuditEventTests
         AuditEvent withNull = AuditEvent.For(organization, AuditEventType.OrganizationDeactivated, ActorKind.System, null);
         Assert.Empty(withNull.Parameters);
 
-        Dictionary<string, object> source = new() { ["nameBefore"] = "A", ["nameAfter"] = "B" };
+        List<string> codes = ["a.b"];
+        List<AuditRoleRef> roles = [new AuditRoleRef(Guid.NewGuid(), "Admin", null)];
+        Dictionary<string, object> source = new()
+        {
+            ["nameAfter"] = "B",
+            ["permissionCodes"] = codes,
+            ["roles"] = roles,
+        };
         AuditEvent auditEvent = AuditEvent.For(
             organization, AuditEventType.OrganizationRenamed, ActorKind.Account, Guid.NewGuid(), source);
 
         source["nameAfter"] = "changed";
         source["extra"] = "x";
+        codes.Add("c.d");
+        roles.Clear();
 
-        Assert.Equal(2, auditEvent.Parameters.Count);
+        Assert.Equal(3, auditEvent.Parameters.Count);
         Assert.Equal("B", auditEvent.Parameters["nameAfter"]);
+        Assert.Equal(["a.b"], (IReadOnlyList<string>)auditEvent.Parameters["permissionCodes"]);
+        Assert.Single((IReadOnlyList<AuditRoleRef>)auditEvent.Parameters["roles"]);
         Assert.False(auditEvent.Parameters is Dictionary<string, object>);
     }
 }
