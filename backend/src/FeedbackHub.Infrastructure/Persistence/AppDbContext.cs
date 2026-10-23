@@ -67,6 +67,8 @@ public sealed class AppDbContext(
 
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
 
+    public DbSet<SystemAdministrator> SystemAdministrators => Set<SystemAdministrator>();
+
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

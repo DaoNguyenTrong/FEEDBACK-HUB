@@ -24,4 +24,10 @@ public static class AuthorizationPolicies
     /// policy's schemes (JWT and API key) to it.
     /// </summary>
     public const string SignedInUser = "SignedInUser";
+
+    /// <summary>
+    /// A system administrator's JWT, whatever organization it names; never an API key (401). Anyone else gets 403
+    /// <c>SystemAdministratorRequired</c>.
+    /// </summary>
+    public const string SystemAdministrator = "SystemAdministrator";
 }

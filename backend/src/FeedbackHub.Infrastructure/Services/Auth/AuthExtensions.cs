@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
+using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Infrastructure.Services.Auth;
 
 namespace FeedbackHub.Infrastructure;
@@ -47,10 +48,12 @@ internal static class AuthExtensions
         services.AddScoped<ICurrentTenantProvider, CurrentTenantProvider>();
         services.AddScoped<ITenantAccessService, TenantAccessService>();
         services.AddScoped<IPermissionResolver, PermissionResolver>();
+        services.AddScoped<ISystemAdministratorResolver, SystemAdministratorResolver>();
         services.AddSingleton<IAuthorizationPolicyProvider, OrganizationPermissionPolicyProvider>();
         services.AddScoped<IAuthorizationHandler, OrganizationPermissionAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, OrganizationMembershipAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, OrganizationContextAuthorizationHandler>();
+        services.AddScoped<IAuthorizationHandler, SystemAdministratorAuthorizationHandler>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -114,6 +117,13 @@ internal static class AuthExtensions
                 policy => policy
                     .RequireAuthenticatedUser()
                     .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme));
+
+            options.AddPolicy(
+                AuthorizationPolicies.SystemAdministrator,
+                policy => policy
+                    .RequireAuthenticatedUser()
+                    .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+                    .AddRequirements(new SystemAdministratorRequirement()));
         });
 
         return services;

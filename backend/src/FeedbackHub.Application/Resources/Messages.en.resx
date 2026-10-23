@@ -168,6 +168,9 @@
   <data name="OrganizationSuspended" xml:space="preserve">
     <value>This organization is suspended.</value>
   </data>
+  <data name="SystemAdministratorRequired" xml:space="preserve">
+    <value>Only a system administrator can do this.</value>
+  </data>
   <data name="ResourceNotFound" xml:space="preserve">
     <value>Not found.</value>
   </data>

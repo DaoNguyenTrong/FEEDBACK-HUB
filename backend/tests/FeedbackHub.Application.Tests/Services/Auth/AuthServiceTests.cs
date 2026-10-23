@@ -8,6 +8,7 @@ using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.Auth;
+using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Application.Tests.TestSupport;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
@@ -91,7 +92,13 @@ public class AuthServiceTests
         // TokenIssuer has no I/O beyond the already-substituted collaborators above (IUnitOfWork,
         // IJwtTokenService, IPermissionResolver) — wiring the real implementation here (rather than
         // mocking ITokenIssuer) preserves every pre-split assertion on token-issuing behavior unchanged.
-        ITokenIssuer tokenIssuer = new TokenIssuer(unitOfWork, jwtTokenService, permissionResolver, jwtOptions, Options.Create(new StorageSettings()));
+        ITokenIssuer tokenIssuer = new TokenIssuer(
+            unitOfWork,
+            jwtTokenService,
+            permissionResolver,
+            Substitute.For<ISystemAdministratorResolver>(),
+            jwtOptions,
+            Options.Create(new StorageSettings()));
 
         AuthService service = new(
             unitOfWork,

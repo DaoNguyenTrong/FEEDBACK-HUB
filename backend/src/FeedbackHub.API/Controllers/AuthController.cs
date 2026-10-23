@@ -292,6 +292,7 @@ public sealed class AuthController(
             result.Account,
             result.OrganizationId,
             result.OrganizationName,
-            result.Permissions);
+            result.Permissions,
+            result.IsSystemAdministrator);
     }
 }
