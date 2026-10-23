@@ -11,6 +11,7 @@ using FeedbackHub.Application.Services.Notifications;
 using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Application.Services.PermissionCatalog;
 using FeedbackHub.Application.Services.Roles;
+using FeedbackHub.Application.Services.SystemOrganizations;
 using FeedbackHub.Application.Services.SystemSettings;
 
 namespace FeedbackHub.Application;
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationMembershipService, OrganizationMembershipService>();
         services.AddScoped<IPermissionCatalogService, PermissionCatalogService>();
         services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<SystemAdministratorActor>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IDevDataSeeder, DevDataSeeder>();
 

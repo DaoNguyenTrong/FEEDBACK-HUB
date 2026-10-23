@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Domain.Auditing;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
 using FeedbackHub.Infrastructure.Persistence;
@@ -143,6 +144,43 @@ public sealed class ArchitectureTests
         string[] offenders = [.. SourceFiles(SourceRoot())
             .Where(file => Regex.IsMatch(File.ReadAllText(file), @"^\s*global\s+using\s+(?:static\s+)?(?:\w+\s*=\s*)?FeedbackHub", RegexOptions.Multiline))
             .Select(file => Path.GetRelativePath(SourceRoot(), file))];
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
+    /// C1: an audit event's organization comes from the entity it describes, never from a caller-supplied Guid.
+    /// No public constructor, no public static method returning one that takes a <c>Guid</c> (only <c>Guid?</c>
+    /// for the actor), and no public setter on <c>OrganizationId</c>.
+    /// </summary>
+    [Fact]
+    public void AuditEvent_HasNoPublicConstructorOrFactoryTakingOrganizationGuid()
+    {
+        Type auditEvent = typeof(AuditEvent);
+
+        Assert.Empty(auditEvent.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
+        string[] offenders = [.. auditEvent.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(method => method.ReturnType == auditEvent)
+            .Where(method => method.GetParameters().Any(parameter => parameter.ParameterType == typeof(Guid)))
+            .Select(method => method.ToString() ?? method.Name)];
+        Assert.Empty(offenders);
+
+        MethodInfo? setter = auditEvent.GetProperty(nameof(AuditEvent.OrganizationId))!.SetMethod;
+        Assert.True(setter is null || !setter.IsPublic);
+    }
+
+    /// <summary>The audit trail is a leaf: it names no other service namespace, so any service can record to it.</summary>
+    [Fact]
+    public void AuditTrailNamespace_DependsOnNoOtherServiceNamespace()
+    {
+        string folder = Path.Combine(SourceRoot(), "FeedbackHub.Application", "Services", "AuditTrail");
+        Assert.True(Directory.Exists(folder));
+
+        string[] offenders = [.. SourceFiles(folder)
+            .SelectMany(file => UsingStatements(File.ReadAllText(file)).Select(used => (file, used)))
+            .Where(item => item.used.StartsWith("FeedbackHub.Application.Services.", StringComparison.Ordinal)
+                && NamespaceKey(item.used) != "FeedbackHub.Application.Services.AuditTrail")
+            .Select(item => $"{Path.GetFileName(item.file)} -> {item.used}")];
 
         Assert.Empty(offenders);
     }
