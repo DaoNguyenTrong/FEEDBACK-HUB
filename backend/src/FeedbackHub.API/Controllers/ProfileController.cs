@@ -27,6 +27,7 @@ public sealed class ProfileController(IAccountService accountService) : Controll
     [ProducesResponseType(typeof(ProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ProfileDto>> Update(
         UpdateProfileRequest request,
         CancellationToken cancellationToken)

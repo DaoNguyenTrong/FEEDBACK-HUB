@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Logging;
@@ -25,8 +26,15 @@ internal sealed class SmtpEmailSender(
 
         // One deadline for connect + authenticate + send together, not per step.
         using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(emailSettings.SendTimeoutSeconds));
-        client.Timeout = emailSettings.SendTimeoutSeconds * 1000;
+        TimeSpan total = TimeSpan.FromSeconds(emailSettings.SendTimeoutSeconds);
+        deadline.CancelAfter(total);
+        long startedAt = Stopwatch.GetTimestamp();
+
+        // The socket timeout is what is left of the deadline, so a slow step can't leave the next one a full timeout.
+        void LimitToRemainingTime() =>
+            client.Timeout = (int)Math.Max(1, (total - Stopwatch.GetElapsedTime(startedAt)).TotalMilliseconds);
+
+        LimitToRemainingTime();
 
         try
         {
@@ -37,6 +45,7 @@ internal sealed class SmtpEmailSender(
             message.Subject = subject;
             message.Body = new BodyBuilder { HtmlBody = htmlBody }.ToMessageBody();
 
+            LimitToRemainingTime();
             await client.ConnectAsync(
                 emailSettings.Host,
                 emailSettings.Port,
@@ -45,13 +54,17 @@ internal sealed class SmtpEmailSender(
 
             if (!string.IsNullOrWhiteSpace(emailSettings.Username))
             {
+                LimitToRemainingTime();
                 await client.AuthenticateAsync(emailSettings.Username, emailSettings.Password, deadline.Token);
             }
 
+            LimitToRemainingTime();
             await client.SendAsync(message, deadline.Token);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
+            // A caller cancel can surface as a non-OCE exception (e.g. a socket error): still a cancel, not a 503.
+            cancellationToken.ThrowIfCancellationRequested();
             throw;
         }
         catch (Exception exception)

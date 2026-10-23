@@ -65,7 +65,7 @@ public sealed class Account : BaseEntity<Guid>
     /// <summary>The address awaiting confirmation; <see cref="Email"/> stays the current one until applied.</summary>
     public string? PendingEmail { get; private set; }
 
-    /// <summary>Wrong-token attempts on an email change inside the current window.</summary>
+    /// <summary>Wrong-password attempts on an email change inside the current window.</summary>
     public int FailedEmailChangeCount { get; private set; }
 
     /// <summary>Start of the window <see cref="FailedEmailChangeCount"/> is counted within.</summary>

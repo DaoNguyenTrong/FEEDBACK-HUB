@@ -49,7 +49,11 @@ public class AccountServiceTests
         tokenRepo.AddAsync(Arg.Any<EmailVerificationToken>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
-                tokens.Add(call.Arg<EmailVerificationToken>());
+                if (call[0] is EmailVerificationToken added)
+                {
+                    tokens.Add(added);
+                }
+
                 return Task.CompletedTask;
             });
         IDateTimeProvider clock = Substitute.For<IDateTimeProvider>();
@@ -298,7 +302,7 @@ public class AccountServiceTests
         await f.EmailSender.Received(1).SendAsync(
             "b@x.com",
             "Xác nhận đổi địa chỉ email",
-            Arg.Is<string>(b => b.Contains("nva") && b.Contains("Nếu không phải bạn, hãy bỏ qua thư này")
+            Arg.Is<string>(b => b != null && b.Contains("nva") && b.Contains("Nếu không phải bạn, hãy bỏ qua thư này")
                 && b.Contains("/#/confirm-email-change?token=") && b.Contains("Link có hiệu lực trong 24 giờ.")),
             Arg.Any<CancellationToken>());
         await f.PasswordAttempts.Received(1).ClearAsync(

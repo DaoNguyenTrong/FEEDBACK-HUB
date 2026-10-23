@@ -180,6 +180,7 @@ export interface LocaleSchema {
     currentPasswordPlaceholder: string
     newPasswordPlaceholder: string
     currentPasswordRequired: string
+    invalidCurrentPassword: string
     newPasswordRequired: string
     newPasswordTooShort: string
     passwordChangeTemporarilyLocked: string
@@ -448,7 +449,7 @@ const en: LocaleSchema = {
     microsoftEmailNotConfirmed:
       'An account with this email already exists but has not been verified yet. Verify it below to link Microsoft sign-in.',
     microsoftEmailNotVerifiedByProvider:
-      "Microsoft hasn't verified this email address. Please verify it with Microsoft first.",
+      "Microsoft hasn't verified this account's email. Please sign up with your email instead.",
     microsoftLoginFailed: 'Unable to sign in with Microsoft right now. Please try again.',
     registerLink: "Don't have an account? Create one",
   },
@@ -496,6 +497,7 @@ const en: LocaleSchema = {
     currentPasswordPlaceholder: 'Enter your current password',
     newPasswordPlaceholder: 'Enter a new password',
     currentPasswordRequired: 'Current password is required.',
+    invalidCurrentPassword: 'The current password is incorrect.',
     newPasswordRequired: 'New password is required.',
     newPasswordTooShort: 'New password must be at least {min} characters.',
     passwordChangeTemporarilyLocked:

@@ -55,6 +55,7 @@ public sealed class AccountService(
 
             await EnsureCurrentPasswordAsync(
                 account,
+                account.PasswordHash,
                 request.CurrentPassword,
                 PasswordAttemptPurpose.EmailChange,
                 ApplicationMessages.EmailChangeTemporarilyLocked,
@@ -193,6 +194,7 @@ public sealed class AccountService(
 
         await EnsureCurrentPasswordAsync(
             account,
+            account.PasswordHash,
             request.CurrentPassword,
             PasswordAttemptPurpose.PasswordChange,
             ApplicationMessages.PasswordChangeTemporarilyLocked,
@@ -209,6 +211,7 @@ public sealed class AccountService(
     // before the check, so parallel guesses can't slip past the limit and the lock confirms no guess.
     private async Task EnsureCurrentPasswordAsync(
         Account account,
+        string passwordHash,
         string password,
         PasswordAttemptPurpose purpose,
         string lockedMessageKey,
@@ -226,7 +229,7 @@ public sealed class AccountService(
             throw new UnauthorizedException(lockedMessageKey);
         }
 
-        if (!passwordHasher.Verify(password, account.PasswordHash!))
+        if (!passwordHasher.Verify(password, passwordHash))
         {
             if (attemptNumber == lockoutSettings.MaxFailedAttempts)
             {

@@ -341,7 +341,7 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
     // Anonymous surface of AuthController: adding a public action must be a deliberate edit of this list
     // (and of the list in .claude/rules/authentication.md).
     [Fact]
-    public void ConfirmEmailChange_IsTheOnlyNewAnonymousAction()
+    public void AuthController_AnonymousActions_MatchTheDeliberateList()
     {
         string[] anonymous = typeof(FeedbackHub.API.Controllers.AuthController)
             .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance
@@ -356,6 +356,39 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
             "ConfirmEmailChange", "ExternalLogin", "Login", "Refresh", "Register", "ResendVerification", "VerifyEmail"
         ];
         Assert.Equal(expected, anonymous);
+
+        // A class-level attribute would make every future action anonymous without showing up in the list above.
+        Assert.Empty(typeof(FeedbackHub.API.Controllers.AuthController)
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true));
+    }
+
+    // TECH00 §4.9 / §11: the credential-guessing and mail-sending endpoints answer 429 past the limit.
+    [Fact]
+    public void RateLimitedActions_Always_UseTheAuthPolicy()
+    {
+        System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Public
+            | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly;
+        Type auth = typeof(FeedbackHub.API.Controllers.AuthController);
+        Type profile = typeof(FeedbackHub.API.Controllers.ProfileController);
+
+        static string? Policy(System.Reflection.MethodInfo method) =>
+            method.GetCustomAttributes(typeof(Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute), true)
+                .Cast<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()
+                .SingleOrDefault()?.PolicyName;
+
+        Assert.Equal("auth", Policy(profile.GetMethod("Update")!));
+        Assert.Equal("auth", Policy(profile.GetMethod("ResendEmailChange")!));
+        Assert.Equal("auth", Policy(auth.GetMethod("ConfirmEmailChange")!));
+
+        // Every other action that carries the attribute: the credential endpoints use "auth", Refresh its own.
+        foreach (System.Reflection.MethodInfo method in auth.GetMethods(flags))
+        {
+            string? policy = Policy(method);
+            if (policy is not null)
+            {
+                Assert.Equal(method.Name == "Refresh" ? "auth-refresh" : "auth", policy);
+            }
+        }
     }
 
     // ResendVerification
