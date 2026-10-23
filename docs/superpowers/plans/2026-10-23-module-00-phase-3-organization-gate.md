@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Duyệt:** solution-architect thay người dùng (người dùng uỷ quyền 2026-10-23); quyền push/mở PR vẫn do người dùng.
+**Duyệt:** solution-architect thay người dùng (người dùng uỷ quyền 2026-10-23). **Push/PR:** người dùng cho phép (2026-10-23): sau khi phần 8 xong và `scripts/test-gate.sh` qua, push `feature/module-00` và mở một PR vào `dev` cho cả module 00; không bao giờ vào `main`.
 
 **Goal:** Dựng phần nền mà phần 4–8 dùng chung:
 - lõi nhật ký kiểm toán ngữ nghĩa (`AuditEvent`, `IAuditTrail`, danh mục đóng, M9);
