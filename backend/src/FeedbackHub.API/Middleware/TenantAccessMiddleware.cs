@@ -1,65 +1,72 @@
-using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
+using Microsoft.Extensions.Localization;
+using FeedbackHub.API.Common;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
+using FeedbackHub.Application.Resources;
+using FeedbackHub.Domain.Entities;
 
 namespace FeedbackHub.API.Middleware;
 
+/// <summary>
+/// The last net for endpoints that only declare <c>[Authorize]</c> but still carry an <c>org_id</c>: a non-member
+/// gets <c>OrganizationAccessDenied</c>, a member of a suspended organization gets <c>OrganizationSuspended</c>
+/// and the organization's name.
+/// </summary>
 public sealed class TenantAccessMiddleware(RequestDelegate next)
 {
-    private static readonly JsonSerializerSettings ProblemJsonSettings = new()
-    {
-        ContractResolver = new CamelCasePropertyNamesContractResolver()
-    };
+    private static readonly PathString[] ExemptPaths =
+    [
+        // Logout and switch-organization must still work once the active organization is out of reach.
+        "/api/auth",
+        // Self-authorizes against the organization in its URL; the caller's own list and create are org-independent.
+        "/api/organizations",
+        "/api/permissions",
+        "/api/invitations",
+        "/api/system"
+    ];
 
     public async Task InvokeAsync(
         HttpContext context,
         ICurrentUserService currentUserService,
         ICurrentTenantProvider currentTenantProvider,
-        ITenantAccessService tenantAccessService)
+        ITenantAccessService tenantAccessService,
+        IUnitOfWork unitOfWork,
+        IStringLocalizer<Messages> localizer)
     {
-        // Exempt, as gating on the active org claim would 403 them once that org's access is revoked: /api/auth
-        // (logout and switch-organization must still work), /api/organizations (self-authorizes against the org id
-        // in its URL; gating would block cross-org actions) and /api/permissions (static, org-independent catalog).
-        if (context.Request.Path.StartsWithSegments("/api/auth")
-            || context.Request.Path.StartsWithSegments("/api/organizations")
-            || context.Request.Path.StartsWithSegments("/api/permissions")
-            || context.User.Identity?.IsAuthenticated != true)
+        if (context.User.Identity?.IsAuthenticated != true
+            || ExemptPaths.Any(path => context.Request.Path.StartsWithSegments(path))
+            || currentTenantProvider.OrganizationId is not { } organizationId)
         {
             await next(context);
             return;
         }
 
-        Guid? organizationId = currentTenantProvider.OrganizationId;
+        TenantAccessStatus status = Guid.TryParse(currentUserService.UserId, out Guid accountId)
+            ? await tenantAccessService.GetAccessAsync(accountId, organizationId, context.RequestAborted)
+            : TenantAccessStatus.NotMember;
 
-        if (organizationId is null)
+        if (status == TenantAccessStatus.Active)
         {
             await next(context);
             return;
         }
 
-        if (!Guid.TryParse(currentUserService.UserId, out Guid accountId) ||
-            !await tenantAccessService.HasActiveAccessAsync(accountId, organizationId.Value, context.RequestAborted))
+        // Read only after membership is confirmed, so a non-member never learns the name.
+        Organization? organization = status == TenantAccessStatus.Suspended
+            ? await unitOfWork.Repository<Organization, Guid>().GetByIdAsync(organizationId, context.RequestAborted)
+            : null;
+
+        CodedProblemDetails problemDetails = ApiProblemDetailsFactory.Create(
+            localizer,
+            StatusCodes.Status403Forbidden,
+            "Forbidden",
+            organization is null ? ApplicationMessages.OrganizationAccessDenied : ApplicationMessages.OrganizationSuspended);
+
+        if (organization is not null)
         {
-            await WriteProblemAsync(context);
-            return;
+            problemDetails.Extensions[ProblemExtensionKeys.OrganizationName] = organization.Name;
         }
 
-        await next(context);
-    }
-
-    private static Task WriteProblemAsync(HttpContext context)
-    {
-        ProblemDetails problemDetails = new()
-        {
-            Status = StatusCodes.Status403Forbidden,
-            Title = "Forbidden",
-            Detail = "Organization access is no longer valid."
-        };
-
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        context.Response.ContentType = "application/problem+json";
-
-        return context.Response.WriteAsync(JsonConvert.SerializeObject(problemDetails, ProblemJsonSettings));
+        await ApiProblemDetailsFactory.WriteAsync(context, problemDetails, context.RequestAborted);
     }
 }

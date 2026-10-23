@@ -46,6 +46,14 @@ public sealed class ExceptionHandlingMiddleware(
                 exception.Message,
                 args.Length > 0 ? args : null);
 
+            if (exception is ForbiddenException forbiddenException)
+            {
+                foreach (KeyValuePair<string, string> extension in forbiddenException.Extensions)
+                {
+                    problemDetails.Extensions[extension.Key] = extension.Value;
+                }
+            }
+
             await ApiProblemDetailsFactory.WriteAsync(context, problemDetails);
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
