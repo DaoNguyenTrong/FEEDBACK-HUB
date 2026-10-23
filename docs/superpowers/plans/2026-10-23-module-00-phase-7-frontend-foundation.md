@@ -368,7 +368,7 @@ Expected: PASS.
   - `UserMenu` (nền đặc `raised`): tên, email; *Hồ sơ* (`layout.openProfile()`), *Giao diện* (`layout.openSettings()`, kèm giá trị đang chọn), *Ngôn ngữ* (như hiện có), *Hướng dẫn sử dụng* (link hiện ở `AppHeader`, chuyển vào đây, đứng ngay trên *Đăng xuất*), *Đăng xuất*. Giữ testid `app-header-user-menu`, `user-menu-profile`, `user-menu-logout` (e2e đang dùng).
   - `AppearanceSettings`: chỉ còn *Chế độ màu* (Sáng, Tối, Theo hệ thống), *Ngôn ngữ*, *Cỡ chữ* (TECH00 §8.1).
   - `AppLayout`: nền `page` + `AmbientBackdrop strength="soft"`; `AppRail` | cột (`AppTopBar`, `main`, `AppFooter`); `main` vẫn cuộn riêng và về đầu khi đổi `route.path`; giữ `AppearanceSettings`, `CommandPalette`, chỗ gắn bảng hồ sơ (Task 6).
-  - `AppFooter` giữ nguyên chân trang một dòng hiện có (tên ứng dụng, phiên bản, chấm kết nối) dưới nội dung, đổi sang màu theo vai trò (`ink-muted`, `line`). Link hướng dẫn không còn ở chân trang. Việc vẽ chân trang và link hướng dẫn trên bảng *AppShell* giao lại cho ui-designer.
+  - `AppFooter` giữ nguyên chân trang một dòng hiện có (tên ứng dụng, phiên bản, chấm kết nối) dưới nội dung, đổi sang màu theo vai trò (`ink-muted`, `line`). Link hướng dẫn không còn ở chân trang. Chữ cạnh chấm kết nối khi API chạy theo bảng *AppShell*: đổi `app.apiStatus.online` thành vi "Đã kết nối", en "Connected" (người dùng duyệt 2026-10-23); các trạng thái khác giữ nguyên.
   - Locale mới: `nav.openMenu` (vi "Mở menu", en "Open menu"), `nav.goTo` (vi "Đi tới…", en "Go to…"), `layout.userMenu.appearance` (vi "Giao diện", en "Appearance"). Link hướng dẫn dùng lại khoá `userGuide` mà `AppHeader.vue` đang dùng.
   - Gỡ `AppSidebar.vue`, `AppHeader.vue` khỏi `ALLOWED` của `no-raw-colors.test.ts` (Task 1).
 
@@ -398,6 +398,7 @@ it('puts the user guide item directly above Log out')                         //
 it('keeps the user guide link out of the footer')
 describe('AppFooter')
 it('keeps the one-line footer with app name, version and connection dot below the content')   // P7-1
+it('labels the connection dot with app.apiStatus.online when the API is up')
 describe('layout store')
 it('starts every panel closed and touches no storage')
 ```
@@ -607,7 +608,7 @@ Expected: PASS.
 
 ## Lệch thiết kế khai trong PR (nhỏ, không đổi hành vi nghiệp vụ)
 
-- Bảng *AppShell* không vẽ chân trang và link *Hướng dẫn sử dụng*. Phần này giữ chân trang một dòng dưới nội dung, và chuyển link hướng dẫn vào menu tài khoản, ngay trên *Đăng xuất* (Câu hỏi mở đã chốt 1). Bảng cũng không có mục *Về trang chào* trong bộ chọn tổ chức; phần này thêm nó ngay trên *Tạo tổ chức* (đã chốt 2). Ui-designer bổ sung cả hai vào bảng *AppShell*.
+- Chân trang, link *Hướng dẫn sử dụng* trong menu tài khoản và mục *Về trang chào* đã có trên bảng *AppShell* (ui-designer bổ sung, người dùng duyệt 2026-10-23), nên không còn là lệch.
 - Thanh trên không còn tiêu đề trang hay breadcrumb (bảng *AppShell* không có). Mỗi trang tự đặt `h1`.
 
 ## Câu hỏi mở
