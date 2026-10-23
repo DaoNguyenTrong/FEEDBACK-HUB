@@ -448,8 +448,12 @@ public sealed class CurrentOrganizationControllerTests(ApiFactoryFixture fixture
         HttpResponseMessage[] responses = await Task.WhenAll(Enumerable.Range(0, ParallelRequests)
             .Select(_ => DeactivateAsync(client, new { reason = Reason })));
 
-        Assert.All(responses, response => Assert.True(
-            response.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.Forbidden));
+        // A request reaching the gate after the commit is turned away as suspended, never for another reason.
+        foreach (HttpResponseMessage forbidden in responses.Where(r => r.StatusCode != HttpStatusCode.NoContent))
+        {
+            await AssertCodeAsync(forbidden, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationSuspended);
+        }
+
         Assert.Contains(responses, response => response.StatusCode == HttpStatusCode.NoContent);
         Assert.Single(await LoadEventsAsync());
         Assert.False((await LoadOrganizationAsync(organization.Id)).Status);

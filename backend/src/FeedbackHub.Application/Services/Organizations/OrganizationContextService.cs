@@ -1,4 +1,5 @@
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditTrail;
 using FeedbackHub.Application.Services.OrganizationLocking;
@@ -47,6 +48,14 @@ public sealed class OrganizationContextService(
             Organization organization = await LoadAsync(organizationId, ct);
             renamed = organization;
 
+            // Deactivated after the gate let the request in: answer as the gate now would.
+            if (!organization.Status)
+            {
+                throw new ForbiddenException(
+                    ApplicationMessages.OrganizationSuspended,
+                    new Dictionary<string, string> { [ProblemExtensionKeys.OrganizationName] = organization.Name });
+            }
+
             if (string.Equals(organization.Name, name, StringComparison.Ordinal))
             {
                 return;
@@ -66,7 +75,8 @@ public sealed class OrganizationContextService(
             await unitOfWork.SaveChangesAsync(ct);
         }, cancellationToken);
 
-        return ToDto(renamed ?? throw new NotFoundException(nameof(Organization), organizationId));
+        // Set by the operation above, which either ran to the end or threw.
+        return ToDto(renamed!);
     }
 
     public async Task DeactivateAsync(DeactivateOrganizationRequest request, CancellationToken cancellationToken)
