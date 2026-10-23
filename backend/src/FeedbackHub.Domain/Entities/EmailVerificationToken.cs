@@ -5,7 +5,9 @@ namespace FeedbackHub.Domain.Entities;
 public record EmailVerificationTokenParams(
     Guid AccountId,
     string TokenHash,
-    DateTime ExpiresAt);
+    DateTime ExpiresAt,
+    EmailVerificationPurpose Purpose,
+    string Email);
 
 public sealed class EmailVerificationToken : BaseEntity<Guid>
 {
@@ -30,12 +32,19 @@ public sealed class EmailVerificationToken : BaseEntity<Guid>
             throw new DomainException(DomainMessages.EmailVerificationTokenExpiryFuture);
         }
 
+        if (string.IsNullOrWhiteSpace(p.Email))
+        {
+            throw new DomainException(DomainMessages.AccountEmailRequired);
+        }
+
         return new EmailVerificationToken
         {
             Id = IdGenerator.NewUuidV7(),
             AccountId = p.AccountId,
             TokenHash = p.TokenHash.Trim(),
-            ExpiresAt = p.ExpiresAt
+            ExpiresAt = p.ExpiresAt,
+            Purpose = p.Purpose,
+            Email = Account.NormalizeEmail(p.Email)
         };
     }
 
@@ -47,7 +56,13 @@ public sealed class EmailVerificationToken : BaseEntity<Guid>
 
     public DateTime? ConsumedAt { get; private set; }
 
-    public bool IsActive => !ConsumedAt.HasValue && DateTime.UtcNow < ExpiresAt;
+    /// <summary><c>null</c> only on rows created before purposes existed.</summary>
+    public EmailVerificationPurpose? Purpose { get; private set; }
+
+    /// <summary>The address this token confirms; <c>null</c> only on rows created before it was stored.</summary>
+    public string? Email { get; private set; }
+
+    public bool IsActiveAt(DateTime utcNow) => !ConsumedAt.HasValue && utcNow < ExpiresAt;
 
     public void Consume()
     {

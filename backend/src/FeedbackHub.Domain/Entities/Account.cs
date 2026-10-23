@@ -62,6 +62,48 @@ public sealed class Account : BaseEntity<Guid>
 
     public void ConfirmEmail() => EmailConfirmed = true;
 
+    /// <summary>The address awaiting confirmation; <see cref="Email"/> stays the current one until applied.</summary>
+    public string? PendingEmail { get; private set; }
+
+    /// <summary>Wrong-token attempts on an email change inside the current window.</summary>
+    public int FailedEmailChangeCount { get; private set; }
+
+    /// <summary>Start of the window <see cref="FailedEmailChangeCount"/> is counted within.</summary>
+    public DateTime? EmailChangeWindowStartedAt { get; private set; }
+
+    /// <summary>End of the temporary email-change lock, or <c>null</c> when it is not locked.</summary>
+    public DateTime? EmailChangeLockedUntil { get; private set; }
+
+    public void RequestEmailChange(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new DomainException(DomainMessages.AccountEmailRequired);
+        }
+
+        string normalized = NormalizeEmail(email);
+        if (normalized == Email)
+        {
+            throw new DomainException(DomainMessages.EmailChangeSameAsCurrent);
+        }
+
+        PendingEmail = normalized;
+    }
+
+    public void CancelEmailChange() => PendingEmail = null;
+
+    public void ApplyEmailChange()
+    {
+        if (PendingEmail is null)
+        {
+            throw new DomainException(DomainMessages.EmailChangeNotPending);
+        }
+
+        Email = PendingEmail;
+        PendingEmail = null;
+        ConfirmEmail();
+    }
+
     /// <summary>Wrong-password attempts inside the current lockout window.</summary>
     public int FailedLoginCount { get; private set; }
 
