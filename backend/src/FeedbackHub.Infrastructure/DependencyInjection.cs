@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Infrastructure.Services.Auth;
+using FeedbackHub.Infrastructure.Services.RateLimiting;
 
 namespace FeedbackHub.Infrastructure;
 
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddSecurity();
         services.AddContext();
         services.AddCaching(configuration);
+        services.AddRateLimiterStore(configuration);
         services.AddJwtAuthentication(configuration);
         services.AddStorage(configuration);
         services.AddEmail(configuration);

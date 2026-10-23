@@ -2,6 +2,9 @@ namespace FeedbackHub.Application.Common.Settings;
 
 public sealed class RateLimiterSettings
 {
+    // Memory counts per instance; Redis counts across all instances (technical design §10.3).
+    public string Store { get; init; } = "Memory";
+
     public int AuthPermitLimit { get; init; } = 5;
 
     public int AuthWindowMinutes { get; init; } = 1;
