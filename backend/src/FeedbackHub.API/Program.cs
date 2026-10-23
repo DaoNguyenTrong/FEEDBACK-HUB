@@ -167,6 +167,17 @@ if (await CliCommands.TryRunAsync(app.Services, args, CancellationToken.None) is
 // new startup work that touches an external service belongs behind this flag too.
 bool isOpenApiExport = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 
+// CLI verbs have already returned above, so reaching here means the web host is about to start.
+if (ProductionTopologyValidator.ShouldValidate(isOpenApiExport, isCliCommand: false, app.Environment))
+{
+    IReadOnlyList<string> topologyErrors = ProductionTopologyValidator.Validate(app.Configuration);
+    if (topologyErrors.Count > 0)
+    {
+        throw new InvalidOperationException(
+            $"{ProductionTopologyValidator.ErrorTitle}{Environment.NewLine}{string.Join(Environment.NewLine, topologyErrors)}");
+    }
+}
+
 if (!isOpenApiExport)
 {
     DatabaseSettings databaseSettings =
