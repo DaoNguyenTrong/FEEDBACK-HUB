@@ -24,6 +24,15 @@ public sealed class EmailVerificationTokenConfiguration : IEntityTypeConfigurati
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(token => token.Purpose)
+            .HasColumnName("Purpose")
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.Property(token => token.Email)
+            .HasColumnName("Email")
+            .HasMaxLength(200);
+
         builder.Property(token => token.ExpiresAt)
             .HasColumnName("expires_at")
             .IsRequired();

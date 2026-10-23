@@ -165,6 +165,66 @@ public sealed class PasswordAttemptStoreTests(PostgresContainerFixture fixture) 
         Assert.Equal(Now.AddMinutes(15), stored.PasswordChangeLockedUntil);
     }
 
+    [Fact]
+    public async Task ReserveAttemptAsync_EmailChange_UsesOwnCounter()
+    {
+        await Reserve(Now, PasswordAttemptPurpose.EmailChange);
+        await Reserve(Now.AddMinutes(1), PasswordAttemptPurpose.EmailChange);
+
+        Account stored = await Load();
+        Assert.Equal(2, stored.FailedEmailChangeCount);
+        Assert.NotNull(stored.EmailChangeWindowStartedAt);
+        Assert.Equal(0, stored.FailedLoginCount);
+        Assert.Equal(0, stored.FailedPasswordChangeCount);
+    }
+
+    [Fact]
+    public async Task LockAsync_EmailChange_SetsOnlyEmailChangeLockedUntil()
+    {
+        await WithStore(store => store.LockAsync(
+            PasswordAttemptPurpose.EmailChange, account.Id, Now.AddMinutes(15), CancellationToken.None));
+
+        Account stored = await Load();
+        Assert.Equal(Now.AddMinutes(15), stored.EmailChangeLockedUntil);
+        Assert.Null(stored.LockedUntil);
+        Assert.Null(stored.PasswordChangeLockedUntil);
+    }
+
+    [Fact]
+    public async Task ClearAsync_EmailChange_ResetsOnlyEmailChangeColumns()
+    {
+        await Reserve(Now);
+        await Reserve(Now, PasswordAttemptPurpose.EmailChange);
+        await WithStore(store => store.LockAsync(
+            PasswordAttemptPurpose.EmailChange, account.Id, Now.AddMinutes(15), CancellationToken.None));
+
+        await WithStore(store => store.ClearAsync(PasswordAttemptPurpose.EmailChange, account.Id, CancellationToken.None));
+
+        Account stored = await Load();
+        Assert.Equal(0, stored.FailedEmailChangeCount);
+        Assert.Null(stored.EmailChangeWindowStartedAt);
+        Assert.Null(stored.EmailChangeLockedUntil);
+        Assert.Equal(1, stored.FailedLoginCount);
+    }
+
+    [Fact]
+    public async Task UpdateAccount_ViaRepository_DoesNotOverwriteEmailChangeCounter()
+    {
+        Account stale = await Load();
+        await Reserve(Now, PasswordAttemptPurpose.EmailChange);
+
+        await using (AppDbContext context = fixture.CreateDbContext())
+        {
+            stale.Update(new AccountParams("Renamed", stale.Username, stale.Email));
+            context.Accounts.Update(stale);
+            await context.SaveChangesAsync();
+        }
+
+        Account stored = await Load();
+        Assert.Equal("Renamed", stored.Name);
+        Assert.Equal(1, stored.FailedEmailChangeCount);
+    }
+
     private async Task<int?> Reserve(DateTime utcNow, PasswordAttemptPurpose purpose = PasswordAttemptPurpose.Login)
     {
         await using AppDbContext context = fixture.CreateDbContext();

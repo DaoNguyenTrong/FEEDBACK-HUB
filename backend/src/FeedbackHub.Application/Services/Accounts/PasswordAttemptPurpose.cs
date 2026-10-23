@@ -8,5 +8,6 @@ namespace FeedbackHub.Application.Services.Accounts;
 public enum PasswordAttemptPurpose
 {
     Login,
-    PasswordChange
+    PasswordChange,
+    EmailChange
 }

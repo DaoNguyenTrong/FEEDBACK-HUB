@@ -71,6 +71,20 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.PasswordChangeLockedUntil)
             .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
 
+        builder.Property(account => account.PendingEmail)
+            .HasMaxLength(200);
+
+        builder.Property(account => account.FailedEmailChangeCount)
+            .HasDefaultValue(0)
+            .IsRequired()
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
+        builder.Property(account => account.EmailChangeWindowStartedAt)
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
+        builder.Property(account => account.EmailChangeLockedUntil)
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
         builder.Property(account => account.CreatedAt)
             .IsRequired();
 

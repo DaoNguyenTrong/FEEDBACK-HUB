@@ -49,6 +49,8 @@ internal sealed class PasswordAttemptStore(AppDbContext context) : IPasswordAtte
                 set => set.SetProperty(account => account.LockedUntil, lockedUntil), cancellationToken),
             PasswordAttemptPurpose.PasswordChange => Accounts(accountId).ExecuteUpdateAsync(
                 set => set.SetProperty(account => account.PasswordChangeLockedUntil, lockedUntil), cancellationToken),
+            PasswordAttemptPurpose.EmailChange => Accounts(accountId).ExecuteUpdateAsync(
+                set => set.SetProperty(account => account.EmailChangeLockedUntil, lockedUntil), cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null)
         };
 
@@ -71,6 +73,14 @@ internal sealed class PasswordAttemptStore(AppDbContext context) : IPasswordAtte
                         .SetProperty(account => account.PasswordChangeWindowStartedAt, (DateTime?)null)
                         .SetProperty(account => account.PasswordChangeLockedUntil, (DateTime?)null),
                     cancellationToken),
+            PasswordAttemptPurpose.EmailChange => Accounts(accountId)
+                .Where(account => account.FailedEmailChangeCount != 0 || account.EmailChangeLockedUntil != null)
+                .ExecuteUpdateAsync(
+                    set => set
+                        .SetProperty(account => account.FailedEmailChangeCount, 0)
+                        .SetProperty(account => account.EmailChangeWindowStartedAt, (DateTime?)null)
+                        .SetProperty(account => account.EmailChangeLockedUntil, (DateTime?)null),
+                    cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null)
         };
 
@@ -82,6 +92,8 @@ internal sealed class PasswordAttemptStore(AppDbContext context) : IPasswordAtte
                 ("FailedLoginCount", "FailedLoginWindowStartedAt", "LockedUntil"),
             PasswordAttemptPurpose.PasswordChange =>
                 ("FailedPasswordChangeCount", "PasswordChangeWindowStartedAt", "PasswordChangeLockedUntil"),
+            PasswordAttemptPurpose.EmailChange =>
+                ("FailedEmailChangeCount", "EmailChangeWindowStartedAt", "EmailChangeLockedUntil"),
             _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null)
         };
 
