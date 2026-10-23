@@ -54,6 +54,9 @@ public sealed class UnitOfWork(
     /// <summary>Name of the unique index on <c>organizations.Slug</c> (AddOrganizations migration).</summary>
     internal const string OrganizationSlugUniqueIndexName = "IX_organizations_Slug";
 
+    /// <summary>Name of the unique index on <c>roles (OrganizationId, lower(Name))</c> (RenameDuplicateRoleNames migration).</summary>
+    internal const string RoleNameUniqueIndexName = "IX_roles_OrganizationId_lower_Name";
+
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -86,6 +89,15 @@ public sealed class UnitOfWork(
         {
             // Two creations raced past the service's slug check; the loser must not learn who won (AC-330).
             throw new ConflictException(ApplicationMessages.OrganizationSlugAlreadyExists);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: RoleNameUniqueIndexName
+        })
+        {
+            // Two role writes raced past the service's name check (AC-290, AC-326).
+            throw new ConflictException(ApplicationMessages.OrganizationRoleNameAlreadyExists);
         }
     }
 
