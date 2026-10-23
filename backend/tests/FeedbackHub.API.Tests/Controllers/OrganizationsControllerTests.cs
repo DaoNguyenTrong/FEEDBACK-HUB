@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Common;
 using FeedbackHub.API.Tests.TestSupport;
@@ -282,6 +283,34 @@ public sealed class OrganizationsControllerTests(ApiFactoryFixture fixture) : IA
         HttpResponseMessage response = await client.DeleteAsync($"/api/organizations/{organization.Id}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // organizations.manage stays scoped to the route's organization while this route exists: a manager of the
+    // JWT's organization must not deactivate another one.
+    [Fact]
+    public async Task Deactivate_ManagerOfTokenOrganizationTargetingAnother_ReturnsForbiddenAndTargetStaysActive()
+    {
+        Account caller;
+        Organization tokenOrganization;
+        Organization target;
+        await using (AppDbContext context = CreateDbContext())
+        {
+            caller = await AuthTestHelper.SeedConfirmedAccountAsync(
+                context, username: $"caller-{Guid.NewGuid():N}", email: $"caller-{Guid.NewGuid():N}@example.com");
+            tokenOrganization = await AuthTestHelper.SeedOrganizationAsync(context, name: "Token Org");
+            target = await AuthTestHelper.SeedOrganizationAsync(context, name: "Target Org");
+            await AuthTestHelper.SeedOrganizationMemberAsync(context, tokenOrganization.Id, caller.Id, SystemRoleKind.Owner);
+            await AuthTestHelper.SeedOrganizationMemberAsync(context, target.Id, caller.Id, SystemRoleKind.Member);
+        }
+        HttpClient client = fixture.CreateTestClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(caller, tokenOrganization.Id));
+
+        HttpResponseMessage response = await client.DeleteAsync($"/api/organizations/{target.Id}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await using AppDbContext verifyContext = CreateDbContext();
+        Organization reloaded = await verifyContext.Organizations.AsNoTracking().SingleAsync(o => o.Id == target.Id);
+        Assert.True(reloaded.Status);
     }
 
     [Fact]

@@ -168,6 +168,9 @@
   <data name="OrganizationSuspended" xml:space="preserve">
     <value>Tổ chức này đang tạm ngừng hoạt động.</value>
   </data>
+  <data name="ResourceNotFound" xml:space="preserve">
+    <value>Không tìm thấy.</value>
+  </data>
   <data name="OrganizationMemberAlreadyExists" xml:space="preserve">
     <value>Tài khoản đã là thành viên của tổ chức này.</value>
   </data>

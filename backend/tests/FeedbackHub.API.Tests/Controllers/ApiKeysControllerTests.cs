@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
+using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.ApiKeys;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
@@ -113,5 +115,65 @@ public sealed class ApiKeysControllerTests(ApiFactoryFixture fixture) : IAsyncLi
         apiKeyClient.DefaultRequestHeaders.Add("X-Api-Key", rawKey);
         HttpResponseMessage authedResponse = await apiKeyClient.GetAsync("/api/admin/api-keys");
         Assert.Equal(HttpStatusCode.Unauthorized, authedResponse.StatusCode);
+    }
+
+    // Organization gate
+
+    [Theory]
+    [InlineData("POST", "/api/admin/api-keys")]
+    [InlineData("DELETE", "/api/admin/api-keys/00000000-0000-0000-0000-000000000001")]
+    public async Task AnyEndpoint_Unauthenticated_ReturnsUnauthorized(string method, string path)
+    {
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), path));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetAll_MemberWithoutApiKeysManage_Returns403AccessDenied()
+    {
+        HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
+            fixture, SystemRoleKind.Member);
+
+        HttpResponseMessage response = await client.GetAsync("/api/admin/api-keys");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
+        Assert.False(body.TryGetProperty("organizationName", out _));
+    }
+
+    // AC-321: a suspended organization is reported before the missing permission.
+    [Fact]
+    public async Task GetAll_SuspendedOrganizationMemberWithoutPermission_Returns403Suspended()
+    {
+        HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
+            fixture, SystemRoleKind.Member, organizationSuspended: true);
+
+        HttpResponseMessage response = await client.GetAsync("/api/admin/api-keys");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, body.GetProperty("code").GetString());
+        Assert.Equal(AuthTestHelper.GateOrganizationName, body.GetProperty("organizationName").GetString());
+    }
+
+    // AC-320: someone outside a suspended organization learns neither its name nor its state.
+    [Fact]
+    public async Task GetAll_NonMemberOfSuspendedOrganization_Returns403WithoutName()
+    {
+        HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
+            fixture, SystemRoleKind.Owner, member: false, organizationSuspended: true);
+
+        HttpResponseMessage response = await client.GetAsync("/api/admin/api-keys");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        string raw = await response.Content.ReadAsStringAsync();
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
+        Assert.False(body.TryGetProperty("organizationName", out _));
+        Assert.DoesNotContain(AuthTestHelper.GateOrganizationName, raw);
     }
 }

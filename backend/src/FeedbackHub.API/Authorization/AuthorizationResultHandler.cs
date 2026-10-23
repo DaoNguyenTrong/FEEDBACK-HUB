@@ -1,15 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Localization;
 using FeedbackHub.API.Common;
+using FeedbackHub.Application.Common.Authorization;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
 
 namespace FeedbackHub.API.Authorization;
 
 /// <summary>
-/// Overrides only Forbidden (Challenge/401 and Success keep the default handler), giving a policy denial the same
-/// <see cref="CodedProblemDetails"/> body <see cref="Middleware.ExceptionHandlingMiddleware"/> writes for a
-/// <c>ForbiddenException</c>; with no <c>AddProblemDetails()</c>, the default empty 403 drops the localized message.
+/// Overrides only Forbidden (Challenge/401 and Success keep the default handler) with the coded body the exception
+/// middleware writes. The first <see cref="ICodedAuthorizationFailure"/> sets status and code; a denial without one
+/// is 403 <c>OrganizationAccessDenied</c>.
 /// </summary>
 internal sealed class AuthorizationResultHandler : IAuthorizationMiddlewareResultHandler
 {
@@ -30,11 +33,22 @@ internal sealed class AuthorizationResultHandler : IAuthorizationMiddlewareResul
         IStringLocalizer<Messages> localizer =
             context.RequestServices.GetRequiredService<IStringLocalizer<Messages>>();
 
+        ICodedAuthorizationFailure? failure = authorizeResult.AuthorizationFailure?.FailureReasons
+            .OfType<ICodedAuthorizationFailure>()
+            .FirstOrDefault();
+
+        int statusCode = failure?.StatusCode ?? StatusCodes.Status403Forbidden;
+
         CodedProblemDetails problemDetails = ApiProblemDetailsFactory.Create(
             localizer,
-            StatusCodes.Status403Forbidden,
-            "Forbidden",
-            ApplicationMessages.OrganizationAccessDenied);
+            statusCode,
+            ReasonPhrases.GetReasonPhrase(statusCode),
+            failure?.Code ?? ApplicationMessages.OrganizationAccessDenied);
+
+        if (failure?.OrganizationName is { } organizationName)
+        {
+            problemDetails.Extensions[ProblemExtensionKeys.OrganizationName] = organizationName;
+        }
 
         await ApiProblemDetailsFactory.WriteAsync(context, problemDetails, context.RequestAborted);
     }
