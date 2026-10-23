@@ -230,7 +230,7 @@ public sealed class AuthService(
             // email was never proven (left unconfirmed by the M8 migration) can be re-verified.
             if (!account.EmailConfirmed
                 && userInfo.EmailVerified
-                && userInfo.Email is not null
+                && !string.IsNullOrWhiteSpace(userInfo.Email)
                 && Account.NormalizeEmail(userInfo.Email) == account.Email)
             {
                 account.ConfirmEmail();
@@ -239,7 +239,7 @@ public sealed class AuthService(
         }
         else
         {
-            if (!userInfo.EmailVerified || userInfo.Email is null)
+            if (!userInfo.EmailVerified || string.IsNullOrWhiteSpace(userInfo.Email))
             {
                 throw new UnauthorizedException(ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider);
             }
