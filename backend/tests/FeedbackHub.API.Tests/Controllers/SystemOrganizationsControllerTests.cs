@@ -23,6 +23,9 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
 {
     private const string Reason = "Hết hợp đồng";
 
+    // Enough simultaneous requests that, without the row lock, two of them read the old status together.
+    private const int ParallelRequests = 8;
+
     public enum WorkingContext
     {
         Personal,
@@ -419,6 +422,22 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
         Assert.Equal(Reason, (await LoadOrganizationAsync(organization.Id)).DeactivationReason);
     }
 
+    // TECH00 §3.7, AC-367: simultaneous requests change the organization once, so only one event is recorded.
+    [Fact]
+    public async Task Deactivate_ParallelRequests_RecordOneEvent()
+    {
+        Account admin = await SeedSystemAdministratorAsync();
+        Organization organization = await SeedOrganizationAsync();
+        HttpClient client = ClientFor(admin);
+
+        HttpResponseMessage[] responses = await Task.WhenAll(Enumerable.Range(0, ParallelRequests)
+            .Select(_ => DeactivateAsync(client, organization.Id, new { reason = Reason })));
+
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.NoContent, response.StatusCode));
+        AuditLog entry = Assert.Single(await LoadEventsAsync());
+        Assert.Equal(nameof(AuditEventType.OrganizationDeactivated), entry.Action);
+    }
+
     // Reactivate
 
     [Fact]
@@ -441,6 +460,25 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty(await LoadEventsAsync());
+    }
+
+    // TECH00 §3.7, AC-367
+    [Fact]
+    public async Task Reactivate_ParallelRequests_RecordOneEvent()
+    {
+        Account admin = await SeedSystemAdministratorAsync();
+        Organization organization = await SeedOrganizationAsync();
+        HttpClient client = ClientFor(admin);
+        await DeactivateAsync(client, organization.Id, new { reason = Reason });
+
+        HttpResponseMessage[] responses = await Task.WhenAll(Enumerable.Range(0, ParallelRequests)
+            .Select(_ => ReactivateAsync(client, organization.Id)));
+
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.NoContent, response.StatusCode));
+        List<AuditLog> events = await LoadEventsAsync();
+        Assert.Equal(
+            [nameof(AuditEventType.OrganizationDeactivated), nameof(AuditEventType.OrganizationReactivated)],
+            events.Select(entry => entry.Action));
     }
 
     // AC-106, AC-128: members and their roles come back untouched, and the member gets straight back in.
