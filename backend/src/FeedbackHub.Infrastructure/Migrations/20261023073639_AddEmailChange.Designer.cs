@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FeedbackHub.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261023073342_AddEmailChange")]
+    [Migration("20261023073639_AddEmailChange")]
     partial class AddEmailChange
     {
         /// <inheritdoc />
@@ -221,7 +221,7 @@ namespace FeedbackHub.Infrastructure.Migrations
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
-                        .HasColumnName("Email");
+                        .HasColumnName("email");
 
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
@@ -230,7 +230,7 @@ namespace FeedbackHub.Infrastructure.Migrations
                     b.Property<string>("Purpose")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasColumnName("Purpose");
+                        .HasColumnName("purpose");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()

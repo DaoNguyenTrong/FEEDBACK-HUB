@@ -25,12 +25,12 @@ public sealed class EmailVerificationTokenConfiguration : IEntityTypeConfigurati
             .IsRequired();
 
         builder.Property(token => token.Purpose)
-            .HasColumnName("Purpose")
+            .HasColumnName("purpose")
             .HasConversion<string>()
             .HasMaxLength(20);
 
         builder.Property(token => token.Email)
-            .HasColumnName("Email")
+            .HasColumnName("email")
             .HasMaxLength(200);
 
         builder.Property(token => token.ExpiresAt)

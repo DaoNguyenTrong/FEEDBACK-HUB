@@ -218,7 +218,7 @@ namespace FeedbackHub.Infrastructure.Migrations
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
-                        .HasColumnName("Email");
+                        .HasColumnName("email");
 
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
@@ -227,7 +227,7 @@ namespace FeedbackHub.Infrastructure.Migrations
                     b.Property<string>("Purpose")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasColumnName("Purpose");
+                        .HasColumnName("purpose");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
