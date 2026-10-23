@@ -3,7 +3,7 @@
 | Mục | Giá trị |
 |---|---|
 | Mã | `PRD00` (tiền tố cho mọi mã trong tài liệu này) |
-| Trạng thái | In review |
+| Trạng thái | Approved |
 | Phiên bản | 1.1 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-10-23 |
@@ -628,7 +628,7 @@ Chỉ những điều người dùng phải quyết: làm đổi thứ được 
 
 ### Mặc định đề xuất
 
-Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả mức ưu tiên. Người dùng đã duyệt D1 cùng PRD ở v1.0 (2026-10-22); D2 thêm ở v1.1, chờ duyệt cùng bản này.
+Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả mức ưu tiên. Người dùng đã duyệt D1 cùng PRD ở v1.0 (2026-10-22); D2 thêm ở v1.1, người dùng đã duyệt cùng PRD ở v1.1 (2026-10-23).
 
 | # | Mặc định | Mã bị ảnh hưởng | Lý do |
 |---|---|---|---|
@@ -654,6 +654,7 @@ Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả
 | 2026-10-23 | 1.1 | Áp dụng câu 80: không ai xoá được vai trò tự tạo có quyền mà mình không có, Chủ sở hữu không bị giới hạn (BR-58 điểm 3, BR-60, FR-52); thêm AC-249. Sửa theo review BA: AC-247, AC-248 nêu R là thành viên X và có mọi quyền trong "Tester"; thêm AC-250 (vai trò chỉ có lời mời đang chờ), AC-251 (R là người giữ duy nhất), AC-252 (người giữ duy nhất đã bị gỡ khỏi tổ chức); BR-60 nêu cách bỏ vai trò khỏi người giữ (đổi vai trò tổ chức hoặc gỡ khỏi tổ chức, theo BR-19 và BR-58 điểm 3), người đã bị gỡ không tính là giữ vai trò, và sửa câu báo lý do; §12 ghi nền tảng hiện xoá cả vai trò còn người giữ. Sửa theo đó thuật ngữ *Quyền quản lý vai trò*, §8 *Leo thang quyền*, dòng *Vai trò tự tạo* ở §9. Giữ phiên bản 1.1, vẫn In review | Quyết định của người dùng; BA review |
 | 2026-10-23 | 1.1 | Áp dụng câu 81: BR-58 điểm 3 viết lại thành nguyên tắc chung (mọi thao tác lấy đi hoặc làm mất hiệu lực một quyền, đã cấp hay đang chờ trong lời mời, chỉ làm được khi người thao tác có mọi quyền đó; mọi thao tác động tới vai trò Chủ sở hữu chỉ Chủ sở hữu làm được), các trường hợp cũ thành ví dụ, thêm gỡ thành viên khỏi tổ chức, thu hồi lời mời và mời lại cùng email; FR-52, BR-24, BR-63 điểm 3 và hai dòng lời mời của ma trận quyền nêu thu hồi và mời lại; thêm AC-253 (thu hồi lời mời "Trưởng IT" bị từ chối), AC-254 (mời lại cùng email bị từ chối), AC-255 (Admin thu hồi lời mời có vai trò Chủ sở hữu bị từ chối), AC-258 (N chỉ có quyền quản lý thành viên gỡ Q có vai trò Admin khỏi tổ chức bị từ chối). Sửa theo review BA vòng 2: BR-58 nêu Chủ sở hữu không bị giới hạn bởi điều kiện về quyền nhưng vẫn theo BR-60, thêm AC-256 (Chủ sở hữu xoá vai trò còn người giữ bị từ chối); thêm D2 (vi phạm cả hai quy tắc thì kiểm BR-58 trước, báo không đủ quyền) và AC-257; phần Thì của AC-249 nêu B vào X với vai trò "Trưởng IT"; thuật ngữ *Chống leo thang quyền* nêu cả việc gỡ, xoá, làm mất hiệu lực quyền. Sửa theo đó §8 *Leo thang quyền*, §11 *Chống leo thang quyền*. Giữ phiên bản 1.1, vẫn In review | Quyết định của người dùng; BA review |
 | 2026-10-23 | 1.1 | Áp dụng câu 83: khi gỡ thành viên khỏi tổ chức, BR-58 điểm 3 chỉ tính quyền trong các vai trò tổ chức của người bị gỡ, không tính vai trò theo sản phẩm (Phụ trách, Viewer), nên AC-69 giữ nguyên; thêm AC-259 (N chỉ có quyền quản lý thành viên gỡ được một Member đang là Phụ trách). Sửa theo review BA vòng 3: BR-58 điểm 3 nêu vô hiệu tổ chức không thuộc điểm này vì chỉ tạm ngừng, không lấy đi quyền nào (BR-49, BR-57), admin hệ thống vẫn vô hiệu được (BR-52, AC-138, AC-141); phần Cho trước của AC-117, AC-179 nêu lời mời với vai trò Member. Giữ phiên bản 1.1, vẫn In review | Quyết định của người dùng; BA review |
+| 2026-10-23 | 1.1 | Người dùng duyệt lại PRD cùng bảng Mặc định đề xuất (D2) | Quyết định của người dùng |
 
 ### Quyết định của người dùng
 
