@@ -854,6 +854,17 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         return familyId;
     }
 
+    private async Task<Guid> SeedPersonalRefreshTokenAsync(Account account, string rawToken)
+    {
+        await using AppDbContext context = CreateDbContext();
+        Guid familyId = Guid.NewGuid();
+        context.RefreshTokens.Add(RefreshToken.Create(new RefreshTokenParams(
+            account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddDays(1), null, null, false,
+            DateTime.UtcNow, null, familyId)));
+        await context.SaveChangesAsync();
+        return familyId;
+    }
+
     private async Task AssertRotatedIntoPersonalContextAsync(LoginResponse body, string oldRawToken, Guid familyId)
     {
         Assert.Null(body.OrganizationId);
@@ -869,35 +880,25 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         Assert.True(newToken.IsPersistent);
     }
 
-    [Fact]
-    public async Task Refresh_RemovedMember_Returns200WithNullOrganizationId()
+    // A removed member, or a suspended organization (AC-183, AC-199): the session survives in the personal context,
+    // so the client can show why the organization is gone instead of signing the person out.
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Refresh_RemovedMemberOrSuspendedOrganization_Returns200WithNullOrganizationId(
+        bool removed, bool suspended)
     {
         HttpClient client = fixture.CreateTestClient();
-        (Account account, Organization organization) = await SeedMemberAsync("removed-refresh", removed: true);
-        Guid familyId = await SeedOrganizationRefreshTokenAsync(account, organization.Id, "removed-refresh-token");
+        (Account account, Organization organization) =
+            await SeedMemberAsync($"lost-refresh-{removed}-{suspended}", removed: removed, suspended: suspended);
+        Guid familyId = await SeedOrganizationRefreshTokenAsync(account, organization.Id, "lost-refresh-token");
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
-            "/api/auth/refresh", new RefreshTokenRequest("removed-refresh-token"));
+            "/api/auth/refresh", new RefreshTokenRequest("lost-refresh-token"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
-        await AssertRotatedIntoPersonalContextAsync(body!, "removed-refresh-token", familyId);
-    }
-
-    // AC-183, AC-199: the session survives the suspension, so the client can show why the organization is gone.
-    [Fact]
-    public async Task Refresh_SuspendedOrganization_Returns200WithNullOrganizationId()
-    {
-        HttpClient client = fixture.CreateTestClient();
-        (Account account, Organization organization) = await SeedMemberAsync("suspended-refresh", suspended: true);
-        Guid familyId = await SeedOrganizationRefreshTokenAsync(account, organization.Id, "suspended-refresh-token");
-
-        HttpResponseMessage response = await client.PostAsJsonAsync(
-            "/api/auth/refresh", new RefreshTokenRequest("suspended-refresh-token"));
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
-        await AssertRotatedIntoPersonalContextAsync(body!, "suspended-refresh-token", familyId);
+        await AssertRotatedIntoPersonalContextAsync(body!, "lost-refresh-token", familyId);
     }
 
     [Fact]
@@ -917,8 +918,73 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
             "/api/auth/refresh", new RefreshTokenRequest("locked-removed-refresh-token"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(ApplicationMessages.InvalidRefreshToken, await ErrorCodeAsync(response));
         await using AppDbContext verifyContext = CreateDbContext();
-        Assert.Equal(1, await verifyContext.RefreshTokens.CountAsync(t => t.AccountId == account.Id));
+        RefreshToken stored = Assert.Single(
+            await verifyContext.RefreshTokens.Where(t => t.AccountId == account.Id).ToListAsync());
+        Assert.Null(stored.RevokedAt);
+    }
+
+    // SwitchOrganization
+
+    [Fact]
+    public async Task SwitchOrganization_ActiveMember_Returns200WithOrganization()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) = await SeedMemberAsync("active-switch");
+        Guid sessionId = await SeedPersonalRefreshTokenAsync(account, "active-switch-token");
+        client.DefaultRequestHeaders.Authorization =
+            new("Bearer", AuthTestHelper.MintAccessTokenForSession(account, sessionId));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.Equal(organization.Id, body!.OrganizationId);
+        Assert.Equal(LostOrganizationName, body.OrganizationName);
+        await using AppDbContext verifyContext = CreateDbContext();
+        RefreshToken previous = await verifyContext.RefreshTokens
+            .SingleAsync(t => t.TokenHash == ComputeSha256("active-switch-token"));
+        Assert.NotNull(previous.RevokedAt);
+        RefreshToken issued = await verifyContext.RefreshTokens
+            .SingleAsync(t => t.TokenHash == ComputeSha256(body.RefreshToken));
+        Assert.Equal(sessionId, issued.FamilyId);
+        Assert.Equal(organization.Id, issued.OrganizationId);
+        Assert.Null(issued.RevokedAt);
+    }
+
+    [Fact]
+    public async Task SwitchOrganization_NullOrganization_Returns200WithoutOrganization()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) = await SeedMemberAsync("null-switch");
+        client.DefaultRequestHeaders.Authorization =
+            new("Bearer", AuthTestHelper.MintAccessToken(account, organization.Id));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(null));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.Null(body!.OrganizationId);
+        Assert.Null(body.OrganizationName);
+        Assert.Empty(body.Permissions);
+        await using AppDbContext verifyContext = CreateDbContext();
+        RefreshToken issued = await verifyContext.RefreshTokens
+            .SingleAsync(t => t.TokenHash == ComputeSha256(body.RefreshToken));
+        Assert.Null(issued.OrganizationId);
+    }
+
+    [Fact]
+    public async Task SwitchOrganization_Unauthenticated_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // AC-301 (API-28)
