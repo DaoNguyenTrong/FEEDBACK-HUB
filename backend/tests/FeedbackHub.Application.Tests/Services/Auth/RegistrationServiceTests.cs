@@ -9,6 +9,7 @@ using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.Auth;
+using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Application.Tests.TestSupport;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
@@ -73,7 +74,13 @@ public class RegistrationServiceTests
         // Same rationale as AuthServiceTests: TokenIssuer has no I/O beyond the collaborators already
         // substituted here, so wiring the real implementation preserves VerifyEmailAsync's pre-split
         // token-issuing assertions unchanged.
-        ITokenIssuer tokenIssuer = new TokenIssuer(unitOfWork, jwtTokenService, permissionResolver, jwtOptions, Options.Create(new StorageSettings()));
+        ITokenIssuer tokenIssuer = new TokenIssuer(
+            unitOfWork,
+            jwtTokenService,
+            permissionResolver,
+            Substitute.For<ISystemAdministratorResolver>(),
+            jwtOptions,
+            Options.Create(new StorageSettings()));
 
         IDateTimeProvider clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(_ => DateTime.UtcNow);

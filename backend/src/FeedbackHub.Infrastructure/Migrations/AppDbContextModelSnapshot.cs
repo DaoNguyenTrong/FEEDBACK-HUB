@@ -732,6 +732,35 @@ namespace FeedbackHub.Infrastructure.Migrations
                     b.ToTable("stored_files", (string)null);
                 });
 
+            modelBuilder.Entity("FeedbackHub.Domain.Entities.SystemAdministrator", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique();
+
+                    b.ToTable("system_administrators", (string)null);
+                });
+
             modelBuilder.Entity("FeedbackHub.Domain.Entities.SystemSetting", b =>
                 {
                     b.Property<int>("Id")
@@ -993,6 +1022,15 @@ namespace FeedbackHub.Infrastructure.Migrations
                     b.HasOne("FeedbackHub.Domain.Entities.Organization", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FeedbackHub.Domain.Entities.SystemAdministrator", b =>
+                {
+                    b.HasOne("FeedbackHub.Domain.Entities.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

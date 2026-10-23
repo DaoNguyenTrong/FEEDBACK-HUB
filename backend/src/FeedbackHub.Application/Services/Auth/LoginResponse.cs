@@ -9,4 +9,5 @@ public sealed record LoginResponse(
     AccountDto Account,
     Guid? OrganizationId,
     string? OrganizationName,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    bool IsSystemAdministrator);

@@ -168,6 +168,9 @@
   <data name="OrganizationSuspended" xml:space="preserve">
     <value>Tổ chức này đang tạm ngừng hoạt động.</value>
   </data>
+  <data name="SystemAdministratorRequired" xml:space="preserve">
+    <value>Chỉ admin hệ thống làm được việc này.</value>
+  </data>
   <data name="ResourceNotFound" xml:space="preserve">
     <value>Không tìm thấy.</value>
   </data>

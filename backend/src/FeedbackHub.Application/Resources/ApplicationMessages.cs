@@ -32,6 +32,7 @@ public static class ApplicationMessages
     public const string EmailDeliveryFailed = nameof(EmailDeliveryFailed);
     public const string OrganizationAccessDenied = nameof(OrganizationAccessDenied);
     public const string OrganizationSuspended = nameof(OrganizationSuspended);
+    public const string SystemAdministratorRequired = nameof(SystemAdministratorRequired);
     public const string ResourceNotFound = nameof(ResourceNotFound);
     public const string OrganizationMemberAlreadyExists = nameof(OrganizationMemberAlreadyExists);
     public const string OrganizationCannotRemoveLastOwner = nameof(OrganizationCannotRemoveLastOwner);

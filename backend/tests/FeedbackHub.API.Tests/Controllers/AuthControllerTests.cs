@@ -230,6 +230,7 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
         Assert.False(string.IsNullOrWhiteSpace(body!.AccessToken));
+        Assert.False(body.IsSystemAdministrator);
         IEnumerable<string> setCookieHeaders = response.Headers.GetValues("Set-Cookie");
         string accessTokenCookie = Assert.Single(setCookieHeaders, h => h.StartsWith("access_token=", StringComparison.Ordinal));
         string refreshTokenCookie = Assert.Single(setCookieHeaders, h => h.StartsWith("refresh_token=", StringComparison.Ordinal));
@@ -809,6 +810,64 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         HttpResponseMessage response = await client.GetAsync("/api/permissions");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // System administrator flag (API-27)
+
+    private async Task GrantSystemAdministratorAsync(Guid accountId)
+    {
+        await using AppDbContext context = CreateDbContext();
+        context.SystemAdministrators.Add(SystemAdministrator.Create(new SystemAdministratorParams(accountId)));
+        await context.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Login_SystemAdministrator_ResponseHasIsSystemAdministratorTrue()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        Account account;
+        await using (AppDbContext context = CreateDbContext())
+        {
+            account = await AuthTestHelper.SeedConfirmedAccountAsync(
+                context,
+                username: "system-admin-login",
+                email: "system-admin-login@example.com",
+                passwordHash: BCrypt.Net.BCrypt.HashPassword("correct-password", FastPasswordHasher.WorkFactor));
+        }
+
+        await GrantSystemAdministratorAsync(account.Id);
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("system-admin-login", "correct-password"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.True(body!.IsSystemAdministrator);
+        using JsonDocument json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("isSystemAdministrator").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SwitchOrganization_Response_HasIsSystemAdministrator(bool isSystemAdministrator)
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) = await SeedMemberAsync($"system-admin-switch-{isSystemAdministrator}");
+        if (isSystemAdministrator)
+        {
+            await GrantSystemAdministratorAsync(account.Id);
+        }
+
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.Equal(organization.Id, body!.OrganizationId);
+        Assert.Equal(isSystemAdministrator, body.IsSystemAdministrator);
     }
 
     // Organization access lost (TECH00 §6.5, QĐ-31)

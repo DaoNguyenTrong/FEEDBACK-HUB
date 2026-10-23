@@ -3,6 +3,7 @@ using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Services.Accounts;
+using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
@@ -13,6 +14,7 @@ internal sealed class TokenIssuer(
     IUnitOfWork unitOfWork,
     IJwtTokenService jwtTokenService,
     IPermissionResolver permissionResolver,
+    ISystemAdministratorResolver systemAdministratorResolver,
     IOptions<JwtSettings> jwtOptions,
     IOptions<StorageSettings> storageOptions) : ITokenIssuer
 {
@@ -82,6 +84,9 @@ internal sealed class TokenIssuer(
             ? (await permissionResolver.GetEffectivePermissionsAsync(permissionOrgId, account.Id, cancellationToken)).ToList()
             : [];
 
+        bool isSystemAdministrator =
+            await systemAdministratorResolver.IsSystemAdministratorAsync(account.Id, cancellationToken);
+
         return new AuthResult(
             accessToken,
             refreshToken,
@@ -93,6 +98,7 @@ internal sealed class TokenIssuer(
             isPersistent,
             organizationId,
             organizationName,
-            permissions);
+            permissions,
+            isSystemAdministrator);
     }
 }
