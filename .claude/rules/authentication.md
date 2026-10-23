@@ -51,9 +51,13 @@ Each organization has its own roles (`Role`, system kinds `Owner`/`Admin`/`Membe
 - `ActiveOrganizationMemberOrNotFound` — the same, but outside it → 404 `ResourceNotFound` (BR-45).
 - `SignedInUser` — a signed-in person's JWT; never an API key.
 
-The organization gate (`OrganizationContextAuthorizationHandler`, TECH00 §5.1) checks in this order and answers
-the first failure: not signed in (401), not a member (403 or 404), organization suspended (403
-`OrganizationSuspended` with `organizationName`), missing permission (403 `OrganizationAccessDenied`).
+The organization gate (`OrganizationContextAuthorizationHandler`, TECH00 §5.1) backs the two
+`ActiveOrganizationMember*` policies and the `Permissions.ActiveOrganizationScoped` codes. It checks in this order
+and answers the first failure: not signed in (401), outside the organization — personal context, API key or
+non-member (403 or 404), organization suspended (403 `OrganizationSuspended` with `organizationName`), missing
+permission (403 `OrganizationAccessDenied`). The route-scoped codes (`organizations.manage`,
+`organizations.members.manage`, `organizations.roles.manage`) and `OrganizationMember` still check the `{id}`
+organization, with no suspended step, until those routes go (phase 3 Task 10, phase 4).
 Effective permissions resolve per request through a short-TTL cache, not the JWT. The frontend's
 `meta.permission` route gate is UI-only (`frontend-conventions.md`).
 

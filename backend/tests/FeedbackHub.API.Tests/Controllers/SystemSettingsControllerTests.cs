@@ -108,16 +108,24 @@ public sealed class SystemSettingsControllerTests(ApiFactoryFixture fixture) : I
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
-    public async Task GetAll_MemberWithoutSettingsManage_Returns403AccessDenied()
+    [Theory]
+    [InlineData("GET", "/api/system-settings")]
+    [InlineData("PUT", "/api/system-settings/Gate")]
+    public async Task AnyEndpoint_MemberWithoutSettingsManage_Returns403AccessDenied(string method, string path)
     {
         HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
             fixture, SystemRoleKind.Member);
+        HttpRequestMessage request = new(new HttpMethod(method), path);
+        if (method is "POST" or "PUT")
+        {
+            request.Content = JsonContent.Create(new { });
+        }
 
-        HttpResponseMessage response = await client.GetAsync("/api/system-settings");
+        HttpResponseMessage response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         JsonElement body = await response.Content.ReadJsonElementAsync();
         Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
+        Assert.False(body.TryGetProperty("organizationName", out _));
     }
 }

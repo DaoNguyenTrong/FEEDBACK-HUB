@@ -171,17 +171,20 @@ public class OrganizationContextAuthorizationHandlerTests
             Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task HandleAsync_SuspendedOrganizationGone_FailsByDenyModeWithoutName()
+    [Theory]
+    [InlineData(DenyMode.Forbidden, StatusCodes.Status403Forbidden, ApplicationMessages.OrganizationAccessDenied)]
+    [InlineData(DenyMode.NotFound, StatusCodes.Status404NotFound, ApplicationMessages.ResourceNotFound)]
+    public async Task HandleAsync_SuspendedOrganizationGone_FailsByDenyModeWithoutName(
+        DenyMode denyMode, int expectedStatus, string expectedCode)
     {
         Fixture f = CreateFixture(status: TenantAccessStatus.Suspended);
         f.OrganizationRepository.GetByIdAsync(f.OrganizationId, Arg.Any<CancellationToken>()).Returns((Organization?)null);
 
-        AuthorizationHandlerContext context = await AuthorizeAsync(f, null, DenyMode.NotFound);
+        AuthorizationHandlerContext context = await AuthorizeAsync(f, null, denyMode);
 
         CodedAuthorizationFailureReason reason = SingleCodedReason(context);
-        Assert.Equal(StatusCodes.Status404NotFound, reason.StatusCode);
-        Assert.Equal(ApplicationMessages.ResourceNotFound, reason.Code);
+        Assert.Equal(expectedStatus, reason.StatusCode);
+        Assert.Equal(expectedCode, reason.Code);
         Assert.Null(reason.OrganizationName);
     }
 

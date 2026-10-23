@@ -131,13 +131,21 @@ public sealed class ApiKeysControllerTests(ApiFactoryFixture fixture) : IAsyncLi
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
-    public async Task GetAll_MemberWithoutApiKeysManage_Returns403AccessDenied()
+    [Theory]
+    [InlineData("GET", "/api/admin/api-keys")]
+    [InlineData("POST", "/api/admin/api-keys")]
+    [InlineData("DELETE", "/api/admin/api-keys/00000000-0000-0000-0000-000000000001")]
+    public async Task AnyEndpoint_MemberWithoutApiKeysManage_Returns403AccessDenied(string method, string path)
     {
         HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
             fixture, SystemRoleKind.Member);
+        HttpRequestMessage request = new(new HttpMethod(method), path);
+        if (method is "POST" or "PUT")
+        {
+            request.Content = JsonContent.Create(new { });
+        }
 
-        HttpResponseMessage response = await client.GetAsync("/api/admin/api-keys");
+        HttpResponseMessage response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         JsonElement body = await response.Content.ReadJsonElementAsync();
