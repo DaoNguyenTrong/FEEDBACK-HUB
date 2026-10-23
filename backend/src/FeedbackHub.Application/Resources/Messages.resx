@@ -204,4 +204,7 @@
   <data name="InternalServerError" xml:space="preserve">
     <value>Đã có lỗi xảy ra. Vui lòng thử lại sau.</value>
   </data>
+  <data name="EmailDeliveryFailed" xml:space="preserve">
+    <value>Không gửi được email. Vui lòng thử lại sau.</value>
+  </data>
 </root>
