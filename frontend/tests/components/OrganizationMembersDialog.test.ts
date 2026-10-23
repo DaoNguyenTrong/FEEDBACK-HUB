@@ -71,17 +71,6 @@ describe('OrganizationMembersDialog', () => {
     expect(wrapper.find('form').exists()).toBe(true)
   })
 
-  it('only shows the deactivate button to a caller with organization-manage permission', async () => {
-    const organization = makeOrganization({
-      myPermissionCodes: ['organizations.members.manage'],
-    })
-    mockOrgEndpoints(organization.id, [], [makeRole()])
-
-    const { wrapper } = await openDialog(organization)
-
-    expect(wrapper.text()).not.toContain(en.organizations.deactivate)
-  })
-
   it('reassigns a member roles and shows the updated selection', async () => {
     const organization = makeOrganization()
     const member = makeMember()

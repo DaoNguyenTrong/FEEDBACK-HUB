@@ -8,6 +8,7 @@ export function makeOrganization(overrides: Partial<OrganizationDto> = {}): Orga
     slug: 'acme',
     status: true,
     myRoleNames: ['Owner'],
+    myRoles: [{ id: 'role-owner', name: 'Owner', systemKind: 'Owner' }],
     myPermissionCodes: [
       'organizations.manage',
       'organizations.members.manage',

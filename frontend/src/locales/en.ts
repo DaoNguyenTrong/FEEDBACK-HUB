@@ -261,9 +261,6 @@ export interface LocaleSchema {
     removeMemberConfirm: string
     memberRemoved: string
     memberRolesUpdated: string
-    deactivate: string
-    deactivateConfirm: string
-    deactivated: string
     roles: string
     rolesTitle: string
     rolesEmpty: string
@@ -579,10 +576,6 @@ const en: LocaleSchema = {
     removeMemberConfirm: 'Remove this member from the organization?',
     memberRemoved: 'Member removed',
     memberRolesUpdated: 'Roles updated',
-    deactivate: 'Deactivate organization',
-    deactivateConfirm:
-      'Deactivate this organization? All members will immediately lose access. This cannot be undone.',
-    deactivated: 'Organization deactivated',
     roles: 'Roles',
     rolesTitle: 'Roles of {name}',
     rolesEmpty: 'No roles yet.',

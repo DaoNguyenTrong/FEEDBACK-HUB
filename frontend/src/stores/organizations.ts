@@ -18,16 +18,10 @@ export const useOrganizationsStore = defineStore('organizations', () => {
     return organization
   }
 
-  async function deactivate(id: string): Promise<void> {
-    await client.organizationsDeactivate(id)
-    myOrganizations.value = myOrganizations.value.filter((organization) => organization.id !== id)
-  }
-
   return {
     myOrganizations,
     loaded,
     fetchMine,
     create,
-    deactivate,
   }
 })
