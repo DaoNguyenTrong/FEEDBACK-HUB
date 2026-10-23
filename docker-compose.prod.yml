@@ -17,9 +17,25 @@
 #   # then edit .env.prod: POSTGRES_USER/PASSWORD/DB
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 #
+# Configuration: the environment values below override appsettings.json, so to change the Redis or storage
+# endpoints edit this file or .env.prod, not appsettings.json. `migrate` and `api` share them (x-api-env).
+#
 # Scaling: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --scale api=N`.
 # `web`'s nginx proxies to `api:8080`; Docker DNS returns every replica, but nginx resolves the name once at
-# start. Restart `web` after changing N (`docker compose ... restart web`) so it sees the new replicas.
+# start and keeps those addresses. Restart `web` after scaling or redeploying `api`
+# (`docker compose ... restart web`) so it sees the current replicas.
+
+# Shared by `migrate` and `api`, so both build the host from the same configuration. `migrate` ignores
+# MigrateOnStartup: it always applies the migrations, then exits.
+x-api-env: &api-env
+  ASPNETCORE_ENVIRONMENT: Production
+  CacheSettings__Provider: Redis
+  RealtimeSettings__Backplane: Redis
+  RateLimiterSettings__Store: Redis
+  ConnectionStrings__Redis: redis:6379,abortConnect=false
+  StorageSettings__Provider: SeaweedFS
+  SeaweedFsSettings__ServiceUrl: http://seaweedfs:8333
+  DatabaseSettings__MigrateOnStartup: "false"
 
 services:
   postgres:
@@ -65,7 +81,7 @@ services:
       dockerfile: backend/Dockerfile
     command: ["migrate"]
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      <<: *api-env
     volumes:
       - ./backend/src/FeedbackHub.API/appsettings.json:/app/appsettings.json:ro
     depends_on:
@@ -79,17 +95,10 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      <<: *api-env
       # Trusts X-Forwarded-For/Proto only from this compose network (the nginx `web` service) —
       # must match the `default` network subnet declared below.
       ForwardedHeadersSettings__KnownNetworks__0: 172.28.0.0/16
-      CacheSettings__Provider: Redis
-      RealtimeSettings__Backplane: Redis
-      RateLimiterSettings__Store: Redis
-      ConnectionStrings__Redis: redis:6379,abortConnect=false
-      StorageSettings__Provider: SeaweedFS
-      SeaweedFsSettings__ServiceUrl: http://seaweedfs:8333
-      DatabaseSettings__MigrateOnStartup: "false"
     volumes:
       - ./backend/src/FeedbackHub.API/appsettings.json:/app/appsettings.json:ro
       - feedbackhub-api-logs:/app/logs
