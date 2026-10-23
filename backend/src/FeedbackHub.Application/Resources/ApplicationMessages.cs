@@ -19,7 +19,6 @@ public static class ApplicationMessages
     public const string AvatarInvalidImage = nameof(AvatarInvalidImage);
     public const string FileContentTypeNotAllowed = nameof(FileContentTypeNotAllowed);
     public const string AuthenticatedUserRequired = nameof(AuthenticatedUserRequired);
-    public const string AccountNotFound = nameof(AccountNotFound);
     public const string EmailNotConfirmed = nameof(EmailNotConfirmed);
     public const string EmailVerificationTokenInvalidOrExpired = nameof(EmailVerificationTokenInvalidOrExpired);
     public const string EmailAlreadyConfirmed = nameof(EmailAlreadyConfirmed);
@@ -36,7 +35,6 @@ public static class ApplicationMessages
     public const string SystemAdministratorRequired = nameof(SystemAdministratorRequired);
     public const string DeactivationReasonRequired = nameof(DeactivationReasonRequired);
     public const string ResourceNotFound = nameof(ResourceNotFound);
-    public const string OrganizationMemberAlreadyExists = nameof(OrganizationMemberAlreadyExists);
     public const string OrganizationCannotRemoveLastOwner = nameof(OrganizationCannotRemoveLastOwner);
     public const string OrganizationSlugAlreadyExists = nameof(OrganizationSlugAlreadyExists);
     public const string OrganizationRoleNameAlreadyExists = nameof(OrganizationRoleNameAlreadyExists);

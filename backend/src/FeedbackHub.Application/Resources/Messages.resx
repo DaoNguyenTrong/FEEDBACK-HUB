@@ -123,9 +123,6 @@
   <data name="FieldRegularExpression" xml:space="preserve">
     <value>Trường này không đúng định dạng yêu cầu.</value>
   </data>
-  <data name="AccountNotFound" xml:space="preserve">
-    <value>Tài khoản không tìm thấy.</value>
-  </data>
   <data name="EmailVerificationTokenRequired" xml:space="preserve">
     <value>Token xác thực email là bắt buộc.</value>
   </data>
@@ -179,9 +176,6 @@
   </data>
   <data name="ResourceNotFound" xml:space="preserve">
     <value>Không tìm thấy.</value>
-  </data>
-  <data name="OrganizationMemberAlreadyExists" xml:space="preserve">
-    <value>Tài khoản đã là thành viên của tổ chức này.</value>
   </data>
   <data name="OrganizationCannotRemoveLastOwner" xml:space="preserve">
     <value>Không thể xóa hoặc đổi vai trò của chủ sở hữu cuối cùng trong tổ chức.</value>

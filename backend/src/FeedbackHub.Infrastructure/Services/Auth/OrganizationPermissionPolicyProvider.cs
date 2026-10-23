@@ -5,9 +5,8 @@ using FeedbackHub.Application.Common.Authorization;
 namespace FeedbackHub.Infrastructure.Services.Auth;
 
 /// <summary>
-/// Turns any <see cref="Permissions"/> code used as a policy name into a policy (no per-permission <c>AddPolicy</c>):
-/// <see cref="Permissions.ActiveOrganizationScoped"/> codes get <see cref="OrganizationContextRequirement"/>, the rest
-/// <see cref="OrganizationPermissionRequirement"/> (<c>{id}</c> route); other names use the default provider.
+/// Turns any <see cref="Permissions"/> code used as a policy name into an <see cref="OrganizationContextRequirement"/>
+/// checked in the JWT's organization (no per-permission <c>AddPolicy</c>); other names use the default provider.
 /// </summary>
 internal sealed class OrganizationPermissionPolicyProvider(IOptions<AuthorizationOptions> options)
     : IAuthorizationPolicyProvider
@@ -20,24 +19,15 @@ internal sealed class OrganizationPermissionPolicyProvider(IOptions<Authorizatio
 
     public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
-        if (Permissions.ActiveOrganizationScoped.Contains(policyName))
+        if (!Permissions.All.Contains(policyName))
         {
-            AuthorizationPolicy activeOrgPolicy = new AuthorizationPolicyBuilder()
-                .AddRequirements(new OrganizationContextRequirement(policyName, DenyMode.Forbidden))
-                .Build();
-
-            return Task.FromResult<AuthorizationPolicy?>(activeOrgPolicy);
+            return fallback.GetPolicyAsync(policyName);
         }
 
-        if (Permissions.All.Contains(policyName))
-        {
-            AuthorizationPolicy policy = new AuthorizationPolicyBuilder()
-                .AddRequirements(new OrganizationPermissionRequirement(policyName))
-                .Build();
+        AuthorizationPolicy policy = new AuthorizationPolicyBuilder()
+            .AddRequirements(new OrganizationContextRequirement(policyName, DenyMode.Forbidden))
+            .Build();
 
-            return Task.FromResult<AuthorizationPolicy?>(policy);
-        }
-
-        return fallback.GetPolicyAsync(policyName);
+        return Task.FromResult<AuthorizationPolicy?>(policy);
     }
 }

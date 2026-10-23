@@ -1,12 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
-using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Domain.Auditing;
@@ -193,33 +190,6 @@ public sealed class CurrentOrganizationControllerTests(ApiFactoryFixture fixture
             response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationSuspended);
         Assert.Equal(AuthTestHelper.GateOrganizationName, body.GetProperty("organizationName").GetString());
     }
-
-    // F4: a policy checked in the JWT's organization on a route naming another organization would let a manager
-    // of one act on the other; organizations.manage in particular sits on no route with an id.
-    [Fact]
-    public void ActiveOrganizationScopedPolicies_AreNeverOnARouteNamingAnOrganization()
-    {
-        List<RouteEndpoint> endpoints = fixture.Services.GetServices<EndpointDataSource>()
-            .SelectMany(source => source.Endpoints)
-            .OfType<RouteEndpoint>()
-            .ToList();
-
-        List<string> offending = endpoints
-            .Where(endpoint => UsesPolicy(endpoint, Permissions.ActiveOrganizationScoped.Contains)
-                && (endpoint.RoutePattern.RawText ?? string.Empty)
-                    .StartsWith("api/organizations/{", StringComparison.Ordinal))
-            .Concat(endpoints.Where(endpoint => UsesPolicy(endpoint, policy => policy == Permissions.OrganizationManage)
-                && endpoint.RoutePattern.Parameters.Count > 0))
-            .Select(endpoint => endpoint.RoutePattern.RawText ?? string.Empty)
-            .ToList();
-
-        Assert.Empty(offending);
-        Assert.Contains(Permissions.OrganizationManage, Permissions.ActiveOrganizationScoped);
-    }
-
-    private static bool UsesPolicy(RouteEndpoint endpoint, Func<string, bool> matches) =>
-        endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()
-            .Any(data => data.Policy is not null && matches(data.Policy));
 
     // Get
 

@@ -9,6 +9,4 @@ public interface IOrganizationService
 
     /// <summary>Every organization the caller is an active member of, deactivated ones included.</summary>
     Task<IReadOnlyList<OrganizationDto>> ListMineAsync(CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<OrganizationMemberDto>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken);
 }

@@ -106,36 +106,6 @@ public sealed class OrganizationService(
         return result;
     }
 
-    public async Task<IReadOnlyList<OrganizationMemberDto>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken)
-    {
-        IReadOnlyList<OrganizationMember> members = await unitOfWork.Repository<OrganizationMember, Guid>()
-            .ListAsync(m => m.OrganizationId == organizationId && m.IsActive, cancellationToken);
-
-        Dictionary<Guid, List<Role>> rolesByMembershipId = await LoadRolesByMembershipIdAsync(
-            members.Select(m => m.Id).ToList(), cancellationToken);
-
-        IRepository<Account, Guid> accountRepository = unitOfWork.Repository<Account, Guid>();
-        List<OrganizationMemberDto> result = [];
-
-        foreach (OrganizationMember member in members)
-        {
-            Account? account = await accountRepository.GetByIdAsync(member.AccountId, cancellationToken);
-
-            if (account is not null)
-            {
-                List<Role> roles = rolesByMembershipId.GetValueOrDefault(member.Id, []);
-                result.Add(new OrganizationMemberDto(
-                    account.Id,
-                    account.Name,
-                    account.Email,
-                    roles.Select(role => role.Id).ToList(),
-                    roles.Select(role => role.Name).ToList()));
-            }
-        }
-
-        return result;
-    }
-
     private async Task<Dictionary<Guid, List<Role>>> LoadRolesByMembershipIdAsync(
         IReadOnlyList<Guid> membershipIds, CancellationToken cancellationToken)
     {

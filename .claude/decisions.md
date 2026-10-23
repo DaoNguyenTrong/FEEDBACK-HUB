@@ -10,6 +10,10 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-23 — Organization administration takes the organization only from the JWT; no route carries an organization id
+
+A route parameter naming the organization is a second, client-chosen selector next to `org_id`: a check made in one could authorize acting on the other, and a foreign object answers 403 instead of the 404 BR-45 requires. Every permission code therefore resolves through the organization gate. Rejected: keeping the `{id}` routes with 404s, and a release that serves both route shapes.
+
 ### 2026-10-23 — Refreshing into an organization the account can no longer enter issues a token with no organization
 
 A refresh that failed would log the person out although their identity is still valid, and a silent success would keep a stale organization claim. Issuing `org_id = null` keeps the session and lets the client choose another organization or the personal context. Rejected: rejecting the refresh, and trusting the old claim until it expires.
