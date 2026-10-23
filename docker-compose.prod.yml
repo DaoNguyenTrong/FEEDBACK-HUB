@@ -1,17 +1,24 @@
-# Production, single-instance by default (CacheSettings:Provider=Memory, RealtimeSettings:Backplane=None).
-# This file does not run a Redis container — Redis is expected to be provided by the deploy environment.
-# To scale `api` beyond 1 replica: point ConnectionStrings:Redis at a Redis reachable from this compose
-# network (a managed service, or a host Redis via host.docker.internal + an `extra_hosts` entry on `api`),
-# then set CacheSettings:Provider=Redis and RealtimeSettings:Backplane=Redis in appsettings.json.
-# Use `abortConnect=false` in the connection string so `api` doesn't crash on boot if Redis lags.
+# Production, multi-instance ready: several `api` replicas share Redis (cache, SignalR backplane, rate
+# limits) and SeaweedFS (uploaded files). Redis and shared file storage are required, not optional; the
+# API refuses to start in Production without them (ProductionTopologyValidator).
+#
+# Services: postgres, redis (noeviction, see .claude/decisions.md 2026-10-16), seaweedfs, a one-shot
+# `migrate` (applies EF migrations, then exits), api, web. `api` starts only after `migrate` succeeded and
+# runs with DatabaseSettings:MigrateOnStartup=false, so replicas never race on the schema.
 #
 # Setup:
 #   cp backend/src/FeedbackHub.API/appsettings.Example.json backend/src/FeedbackHub.API/appsettings.json
 #   # then edit appsettings.json: ConnectionStrings (Host=postgres), JwtSettings, CorsSettings,
-#   # EmailSettings, ExternalAuthSettings, FcmSettings with real production values
+#   # EmailSettings, ExternalAuthSettings, FcmSettings with real production values. Two keys are required
+#   # of the operator: EmailSettings:SecureSocket (SslOnConnect or StartTls) and the SeaweedFS S3 keys
+#   # SeaweedFsSettings:AccessKey / SecretKey (this file sets only the service URL and the provider).
 #   cp .env.prod.example .env.prod
 #   # then edit .env.prod: POSTGRES_USER/PASSWORD/DB
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Scaling: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --scale api=N`.
+# `web`'s nginx proxies to `api:8080`; Docker DNS returns every replica, but nginx resolves the name once at
+# start. Restart `web` after changing N (`docker compose ... restart web`) so it sees the new replicas.
 
 services:
   postgres:
@@ -29,7 +36,44 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:8-alpine
+    # noeviction is mandatory: cache generation counters must never be evicted (decisions.md 2026-10-16).
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - feedbackhub-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.39
+    command: server -s3 -filer -dir=/data
+    volumes:
+      - feedbackhub-seaweedfs-data:/data
+    restart: unless-stopped
+
+  # One-shot: applies EF migrations with the api image, then exits. `api` waits for it to complete.
+  migrate:
+    image: feedbackhub-api:prod
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["migrate"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    volumes:
+      - ./backend/src/FeedbackHub.API/appsettings.json:/app/appsettings.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
+    image: feedbackhub-api:prod
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -38,13 +82,25 @@ services:
       # Trusts X-Forwarded-For/Proto only from this compose network (the nginx `web` service) —
       # must match the `default` network subnet declared below.
       ForwardedHeadersSettings__KnownNetworks__0: 172.28.0.0/16
+      CacheSettings__Provider: Redis
+      RealtimeSettings__Backplane: Redis
+      RateLimiterSettings__Store: Redis
+      ConnectionStrings__Redis: redis:6379,abortConnect=false
+      StorageSettings__Provider: SeaweedFS
+      SeaweedFsSettings__ServiceUrl: http://seaweedfs:8333
+      DatabaseSettings__MigrateOnStartup: "false"
     volumes:
       - ./backend/src/FeedbackHub.API/appsettings.json:/app/appsettings.json:ro
-      - feedbackhub-api-uploads:/app/uploads
       - feedbackhub-api-logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_started
     # /api/health answers without the database or the X-TimeZone header. The aspnet image has no curl/wget,
     # so bash's /dev/tcp sends the one request. The Host header must pass AllowedHosts if you narrow it.
     healthcheck:
@@ -59,7 +115,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 60s # migrations run on startup
+      start_period: 20s # migrations run in the `migrate` service
     restart: unless-stopped
 
   web:
@@ -103,5 +159,6 @@ networks:
 
 volumes:
   feedbackhub-postgres-data:
-  feedbackhub-api-uploads:
+  feedbackhub-redis-data:
+  feedbackhub-seaweedfs-data:
   feedbackhub-api-logs:
