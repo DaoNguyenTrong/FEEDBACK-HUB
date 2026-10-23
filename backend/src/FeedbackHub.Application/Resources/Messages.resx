@@ -66,6 +66,9 @@
   <data name="PasswordChangeTemporarilyLocked" xml:space="preserve">
     <value>Đổi mật khẩu tạm thời bị khoá do nhập sai mật khẩu hiện tại nhiều lần. Vui lòng thử lại sau ít phút.</value>
   </data>
+  <data name="EmailChangeTemporarilyLocked" xml:space="preserve">
+    <value>Tạm khoá đổi email, thử lại sau.</value>
+  </data>
   <data name="InvalidRefreshToken" xml:space="preserve">
     <value>Refresh token không hợp lệ.</value>
   </data>

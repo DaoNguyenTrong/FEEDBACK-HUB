@@ -17,6 +17,7 @@ public sealed class AccountService(
     IOptions<LoginLockoutSettings> lockoutOptions,
     IStorageService storageService,
     IOptions<StorageSettings> storageOptions,
+    EmailChangeLink emailChangeLink,
     ILogger<AccountService> logger) : IAccountService
 {
     public const long MaxAvatarBytes = 2 * 1024 * 1024;
@@ -42,23 +43,46 @@ public sealed class AccountService(
         Account account = await GetCurrentAccountAsync(cancellationToken);
 
         string email = Account.NormalizeEmail(request.Email);
-        if (await repository.FirstOrDefaultAsync(
+        bool emailChanges = email != account.Email && email != account.PendingEmail;
+
+        if (emailChanges && !string.IsNullOrWhiteSpace(account.PasswordHash))
+        {
+            // Before the attempt counter: a missing password is a malformed request, not a guess.
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+            {
+                throw new DomainException("FieldRequired");
+            }
+
+            await EnsureCurrentPasswordAsync(account, request.CurrentPassword, cancellationToken);
+        }
+
+        if (emailChanges
+            && await repository.FirstOrDefaultAsync(
                 candidate => candidate.Email == email && candidate.Id != account.Id,
                 cancellationToken) is not null)
         {
             throw new ConflictException(ApplicationMessages.AccountEmailAlreadyExists);
         }
 
+        // The email only ever changes through the confirmed link, so Update always keeps the current one.
         account.Update(new AccountParams(
             request.Name,
             account.Username,
-            request.Email,
+            account.Email,
             request.Phone,
             request.Position,
             request.Address));
 
-        repository.Update(account);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (emailChanges)
+        {
+            account.RequestEmailChange(email);
+            await emailChangeLink.IssueAsync(account, cancellationToken);
+        }
+        else
+        {
+            repository.Update(account);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         return ToProfile(account);
     }
@@ -176,6 +200,39 @@ public sealed class AccountService(
 
         repository.Update(account);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    // Same scheme as ChangePasswordAsync on the email-change counter: reserved before the check, locked on the last
+    // allowed miss with a token that an aborted request cannot cancel, cleared on success.
+    private async Task EnsureCurrentPasswordAsync(Account account, string password, CancellationToken cancellationToken)
+    {
+        DateTime utcNow = DateTime.UtcNow;
+        int? attempt = await passwordAttemptStore.ReserveAttemptAsync(
+            PasswordAttemptPurpose.EmailChange,
+            account.Id,
+            utcNow,
+            TimeSpan.FromMinutes(lockoutSettings.WindowMinutes),
+            cancellationToken);
+        if (attempt is not { } attemptNumber || attemptNumber > lockoutSettings.MaxFailedAttempts)
+        {
+            throw new UnauthorizedException(ApplicationMessages.EmailChangeTemporarilyLocked);
+        }
+
+        if (!passwordHasher.Verify(password, account.PasswordHash!))
+        {
+            if (attemptNumber == lockoutSettings.MaxFailedAttempts)
+            {
+                await passwordAttemptStore.LockAsync(
+                    PasswordAttemptPurpose.EmailChange,
+                    account.Id,
+                    utcNow.AddMinutes(lockoutSettings.LockDurationMinutes),
+                    CancellationToken.None);
+            }
+
+            throw new UnauthorizedException(ApplicationMessages.InvalidCurrentPassword);
+        }
+
+        await passwordAttemptStore.ClearAsync(PasswordAttemptPurpose.EmailChange, account.Id, cancellationToken);
     }
 
     private ProfileDto ToProfile(Account account) =>

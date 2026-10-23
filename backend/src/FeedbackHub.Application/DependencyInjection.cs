@@ -21,6 +21,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<EmailChangeLink>();
         services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<ITokenIssuer, TokenIssuer>();
         services.AddScoped<IAuthService, AuthService>();

@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace FeedbackHub.Application.Services.Auth;
+namespace FeedbackHub.Application.Common;
 
 internal static class TokenHash
 {

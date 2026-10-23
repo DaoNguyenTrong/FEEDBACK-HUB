@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;

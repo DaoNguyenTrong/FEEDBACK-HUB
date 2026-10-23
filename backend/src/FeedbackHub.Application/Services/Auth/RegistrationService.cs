@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;

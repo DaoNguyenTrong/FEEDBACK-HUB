@@ -6,6 +6,7 @@ public static class ApplicationMessages
     public const string AccountTemporarilyLocked = nameof(AccountTemporarilyLocked);
     public const string InvalidCurrentPassword = nameof(InvalidCurrentPassword);
     public const string PasswordChangeTemporarilyLocked = nameof(PasswordChangeTemporarilyLocked);
+    public const string EmailChangeTemporarilyLocked = nameof(EmailChangeTemporarilyLocked);
     public const string RefreshTokenRequired = nameof(RefreshTokenRequired);
     public const string InvalidRefreshToken = nameof(InvalidRefreshToken);
     public const string AccountUsernameAlreadyExists = nameof(AccountUsernameAlreadyExists);

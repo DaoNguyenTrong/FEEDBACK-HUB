@@ -81,7 +81,7 @@ public sealed class ProfileControllerTests(ApiFactoryFixture fixture) : IAsyncLi
         Account account;
         await using (AppDbContext context = CreateDbContext())
         {
-            account = await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "profile-update-user", email: "profile-update@example.com");
+            account = await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "profile-update-user", email: "profile-update@example.com", passwordHash: null);
             await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "profile-taken-user", email: "profile-taken@example.com");
         }
         client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account));
