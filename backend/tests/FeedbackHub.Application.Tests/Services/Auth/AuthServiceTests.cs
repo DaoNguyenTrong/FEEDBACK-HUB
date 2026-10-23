@@ -624,13 +624,16 @@ public class AuthServiceTests
         Assert.False(account.EmailConfirmed);
     }
 
-    [Fact]
-    public async Task ExternalLoginAsync_UnlinkedTokenWithoutEmail_ThrowsNotVerifiedByProviderAndCreatesNothing()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ExternalLoginAsync_UnlinkedTokenWithoutEmail_ThrowsNotVerifiedByProviderAndCreatesNothing(string? tokenEmail)
     {
         Fixture f = CreateFixture();
         SeedExternalLogin(f, null);
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Info("sub-n", null, true));
+            .Returns(Info("sub-n", tokenEmail, true));
 
         await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
             ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
@@ -700,6 +703,7 @@ public class AuthServiceTests
 
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
