@@ -188,7 +188,7 @@ Expected: PASS.
     - thẻ *Tạo tổ chức mới* mở `CreateOrganizationSheet`, kèm dòng "Hoặc nhờ người quản lý gửi lời mời qua email.";
     - không có tổ chức nào → "Chưa có tổ chức? Tạo tổ chức mới, hoặc nhờ người quản lý gửi lời mời qua email." (AC-74, AC-303);
     - mọi tổ chức đều tạm ngừng → `InlineNotice tone="warning"`: "{names} đang tạm ngừng hoạt động. Liên hệ admin hệ thống FeedbackHub để mở lại." (`names` nối ", ", AC-184);
-    - có `consumeSuspendedNotice()` → `InlineNotice tone="warning"`: "{name} vừa tạm ngừng hoạt động. Việc bạn vừa làm chưa được thực hiện. Liên hệ admin hệ thống FeedbackHub để mở lại." (AC-199, AC-301). Câu cuối thêm so với bảng *OrgContext* để đạt AC-301; khai trong PR.
+    - có `consumeSuspendedNotice()` → `InlineNotice tone="info"` (theo bảng *OrgContext*, người dùng duyệt 2026-10-23): "{name} vừa tạm ngừng hoạt động. Việc bạn vừa làm chưa được thực hiện. Liên hệ admin hệ thống FeedbackHub để mở lại." (AC-199, AC-301). Bảng *OrgContext* đã có câu cuối.
   - Locale `welcome.*` cho các câu trên và `welcome.systemOrganizations` (vi "Các tổ chức", en "Organizations") (en: "Hi {name}", "Choose an organization to continue", "No organization yet? Create one, or ask a manager to send you an invitation by email.", "Create a new organization", "Or ask a manager to send you an invitation by email.", "{names} is suspended. Contact the FeedbackHub system administrator to reopen it.", "{name} has just been suspended. What you just did wasn't carried out. Contact the FeedbackHub system administrator to reopen it.").
 
 - [ ] **Step 1: Viết test thất bại**
@@ -796,9 +796,8 @@ Expected: PASS.
 
 ## Lệch thiết kế khai trong PR
 
-- Thông báo "vừa tạm ngừng" trên trang chào thêm câu "Liên hệ admin hệ thống FeedbackHub để mở lại." so với bảng *OrgContext*, để đạt AC-301.
 - Không hiện dòng "Gửi kèm email báo các Chủ sở hữu." dưới ô lý do cho tới khi TECH05 gửi thư thật (đã chốt 1).
-- Trang chào có thêm link chữ *Các tổ chức* cho admin hệ thống (đã chốt 2); sau khi tự vô hiệu tổ chức đang làm việc, người làm về trang chào không có thông báo (đã chốt 3). Ui-designer bổ sung link vào bảng *OrgContext*.
+- Sau khi tự vô hiệu tổ chức đang làm việc, người làm về trang chào không có thông báo (đã chốt 3). Link *Các tổ chức* và câu "Liên hệ admin hệ thống…" đã có trên bảng *OrgContext* (người dùng duyệt 2026-10-23); khổ máy tính bảng dùng chung bố cục khổ máy tính.
 - Câu nhật ký `MemberRemoved` thêm vai trò trước đó vì danh mục §3.7 khai `roles[]` cho loại này.
 
 ## Câu hỏi mở
