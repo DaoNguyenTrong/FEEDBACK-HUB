@@ -23,4 +23,8 @@ public sealed class AuditLog
     public string? UserAgent { get; set; }
 
     public DateTime Timestamp { get; set; }
+
+    public AuditLogKind Kind { get; set; }
+
+    public string? ActorKind { get; set; }
 }

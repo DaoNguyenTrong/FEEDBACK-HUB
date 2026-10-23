@@ -767,9 +767,14 @@ namespace FeedbackHub.Infrastructure.Migrations
 
                     b.Property<string>("Action")
                         .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorKind")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasColumnName("action");
+                        .HasColumnName("actor_kind");
 
                     b.Property<string>("EntityId")
                         .IsRequired()
@@ -787,6 +792,14 @@ namespace FeedbackHub.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("ip_address");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Change")
+                        .HasColumnName("kind");
 
                     b.Property<string>("NewValues")
                         .HasColumnType("jsonb")
@@ -825,6 +838,11 @@ namespace FeedbackHub.Infrastructure.Migrations
                     b.HasIndex("Timestamp");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("OrganizationId", "Timestamp", "Id")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_audit_logs_event_keyset")
+                        .HasFilter("kind = 'Event'");
 
                     b.ToTable("audit_logs", (string)null);
                 });
