@@ -28,12 +28,19 @@ public sealed class AuditTrailTests(PostgresContainerFixture fixture)
         return clock;
     }
 
-    private AppDbContext CreateContext(IHttpContextAccessor? accessor = null)
+    private AppDbContext CreateContext(IHttpContextAccessor? accessor = null, string? callerUserId = null)
     {
+        ICurrentUserService? caller = null;
+        if (callerUserId is not null)
+        {
+            caller = Substitute.For<ICurrentUserService>();
+            caller.UserId.Returns(callerUserId);
+        }
+
         DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(fixture.ConnectionString)
             .Options;
-        return new AppDbContext(options, Clock(), null, accessor);
+        return new AppDbContext(options, Clock(), caller, accessor);
     }
 
     private async Task<List<AuditLog>> EventsOfAsync(Guid organizationId)
@@ -52,11 +59,12 @@ public sealed class AuditTrailTests(PostgresContainerFixture fixture)
         http.Request.Headers.UserAgent = "TestAgent/1.0";
         IHttpContextAccessor accessor = Substitute.For<IHttpContextAccessor>();
         accessor.HttpContext.Returns(http);
-        Guid otherOrganization = Guid.NewGuid();
+        // AppDbContext has no tenant input, so "JWT org B" is modelled through the caller identity (account C).
+        Guid otherCaller = Guid.NewGuid();
         Guid actor = Guid.NewGuid();
         Organization organization = NewOrganization();
 
-        await using (AppDbContext context = CreateContext(accessor))
+        await using (AppDbContext context = CreateContext(accessor, otherCaller.ToString()))
         {
             context.Organizations.Add(organization);
             AuditTrail trail = new(context, Clock());
@@ -67,8 +75,9 @@ public sealed class AuditTrailTests(PostgresContainerFixture fixture)
         }
 
         AuditLog row = Assert.Single(await EventsOfAsync(organization.Id));
-        Assert.NotEqual(otherOrganization, row.OrganizationId);
+        Assert.Equal(organization.Id, row.OrganizationId);
         Assert.Equal(actor.ToString(), row.UserId);
+        Assert.NotEqual(otherCaller.ToString(), row.UserId);
         Assert.Equal("Account", row.ActorKind);
         Assert.Equal("OrganizationDeactivated", row.Action);
         Assert.Equal("Organization", row.EntityName);
@@ -170,14 +179,14 @@ public sealed class AuditTrailTests(PostgresContainerFixture fixture)
         UnitOfWork unitOfWork = new(context, null!);
         AuditTrail trail = new(context, Clock());
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.ExecuteInTransactionAsync(async ct =>
+        await Assert.ThrowsAsync<LaterStepFailedException>(() => unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             context.Organizations.Add(organization);
             await trail.RecordAsync(
                 AuditEvent.For(organization, AuditEventType.OrganizationDeactivated, ActorKind.Account, Guid.NewGuid()),
                 ct);
             await unitOfWork.SaveChangesAsync(ct);
-            throw new InvalidOperationException("later step failed");
+            throw new LaterStepFailedException();
         }));
 
         Assert.Empty(await EventsOfAsync(organization.Id));
@@ -241,8 +250,7 @@ public sealed class AuditTrailTests(PostgresContainerFixture fixture)
                 "SELECT indexdef AS \"Value\" FROM pg_indexes WHERE indexname = 'IX_audit_logs_event_keyset'")
             .SingleAsync();
         Assert.Contains("organization_id, \"timestamp\" DESC, id DESC", definition);
-        Assert.Contains("WHERE", definition);
-        Assert.Contains("Event", definition);
+        Assert.EndsWith("WHERE ((kind)::text = 'Event'::text)", definition);
     }
 
     [Fact]
@@ -251,4 +259,6 @@ public sealed class AuditTrailTests(PostgresContainerFixture fixture)
         Type[] parameters = [.. typeof(AuditTrail).GetConstructors().Single().GetParameters().Select(p => p.ParameterType)];
         Assert.Equal([typeof(AppDbContext), typeof(IDateTimeProvider)], parameters);
     }
+
+    private sealed class LaterStepFailedException : Exception;
 }
