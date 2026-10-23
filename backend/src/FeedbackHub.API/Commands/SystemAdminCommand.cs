@@ -7,8 +7,13 @@ namespace FeedbackHub.API.Commands;
 /// call the service, print one line. Exit codes: 0 done (or nothing to do), 1 bad usage, 2 no such account,
 /// 3 email not verified. Output carries the username and account id, never the email.
 /// </summary>
-public abstract class SystemAdminCommand : ICliCommand
+public abstract class SystemAdminCommand(TextWriter? output, TextWriter? error) : ICliCommand
 {
+    // Resolved per call so a command built once still follows a redirected Console; tests pass their own writers.
+    private TextWriter Output => output ?? Console.Out;
+
+    private TextWriter Error => error ?? Console.Error;
+
     public abstract string Verb { get; }
 
     public string Usage => "--email <email>";
@@ -18,7 +23,7 @@ public abstract class SystemAdminCommand : ICliCommand
 
     public async Task<int> RunAsync(IServiceProvider services, string[] args, CancellationToken cancellationToken)
     {
-        if (args.Length != 2 || args[0] != "--email" || string.IsNullOrWhiteSpace(args[1]))
+        if (args.Length != 2 || !string.Equals(args[0], "--email", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(args[1]))
         {
             return 1;
         }
@@ -30,22 +35,22 @@ public abstract class SystemAdminCommand : ICliCommand
         switch (change.Outcome)
         {
             case SystemAdministratorChangeOutcome.Granted:
-                Console.WriteLine($"Granted system administrator to {who}.");
+                Output.WriteLine($"Granted system administrator to {who}.");
                 return 0;
             case SystemAdministratorChangeOutcome.AlreadyGranted:
-                Console.WriteLine($"{who} is already a system administrator.");
+                Output.WriteLine($"{who} is already a system administrator.");
                 return 0;
             case SystemAdministratorChangeOutcome.Revoked:
-                Console.WriteLine($"Revoked system administrator from {who}.");
+                Output.WriteLine($"Revoked system administrator from {who}.");
                 return 0;
             case SystemAdministratorChangeOutcome.NotGranted:
-                Console.WriteLine($"{who} is not a system administrator.");
+                Output.WriteLine($"{who} is not a system administrator.");
                 return 0;
             case SystemAdministratorChangeOutcome.AccountNotFound:
-                Console.Error.WriteLine("No account has this email.");
+                Error.WriteLine("No account has this email.");
                 return 2;
             case SystemAdministratorChangeOutcome.EmailNotConfirmed:
-                Console.Error.WriteLine(
+                Error.WriteLine(
                     "This account's email is not verified. Ask the person to verify it, then run the command again.");
                 return 3;
             default:

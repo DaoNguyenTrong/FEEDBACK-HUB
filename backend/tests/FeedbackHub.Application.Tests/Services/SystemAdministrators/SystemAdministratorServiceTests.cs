@@ -1,8 +1,10 @@
 using NSubstitute;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Application.Tests.TestSupport;
 using FeedbackHub.Domain.Entities;
+using FeedbackHub.Domain.Exceptions;
 using FeedbackHub.Domain.Interfaces;
 
 namespace FeedbackHub.Application.Tests.Services.SystemAdministrators;
@@ -64,6 +66,21 @@ public class SystemAdministratorServiceTests
             Arg.Is<SystemAdministrator>(row => row.AccountId == account.Id), Arg.Any<CancellationToken>());
         await fixture.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         await fixture.Resolver.Received(1).InvalidateAsync(account.Id, Arg.Any<CancellationToken>());
+    }
+
+    // Two grants raced and the unique index let the other one in first.
+    [Fact]
+    public async Task GrantAsync_SaveHitsUniqueIndex_ReturnsAlreadyGrantedWithoutInvalidating()
+    {
+        Account account = CreateAccount(confirmed: true);
+        Fixture fixture = CreateFixture(account);
+        fixture.UnitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new ConflictException(ApplicationMessages.SystemAdministratorAlreadyGranted));
+
+        SystemAdministratorChange change = await fixture.Service.GrantAsync(Email, CancellationToken.None);
+
+        Assert.Equal(new SystemAdministratorChange(SystemAdministratorChangeOutcome.AlreadyGranted, account.Id, "boss"), change);
+        await fixture.Resolver.DidNotReceive().InvalidateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     // AC-351: an unverified email cannot be trusted to belong to the person.

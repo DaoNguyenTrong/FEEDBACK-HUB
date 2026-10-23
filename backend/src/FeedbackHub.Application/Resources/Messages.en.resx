@@ -81,6 +81,9 @@
   <data name="AccountEmailAlreadyExists" xml:space="preserve">
     <value>Account email already exists.</value>
   </data>
+  <data name="SystemAdministratorAlreadyGranted" xml:space="preserve">
+    <value>This account is already a system administrator.</value>
+  </data>
   <data name="FileIsRequired" xml:space="preserve">
     <value>File is required.</value>
   </data>

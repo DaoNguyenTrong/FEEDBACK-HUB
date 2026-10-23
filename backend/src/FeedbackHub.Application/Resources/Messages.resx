@@ -81,6 +81,9 @@
   <data name="AccountEmailAlreadyExists" xml:space="preserve">
     <value>Email tài khoản đã tồn tại.</value>
   </data>
+  <data name="SystemAdministratorAlreadyGranted" xml:space="preserve">
+    <value>Tài khoản này đã là quản trị viên hệ thống.</value>
+  </data>
   <data name="FileIsRequired" xml:space="preserve">
     <value>Tệp là bắt buộc.</value>
   </data>

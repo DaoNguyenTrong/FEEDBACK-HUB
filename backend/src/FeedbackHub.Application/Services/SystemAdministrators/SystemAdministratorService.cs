@@ -1,5 +1,6 @@
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Domain.Entities;
+using FeedbackHub.Domain.Exceptions;
 using FeedbackHub.Domain.Interfaces;
 
 namespace FeedbackHub.Application.Services.SystemAdministrators;
@@ -29,7 +30,16 @@ public sealed class SystemAdministratorService(
         }
 
         await administrators.AddAsync(SystemAdministrator.Create(new SystemAdministratorParams(account.Id)), cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (ConflictException)
+        {
+            // A concurrent grant won the unique index; the end state is what the caller asked for.
+            return Result(SystemAdministratorChangeOutcome.AlreadyGranted, account);
+        }
+
         // A cached "false" would otherwise keep the new administrator out for up to its TTL.
         await resolver.InvalidateAsync(account.Id, cancellationToken);
         return Result(SystemAdministratorChangeOutcome.Granted, account);
