@@ -1,5 +1,6 @@
 using NSubstitute;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditTrail;
 using FeedbackHub.Application.Services.OrganizationLocking;
@@ -171,6 +172,23 @@ public class OrganizationContextServiceTests
                 (string)e.Parameters["nameAfter"] == "BẢO MINH"),
             Arg.Any<CancellationToken>());
         await f.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    // Deactivated between the gate and the lock: the rename is refused like the gate would, and nothing is written.
+    [Fact]
+    public async Task RenameAsync_DeactivatedAfterGate_Throws403SuspendedNothingSaved()
+    {
+        Fixture f = CreateFixture();
+        f.Organization.Deactivate(new DeactivationParams(Guid.NewGuid(), false, null, Now));
+
+        ForbiddenException exception = await Assert.ThrowsAsync<ForbiddenException>(
+            () => f.Service.RenameAsync(new RenameOrganizationRequest("Bảo Minh Group"), CancellationToken.None));
+
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, exception.Message);
+        Assert.Equal("Bảo Minh", exception.Extensions[ProblemExtensionKeys.OrganizationName]);
+        Assert.Equal("Bảo Minh", f.Organization.Name);
+        await f.OrganizationLock.Received(1).AcquireAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+        await AssertNothingSavedOrRecordedAsync(f);
     }
 
     // AC-187: a blank name is refused before the current name is even read.

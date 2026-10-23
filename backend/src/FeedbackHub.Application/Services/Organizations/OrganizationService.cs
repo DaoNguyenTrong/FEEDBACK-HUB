@@ -18,8 +18,9 @@ public sealed class OrganizationService(
         Guid accountId = GetCurrentAccountId();
 
         // BR-23: an account flagged for re-verification can still sign in, so being signed in proves nothing.
-        Account? account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken);
-        if (account is null || !account.EmailConfirmed)
+        Account account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken)
+            ?? throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
+        if (!account.EmailConfirmed)
         {
             throw new ForbiddenException(ApplicationMessages.EmailNotConfirmed);
         }

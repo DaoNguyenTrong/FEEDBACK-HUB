@@ -10,8 +10,11 @@ namespace FeedbackHub.Infrastructure.Tests.Persistence;
 [Collection(nameof(PostgresCollection))]
 public sealed class OrganizationLockTests(PostgresContainerFixture fixture)
 {
-    // Long enough for a lock request that is not blocked to finish, short enough to keep the suite quick.
+    // How long a blocked lock request is watched before asserting it is still waiting.
     private static readonly TimeSpan BlockedWindow = TimeSpan.FromMilliseconds(500);
+
+    // Generous, so a slow machine cannot make an unblocked request look blocked.
+    private static readonly TimeSpan NotBlockedLimit = TimeSpan.FromSeconds(10);
 
     private async Task<Organization> SeedOrganizationAsync()
     {
@@ -61,7 +64,7 @@ public sealed class OrganizationLockTests(PostgresContainerFixture fixture)
         await new OrganizationLock(firstContext).AcquireAsync(firstOrganization.Id, CancellationToken.None);
 
         Task other = new OrganizationLock(secondContext).AcquireAsync(secondOrganization.Id, CancellationToken.None);
-        Task finished = await Task.WhenAny(other, Task.Delay(BlockedWindow));
+        Task finished = await Task.WhenAny(other, Task.Delay(NotBlockedLimit));
 
         Assert.Same(other, finished);
         await other;

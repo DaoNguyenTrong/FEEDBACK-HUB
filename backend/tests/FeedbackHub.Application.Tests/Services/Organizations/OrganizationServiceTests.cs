@@ -25,7 +25,7 @@ public class OrganizationServiceTests
         IRoleService RoleService,
         Account Caller);
 
-    private static Fixture CreateFixture(bool emailConfirmed = true)
+    private static Fixture CreateFixture(bool emailConfirmed = true, bool accountExists = true)
     {
         Account caller = Account.Create(new AccountParams("Trần An", $"an-{Guid.NewGuid():N}", "an@example.com"));
         if (emailConfirmed)
@@ -47,7 +47,7 @@ public class OrganizationServiceTests
         unitOfWork.Repository<Role, Guid>().Returns(roleRepo);
         unitOfWork.Repository<RolePermission, Guid>().Returns(rolePermissionRepo);
         unitOfWork.Repository<Account, Guid>().Returns(accountRepo);
-        accountRepo.GetByIdAsync(caller.Id, Arg.Any<CancellationToken>()).Returns(caller);
+        accountRepo.GetByIdAsync(caller.Id, Arg.Any<CancellationToken>()).Returns(accountExists ? caller : null);
 
         ICurrentUserService currentUserService = Substitute.For<ICurrentUserService>();
         currentUserService.UserId.Returns(caller.Id.ToString());
@@ -114,6 +114,19 @@ public class OrganizationServiceTests
 
         await f.OrganizationRepo.DidNotReceive()
             .FirstOrDefaultAsync(Arg.Any<Expression<Func<Organization, bool>>>(), Arg.Any<CancellationToken>());
+        await AssertNothingAddedAsync(f);
+    }
+
+    // A token whose account is gone authenticates nobody: the same 401 as a token without a usable subject.
+    [Fact]
+    public async Task CreateAsync_AccountMissing_Throws401AndAddsNothing()
+    {
+        Fixture f = CreateFixture(accountExists: false);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.AuthenticatedUserRequired,
+            () => f.Service.CreateAsync(new CreateOrganizationRequest("Acme Inc", "acme"), CancellationToken.None));
+
         await AssertNothingAddedAsync(f);
     }
 
