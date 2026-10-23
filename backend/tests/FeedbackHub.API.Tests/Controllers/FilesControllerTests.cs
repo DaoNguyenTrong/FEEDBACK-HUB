@@ -188,14 +188,24 @@ public sealed class FilesControllerTests(ApiFactoryFixture fixture) : IAsyncLife
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    // AC-298: the personal context has no organization to read files from.
-    [Fact]
-    public async Task GetAll_PersonalContext_Returns403AccessDenied()
+    // AC-298: the personal context has no organization to reach files in.
+    [Theory]
+    [InlineData("POST", "/api/files")]
+    [InlineData("GET", "/api/files")]
+    [InlineData("GET", "/api/files/00000000-0000-0000-0000-000000000001")]
+    [InlineData("GET", "/api/files/00000000-0000-0000-0000-000000000001/download")]
+    [InlineData("DELETE", "/api/files/00000000-0000-0000-0000-000000000001")]
+    public async Task AnyEndpoint_PersonalContext_Returns403AccessDenied(string method, string path)
     {
         HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
             fixture, SystemRoleKind.Owner, personalContext: true);
+        HttpRequestMessage request = new(new HttpMethod(method), path);
+        if (method == "POST")
+        {
+            request.Content = CreateUploadContent("hello"u8.ToArray());
+        }
 
-        HttpResponseMessage response = await client.GetAsync("/api/files");
+        HttpResponseMessage response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         JsonElement body = await response.Content.ReadJsonElementAsync();

@@ -132,16 +132,24 @@ public sealed class AuditLogsControllerTests(ApiFactoryFixture fixture) : IAsync
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
-    public async Task GetAll_MemberWithoutAuditLogsView_Returns403AccessDenied()
+    [Theory]
+    [InlineData("GET", "/api/admin/audit-logs")]
+    [InlineData("GET", "/api/admin/audit-logs/1")]
+    public async Task AnyEndpoint_MemberWithoutAuditLogsView_Returns403AccessDenied(string method, string path)
     {
         HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
             fixture, SystemRoleKind.Member);
+        HttpRequestMessage request = new(new HttpMethod(method), path);
+        if (method is "POST" or "PUT")
+        {
+            request.Content = JsonContent.Create(new { });
+        }
 
-        HttpResponseMessage response = await client.GetAsync("/api/admin/audit-logs");
+        HttpResponseMessage response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         JsonElement body = await response.Content.ReadJsonElementAsync();
         Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
+        Assert.False(body.TryGetProperty("organizationName", out _));
     }
 }
