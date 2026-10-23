@@ -235,6 +235,28 @@ describe('apiClient interceptors', () => {
     expect(refreshCalls).toBe(0)
   })
 
+  it('does not refresh on an InvalidCurrentPassword 401 from the profile update', async () => {
+    let refreshCalls = 0
+
+    server.use(
+      http.put('*/api/profile', () =>
+        HttpResponse.json(
+          { status: 401, title: 'Unauthorized', code: 'InvalidCurrentPassword' },
+          { status: 401, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+      http.post('*/api/auth/refresh', () => {
+        refreshCalls++
+        return HttpResponse.json(makeAuthResponse())
+      }),
+    )
+
+    const apiClient = await loadApiClient()
+
+    await expect(apiClient.put('/api/profile', { email: 'a@b.c' })).rejects.toBeDefined()
+    expect(refreshCalls).toBe(0)
+  })
+
   it('maps 429 responses to ApiError', async () => {
     server.use(
       http.get('*/api/test-protected', () =>

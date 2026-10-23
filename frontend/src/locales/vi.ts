@@ -195,6 +195,11 @@ const vi: LocaleSchema = {
     newPasswordTooShort: 'Mật khẩu mới phải có ít nhất {min} ký tự.',
     passwordChangeTemporarilyLocked:
       'Đổi mật khẩu tạm thời bị khoá do nhập sai mật khẩu hiện tại nhiều lần. Vui lòng thử lại sau ít phút.',
+    pendingEmail: 'Đang chờ xác nhận: {email}. Mở link trong thư để đổi.',
+    resendEmailChange: 'Gửi lại',
+    cancelEmailChange: 'Huỷ',
+    emailChangeResent: 'Đã gửi lại thư xác nhận.',
+    emailChangeTemporarilyLocked: 'Tạm khoá đổi email, thử lại sau.',
     name: 'Họ tên',
     namePlaceholder: 'Nhập họ tên',
     nameRequired: 'Vui lòng nhập họ tên.',
@@ -222,6 +227,15 @@ const vi: LocaleSchema = {
     signOutOtherDevicesConfirm: 'Thao tác này sẽ đăng xuất khỏi mọi thiết bị khác. Tiếp tục?',
     deviceSignedOut: 'Đã đăng xuất khỏi thiết bị',
     otherDevicesSignedOut: 'Đã đăng xuất khỏi các thiết bị khác',
+  },
+  confirmEmailChange: {
+    confirming: 'Đang xác nhận email mới…',
+    success: 'Đã đổi email.',
+    noLongerValid: 'Liên kết đổi email không còn hiệu lực.',
+    alreadyTaken: 'Đã có tài khoản sử dụng email này.',
+    missingToken: 'Liên kết đổi email bị thiếu hoặc không đúng định dạng.',
+    failed: 'Không thể xác nhận đổi email lúc này. Vui lòng thử lại.',
+    backToApp: 'Về ứng dụng',
   },
   organizations: {
     title: 'Tổ chức',

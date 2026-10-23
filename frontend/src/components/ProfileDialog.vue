@@ -33,6 +33,9 @@ const activeTab = ref<'personalInfo' | 'changePassword' | 'sessions' | 'notifica
   'personalInfo',
 )
 const hasPassword = ref(true)
+const savedEmail = ref('')
+const pendingEmail = ref<string | null>(null)
+const pendingBusy = ref(false)
 const avatarUrl = ref<string | undefined>(undefined)
 const avatarBusy = ref(false)
 const avatarInputRef = ref<HTMLInputElement | null>(null)
@@ -81,7 +84,20 @@ const profileForm = reactive<ProfileUpdateRequest>({
   position: '',
   address: '',
   email: '',
+  currentPassword: '',
 })
+
+// The server treats the saved or the already-pending address as "no change", so the password is
+// only asked for (and sent) when the typed email is neither.
+const emailChanged = computed(() => {
+  const typed = profileForm.email.trim().toLowerCase()
+  return (
+    typed !== '' &&
+    typed !== savedEmail.value.toLowerCase() &&
+    typed !== (pendingEmail.value ?? '').toLowerCase()
+  )
+})
+const needsEmailPassword = computed(() => hasPassword.value && emailChanged.value)
 
 const passwordForm = reactive<ChangePasswordRequest>({
   currentPassword: '',
@@ -94,6 +110,9 @@ function fillProfileForm(data: ProfileDto) {
   profileForm.position = data.position ?? ''
   profileForm.address = data.address ?? ''
   profileForm.email = data.email
+  profileForm.currentPassword = ''
+  savedEmail.value = data.email
+  pendingEmail.value = data.pendingEmail ?? null
   hasPassword.value = data.hasPassword
   avatarUrl.value = resolveAssetUrl(data.avatarUrl)
 }
@@ -188,18 +207,60 @@ async function updateProfile() {
       position: profileForm.position?.trim() || null,
       address: profileForm.address?.trim() || null,
       email: profileForm.email.trim(),
+      currentPassword: needsEmailPassword.value ? profileForm.currentPassword : null,
     })
     fillProfileForm(updated)
     showSuccessMessage(t('profile.updateSuccess'))
   } catch (error) {
     if (error instanceof ApiError) {
       profileErrors.value = mapValidationErrors(error.problem.errors)
-      showErrorMessage(error.problem.title, error.problem.detail ?? t('errors.requestFailed'))
+      const code = error.problem.code
+      if (code === 'InvalidCurrentPassword') {
+        profileErrors.value.currentpassword = error.problem.detail ?? error.problem.title
+      } else if (code === 'FieldRequired') {
+        profileErrors.value.currentpassword = t('profile.currentPasswordRequired')
+      } else if (code === 'EmailChangeTemporarilyLocked') {
+        profileErrors.value.currentpassword = t('profile.emailChangeTemporarilyLocked')
+      } else {
+        showErrorMessage(error.problem.title, error.problem.detail ?? t('errors.requestFailed'))
+      }
     } else {
       showErrorMessage(t('errors.requestFailed'))
     }
   } finally {
     savingProfile.value = false
+  }
+}
+
+async function resendEmailChange() {
+  if (pendingBusy.value) return
+
+  pendingBusy.value = true
+  try {
+    await profileClient.profileResendEmailChange()
+    showSuccessMessage(t('profile.emailChangeResent'))
+  } catch (error) {
+    // Already confirmed or cancelled elsewhere: the line is stale, so drop it with the error.
+    if (error instanceof ApiError && error.problem.code === 'EmailChangeNotPending') {
+      pendingEmail.value = null
+    }
+    reportError(error)
+  } finally {
+    pendingBusy.value = false
+  }
+}
+
+async function cancelEmailChange() {
+  if (pendingBusy.value) return
+
+  pendingBusy.value = true
+  try {
+    await profileClient.profileCancelEmailChange()
+    pendingEmail.value = null
+  } catch (error) {
+    reportError(error)
+  } finally {
+    pendingBusy.value = false
   }
 }
 
@@ -421,6 +482,54 @@ watch(visible, (open) => {
                 class="w-full"
                 :placeholder="t('profile.emailPlaceholder')"
                 :input-props="{ type: 'email' }"
+              />
+              <p
+                v-if="pendingEmail"
+                data-testid="profile-pending-email"
+                class="text-xs text-surface-500 dark:text-surface-400"
+              >
+                {{ t('profile.pendingEmail', { email: pendingEmail }) }}
+                <n-button
+                  text
+                  size="tiny"
+                  type="primary"
+                  :disabled="pendingBusy"
+                  data-testid="profile-pending-email-resend"
+                  @click="resendEmailChange"
+                >
+                  {{ t('profile.resendEmailChange') }}
+                </n-button>
+                <n-button
+                  text
+                  size="tiny"
+                  :disabled="pendingBusy"
+                  data-testid="profile-pending-email-cancel"
+                  @click="cancelEmailChange"
+                >
+                  {{ t('profile.cancelEmailChange') }}
+                </n-button>
+              </p>
+            </div>
+          </n-form-item>
+
+          <n-form-item
+            v-if="needsEmailPassword"
+            :show-label="false"
+            :feedback="profileErrors.currentpassword || undefined"
+            :validation-status="profileErrors.currentpassword ? 'error' : undefined"
+          >
+            <div class="w-full space-y-1.5">
+              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+                {{ t('profile.currentPassword') }}<RequiredMark />
+              </label>
+              <n-input
+                v-model:value="profileForm.currentPassword"
+                type="password"
+                show-password-on="click"
+                class="w-full"
+                :placeholder="t('profile.currentPasswordPlaceholder')"
+                :input-props="{ autocomplete: 'current-password' }"
+                data-testid="profile-email-current-password"
               />
             </div>
           </n-form-item>

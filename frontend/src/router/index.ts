@@ -80,6 +80,12 @@ const router = createRouter({
       component: () => import('@/views/VerifyEmailView.vue'),
     },
     {
+      // Public like /verify-email: the link is opened from a mail, signed in or not.
+      path: '/confirm-email-change',
+      name: 'confirm-email-change',
+      component: () => import('@/views/ConfirmEmailChangeView.vue'),
+    },
+    {
       // nginx sends a reader of the private user guide here when their session cookie is missing or
       // expired; the guard routes them through login, then the view sends them back to the guide.
       path: '/guide-auth',

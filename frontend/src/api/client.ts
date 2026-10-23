@@ -110,6 +110,12 @@ function isPasswordChangeRequest(url?: string) {
   return url === '/api/profile/password'
 }
 
+// A wrong current password (email change on PUT /api/profile) is a 401 about the form, not an
+// expired session: refreshing and replaying the request would spend another attempt.
+function isCurrentPasswordRejection(data: unknown) {
+  return (data as { code?: unknown } | undefined)?.code === 'InvalidCurrentPassword'
+}
+
 /**
  * Array params as repeated keys (`ids=3&ids=4`), not axios's default `ids[]=3`: ASP.NET binds the
  * bracketed form to an empty array and silently answers 200 with unfiltered data.
@@ -163,7 +169,8 @@ apiClient.interceptors.response.use(
       error.response.status === 401 &&
       originalRequest &&
       !isAuthFlowRequest(originalRequest.url) &&
-      !isPasswordChangeRequest(originalRequest.url)
+      !isPasswordChangeRequest(originalRequest.url) &&
+      !isCurrentPasswordRejection(error.response.data)
     ) {
       if (originalRequest._retry) {
         auth.clearAuth()

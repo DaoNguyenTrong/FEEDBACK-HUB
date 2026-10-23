@@ -46,6 +46,11 @@ export async function renderComponent<C extends Component>(
       },
       { path: '/verify-email', name: 'verify-email', component: { template: '<div />' } },
       {
+        path: '/confirm-email-change',
+        name: 'confirm-email-change',
+        component: { template: '<div />' },
+      },
+      {
         path: '/guide-auth',
         name: 'guide-auth',
         component: { template: '<div />' },
