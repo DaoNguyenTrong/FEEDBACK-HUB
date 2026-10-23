@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Services.Accounts;

@@ -66,6 +66,9 @@
   <data name="PasswordChangeTemporarilyLocked" xml:space="preserve">
     <value>Changing the password is temporarily locked after too many wrong current passwords. Please try again in a few minutes.</value>
   </data>
+  <data name="EmailChangeTemporarilyLocked" xml:space="preserve">
+    <value>Email change is temporarily locked. Try again later.</value>
+  </data>
   <data name="InvalidRefreshToken" xml:space="preserve">
     <value>Invalid refresh token.</value>
   </data>

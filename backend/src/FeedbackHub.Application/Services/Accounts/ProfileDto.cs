@@ -10,4 +10,5 @@ public sealed record ProfileDto(
     string Email,
     bool EmailConfirmed,
     bool HasPassword,
-    string? AvatarUrl = null);
+    string? AvatarUrl = null,
+    string? PendingEmail = null);
