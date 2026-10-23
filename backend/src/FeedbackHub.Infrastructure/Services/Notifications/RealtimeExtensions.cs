@@ -32,8 +32,11 @@ internal static class RealtimeExtensions
 
             CachingExtensions.EnsureRedisMultiplexer(services, configuration);
 
+            // Its own connection: the hub lifetime manager disposes the multiplexer it is given, and pub/sub keeps
+            // the default backlog so a short blip delays messages instead of dropping them.
             services.AddSignalR().AddStackExchangeRedis(connectionString, options =>
             {
+                options.Configuration.AbortOnConnectFail = false;
                 options.Configuration.ChannelPrefix = RedisChannel.Literal("FeedbackHub");
             });
         }

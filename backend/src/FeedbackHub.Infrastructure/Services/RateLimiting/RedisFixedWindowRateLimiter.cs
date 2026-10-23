@@ -16,6 +16,9 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
 
     private static readonly TimeSpan WarningInterval = TimeSpan.FromSeconds(60);
 
+    // Redis connected but not answering must not hold the request: past this the fallback counts it.
+    private static readonly TimeSpan RedisWaitLimit = TimeSpan.FromMilliseconds(500);
+
     // Last warning time (unix ms) per policy, shared by every limiter: one limiter exists per partition,
     // so a per-instance throttle would log once a minute for each partition instead of once per policy.
     private static readonly ConcurrentDictionary<string, long> LastWarningMs = new();
@@ -113,7 +116,7 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
         {
             RedisResult result = await redis.GetDatabase()
                 .ScriptEvaluateAsync(Script, new { key = (RedisKey)key, windowMs })
-                .WaitAsync(cancellationToken);
+                .WaitAsync(RedisWaitLimit, timeProvider, cancellationToken);
             RedisResult[] values = (RedisResult[])result!;
             long count = (long)values[0];
             long pttl = (long)values[1];
@@ -122,7 +125,8 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
                 ? RedisLease.Granted
                 : RedisLease.Rejected(pttl > 0 ? TimeSpan.FromMilliseconds(pttl) : null);
         }
-        catch (Exception ex) when (ex is RedisException or RedisTimeoutException or RedisConnectionException or RedisCommandException)
+        catch (Exception ex) when (ex is RedisException or RedisTimeoutException or RedisConnectionException
+                                       or RedisCommandException or TimeoutException)
         {
             WarnOncePerMinute(ex);
             return await fallback.AcquireAsync(permitCount, cancellationToken);

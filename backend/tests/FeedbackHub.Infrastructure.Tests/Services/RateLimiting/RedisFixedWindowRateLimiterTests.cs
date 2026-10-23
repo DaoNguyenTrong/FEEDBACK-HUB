@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Threading.RateLimiting;
+using FeedbackHub.Infrastructure;
 using FeedbackHub.Infrastructure.Services.RateLimiting;
 using FeedbackHub.Infrastructure.Tests.TestSupport;
 using Microsoft.Extensions.Logging;
@@ -41,8 +43,9 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
         CapturingLogger? logger = null)
     {
         key ??= $"feedbackhub:ratelimit:{policy ?? $"p{Guid.NewGuid():N}"}:{partition}";
+        // The production options (not test-tuned timeouts), so an outage test measures what a request really waits.
         ConnectionMultiplexer? owned = redisDown
-            ? ConnectionMultiplexer.Connect("127.0.0.1:1,abortConnect=false,connectTimeout=300,syncTimeout=300,asyncTimeout=300,connectRetry=1")
+            ? ConnectionMultiplexer.Connect(CachingExtensions.CreateRedisOptions("127.0.0.1:1"))
             : null;
         CountingFallback fallback = new(Math.Max(1, limit));
         time ??= new ManualTime();
@@ -159,6 +162,41 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
         Assert.True(first.IsAcquired);
         Assert.True(second.IsAcquired);
         Assert.False(third.IsAcquired);
+    }
+
+    [Fact]
+    public async Task AcquireAsync_RedisDown_FallbackAnswersWellUnderOneSecond()
+    {
+        await using Fixture f = CreateFixture(limit: 100, redisDown: true);
+
+        for (int i = 0; i < 3; i++)
+        {
+            Stopwatch elapsed = Stopwatch.StartNew();
+            using RateLimitLease lease = await f.Limiter.AcquireAsync(1, CancellationToken.None);
+            elapsed.Stop();
+
+            Assert.True(lease.IsAcquired);
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(1), $"Acquire {i} took {elapsed.Elapsed}.");
+        }
+
+        Assert.Equal(3, f.Fallback.AcquireCount);
+    }
+
+    [Fact]
+    public async Task AcquireAsync_RedisConnectedButScriptNeverReturns_FallsBackWithinTheBound()
+    {
+        (IConnectionMultiplexer pending, _) = PendingRedis();
+        await using Fixture f = CreateFixture(multiplexer: pending);
+        Stopwatch elapsed = Stopwatch.StartNew();
+
+        // The outer guard only keeps a regression from hanging the run; the bound under test is 500 ms.
+        using RateLimitLease lease = await f.Limiter.AcquireAsync(1, CancellationToken.None).AsTask()
+            .WaitAsync(TimeSpan.FromSeconds(10));
+        elapsed.Stop();
+
+        Assert.True(lease.IsAcquired);
+        Assert.Equal(1, f.Fallback.AcquireCount);
+        Assert.InRange(elapsed.Elapsed, TimeSpan.FromMilliseconds(400), TimeSpan.FromSeconds(3));
     }
 
     [Fact]
