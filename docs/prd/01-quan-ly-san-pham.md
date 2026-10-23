@@ -3,7 +3,7 @@
 | Mục | Giá trị |
 |---|---|
 | Mã | `PRD01` (tiền tố cho mọi mã trong tài liệu này) |
-| Trạng thái | In review |
+| Trạng thái | Approved |
 | Phiên bản | 1.1 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-10-23 |
@@ -350,6 +350,7 @@ Ai nhận, kênh và nội dung: PRD05. Module này chỉ nêu sự kiện phát
 | 2026-10-23 | 1.1 | Người dùng duyệt PRD cùng câu 18 của SA thay người dùng và thiết kế module 01 | Quyết định của người dùng |
 | 2026-10-23 | 1.1 | Sửa ghi chép theo BA review v1.1 và review merge: §12 *Phụ thuộc* dẫn PRD-00 v1.4, thêm FR-68, BR-83 (màn hình nhật ký kiểm toán đọc các mục của FR-20); §3 ghi thuật ngữ có ở PRD-00 "từ v1.3"; *Áp dụng cho* của BR-07, BR-13 thêm FR-16, FR-17; AC-47 thêm FR-03, *Cho trước* nêu đủ điều kiện, *Khi* thêm mục *Đã lưu trữ*; thêm AC-89 (khôi phục thì mang lại cả hai dấu, theo BR-07, BR-13 đã có); §8 *Sản phẩm đã lưu trữ* nêu không mang hai dấu; D7 dẫn quyết định 18, thêm AC-47, AC-89; §12 *Chuyển cho PRD khác* thêm dòng PRD-00 (thuật ngữ *Chưa có domain* thêm "đang hoạt động") | BA review; review merge (code-reviewer) |
 | 2026-10-23 | 1.1 | Review merge lần 2: lần duyệt trước có trước BA review và AC-89 mới thêm, nên chuyển về *In review* để người dùng duyệt lại bản hiện tại; giữ phiên bản 1.1 vì bản duyệt trước chưa lên `dev`. Quyết định 18 dẫn thêm BR-13, D7, §8, AC-89 | Review merge (code-reviewer) |
+| 2026-10-23 | 1.1 | Người dùng duyệt lại bản hiện tại, sau BA review v1.1: câu 18, AC-47 đã sửa, AC-89 mới, các sửa ghi chép, cùng thiết kế module 01 | Quyết định của người dùng |
 
 ### Quyết định
 
