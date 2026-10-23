@@ -88,7 +88,7 @@ public sealed class RegistrationService(
 
         Guid? organizationId = await tokenIssuer.ResolveDefaultOrganizationIdAsync(account.Id, cancellationToken);
 
-        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, false, DateTime.UtcNow, familyId: null, cancellationToken);
+        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, false, clock.UtcNow, familyId: null, cancellationToken);
     }
 
     public async Task ResendVerificationEmailAsync(
