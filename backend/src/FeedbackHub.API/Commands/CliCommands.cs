@@ -5,7 +5,9 @@ public static class CliCommands
     public static readonly IReadOnlyList<ICliCommand> All =
     [
         new MigrateCommand(),
-        new SeedDevCommand()
+        new SeedDevCommand(),
+        new GrantSystemAdminCommand(),
+        new RevokeSystemAdminCommand()
     ];
 
     /// <summary>
