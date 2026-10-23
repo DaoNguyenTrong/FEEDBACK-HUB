@@ -3,6 +3,7 @@ using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditTrail;
+using FeedbackHub.Application.Services.OrganizationLocking;
 using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Application.Services.SystemOrganizations;
 using FeedbackHub.Application.Tests.TestSupport;
@@ -21,6 +22,7 @@ public class SystemOrganizationServiceTests
         SystemOrganizationService Service,
         IUnitOfWork UnitOfWork,
         IRepository<Organization, Guid> Organizations,
+        IOrganizationLock OrganizationLock,
         ISystemOrganizationQueries Queries,
         IAuditTrail AuditTrail,
         ITenantAccessService TenantAccess,
@@ -53,6 +55,13 @@ public class SystemOrganizationServiceTests
         {
             organizations.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
         }
+
+        IOrganizationLock organizationLock = Substitute.For<IOrganizationLock>();
+        organizationLock.AcquireAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            timeline.Add("lock");
+            return Task.CompletedTask;
+        });
 
         IRepository<OrganizationMember, Guid> memberRepository = Substitute.For<IRepository<OrganizationMember, Guid>>();
         unitOfWork.Repository<OrganizationMember, Guid>().Returns(memberRepository);
@@ -87,17 +96,13 @@ public class SystemOrganizationServiceTests
             });
 
         SystemOrganizationService service = new(
-            unitOfWork,
             currentUser,
             queries,
             new SystemAdministratorActor(unitOfWork),
-            auditTrail,
-            tenantAccess,
-            permissions,
-            clock);
+            new OrganizationStatusChanger(unitOfWork, organizationLock, auditTrail, tenantAccess, permissions, clock));
 
         return new Fixture(
-            service, unitOfWork, organizations, queries, auditTrail, tenantAccess, permissions, timeline, callerId);
+            service, unitOfWork, organizations, organizationLock, queries, auditTrail, tenantAccess, permissions, timeline, callerId);
     }
 
     private static Organization NewOrganization() =>
@@ -144,6 +149,7 @@ public class SystemOrganizationServiceTests
                 organization.Id, new DeactivateOrganizationRequest(reason), CancellationToken.None));
 
         Assert.True(organization.Status);
+        await fixture.OrganizationLock.DidNotReceive().AcquireAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await fixture.Organizations.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await fixture.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
         await fixture.AuditTrail.DidNotReceive().RecordAsync(Arg.Any<AuditEvent>(), Arg.Any<CancellationToken>());
@@ -242,7 +248,7 @@ public class SystemOrganizationServiceTests
             .InvalidateOrganizationAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
-    // AC-183: both caches drop the organization, and only once the change is committed.
+    // AC-183, AC-367: the row is locked inside the transaction, and both caches drop it only after the commit.
     [Fact]
     public async Task DeactivateAsync_Saves_ThenInvalidatesTenantAccessAndPermissions()
     {
@@ -254,12 +260,14 @@ public class SystemOrganizationServiceTests
 
         Received.InOrder(() =>
         {
+            fixture.OrganizationLock.AcquireAsync(organization.Id, Arg.Any<CancellationToken>());
+            fixture.Organizations.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>());
             fixture.AuditTrail.RecordAsync(Arg.Any<AuditEvent>(), Arg.Any<CancellationToken>());
             fixture.UnitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
             fixture.TenantAccess.InvalidateOrganizationAsync(organization.Id, Arg.Any<CancellationToken>());
             fixture.Permissions.InvalidateOrganizationAsync(organization.Id, Arg.Any<CancellationToken>());
         });
-        Assert.Equal(["save", "commit", "invalidate-tenant-access", "invalidate-permissions"], fixture.Timeline);
+        Assert.Equal(["lock", "save", "commit", "invalidate-tenant-access", "invalidate-permissions"], fixture.Timeline);
     }
 
     // ReactivateAsync
@@ -308,12 +316,14 @@ public class SystemOrganizationServiceTests
             Arg.Any<CancellationToken>());
         Received.InOrder(() =>
         {
+            fixture.OrganizationLock.AcquireAsync(organization.Id, Arg.Any<CancellationToken>());
+            fixture.Organizations.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>());
             fixture.AuditTrail.RecordAsync(Arg.Any<AuditEvent>(), Arg.Any<CancellationToken>());
             fixture.UnitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
             fixture.TenantAccess.InvalidateOrganizationAsync(organization.Id, Arg.Any<CancellationToken>());
             fixture.Permissions.InvalidateOrganizationAsync(organization.Id, Arg.Any<CancellationToken>());
         });
-        Assert.Equal(["save", "commit", "invalidate-tenant-access", "invalidate-permissions"], fixture.Timeline);
+        Assert.Equal(["lock", "save", "commit", "invalidate-tenant-access", "invalidate-permissions"], fixture.Timeline);
     }
 
     // AC-375
