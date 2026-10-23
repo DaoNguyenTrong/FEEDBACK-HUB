@@ -14,48 +14,41 @@ using Testcontainers.Redis;
 
 namespace FeedbackHub.API.Tests.RateLimiting;
 
-public sealed class RateLimitPartitionsTests : IAsyncLifetime
+/// <summary>One Redis container for the class; each test uses its own partition IP, so keys never collide.</summary>
+public sealed class RateLimitRedisFixture : IAsyncLifetime
 {
-    private const int PermitLimit = 3;
-
     private readonly RedisContainer container = new RedisBuilder("redis:8-alpine").Build();
-    private ConnectionMultiplexer multiplexer = null!;
+
+    public ConnectionMultiplexer Multiplexer { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
         await container.StartAsync();
-        multiplexer = await ConnectionMultiplexer.ConnectAsync(container.GetConnectionString());
+        Multiplexer = await ConnectionMultiplexer.ConnectAsync(container.GetConnectionString());
     }
 
     public async Task DisposeAsync()
     {
-        await multiplexer.DisposeAsync();
+        await Multiplexer.DisposeAsync();
         await container.DisposeAsync();
     }
+}
 
-    [Theory]
-    [InlineData("Memory", "Memory")]
-    [InlineData("memory", "Memory")]
-    [InlineData("Redis", "Redis")]
-    [InlineData("REDIS", "Redis")]
-    public void Resolve_AcceptsMemoryAndRedisIgnoringCase(string value, string expected)
-    {
-        Assert.Equal(expected, RateLimiterStore.Resolve(value));
-    }
+public sealed class RateLimitPartitionsTests : IClassFixture<RateLimitRedisFixture>
+{
+    private const int PermitLimit = 3;
 
-    [Theory]
-    [InlineData("Postgres")]
-    [InlineData("")]
-    [InlineData(null)]
-    public void Resolve_UnknownValue_Throws(string? value)
+    private readonly ConnectionMultiplexer multiplexer;
+
+    public RateLimitPartitionsTests(RateLimitRedisFixture fixture)
     {
-        Assert.Throws<InvalidOperationException>(() => RateLimiterStore.Resolve(value));
+        multiplexer = fixture.Multiplexer;
     }
 
     [Fact]
     public async Task FixedWindow_RedisStore_ThroughRealMiddleware_Returns429AfterLimit()
     {
-        await using WebApplication app = await StartAppAsync(RateLimiterStore.Redis);
+        await using WebApplication app = await StartAppAsync(RateLimiterStore.Redis, "192.0.2.10");
         HttpClient client = app.GetTestClient();
 
         for (int i = 0; i < PermitLimit; i++)
@@ -66,16 +59,16 @@ public sealed class RateLimitPartitionsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.TooManyRequests, (await client.GetAsync("/limited")).StatusCode);
 
         RedisKey[] keys = multiplexer.GetServer(multiplexer.GetEndPoints()[0])
-            .Keys(pattern: "feedbackhub:ratelimit:auth:*").ToArray();
+            .Keys(pattern: "feedbackhub:ratelimit:auth:192.0.2.10").ToArray();
         Assert.Single(keys);
-        Assert.Equal("feedbackhub:ratelimit:auth:unknown", keys[0].ToString());
+        Assert.Equal("feedbackhub:ratelimit:auth:192.0.2.10", keys[0].ToString());
         Assert.Equal(PermitLimit + 1, (long)await multiplexer.GetDatabase().StringGetAsync(keys[0]));
     }
 
     [Fact]
-    public async Task FixedWindow_MemoryStore_Returns429AfterLimit()
+    public async Task FixedWindow_RedisStore_IPv6Client_KeysByAddressAndReturns429AfterLimit()
     {
-        await using WebApplication app = await StartAppAsync(RateLimiterStore.Memory);
+        await using WebApplication app = await StartAppAsync(RateLimiterStore.Redis, "2001:db8::1");
         HttpClient client = app.GetTestClient();
 
         for (int i = 0; i < PermitLimit; i++)
@@ -84,7 +77,24 @@ public sealed class RateLimitPartitionsTests : IAsyncLifetime
         }
 
         Assert.Equal(HttpStatusCode.TooManyRequests, (await client.GetAsync("/limited")).StatusCode);
-        Assert.Empty(multiplexer.GetServer(multiplexer.GetEndPoints()[0]).Keys(pattern: "feedbackhub:ratelimit:*"));
+        Assert.Equal(
+            PermitLimit + 1,
+            (long)await multiplexer.GetDatabase().StringGetAsync("feedbackhub:ratelimit:auth:2001:db8::1"));
+    }
+
+    [Fact]
+    public async Task FixedWindow_MemoryStore_Returns429AfterLimit()
+    {
+        await using WebApplication app = await StartAppAsync(RateLimiterStore.Memory, "192.0.2.20");
+        HttpClient client = app.GetTestClient();
+
+        for (int i = 0; i < PermitLimit; i++)
+        {
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/limited")).StatusCode);
+        }
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await client.GetAsync("/limited")).StatusCode);
+        Assert.Empty(multiplexer.GetServer(multiplexer.GetEndPoints()[0]).Keys(pattern: "feedbackhub:ratelimit:auth:192.0.2.20"));
     }
 
     [Theory]
@@ -113,7 +123,7 @@ public sealed class RateLimitPartitionsTests : IAsyncLifetime
             context, "a:b", PermitLimit, TimeSpan.FromMinutes(1), RateLimiterStore.Memory));
     }
 
-    private async Task<WebApplication> StartAppAsync(string store)
+    private async Task<WebApplication> StartAppAsync(string store, string remoteIp)
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -128,6 +138,11 @@ public sealed class RateLimitPartitionsTests : IAsyncLifetime
         });
 
         WebApplication app = builder.Build();
+        app.Use((context, next) =>
+        {
+            context.Connection.RemoteIpAddress = IPAddress.Parse(remoteIp);
+            return next(context);
+        });
         app.UseRateLimiter();
         app.MapGet("/limited", () => Results.Ok()).RequireRateLimiting("auth");
         await app.StartAsync();

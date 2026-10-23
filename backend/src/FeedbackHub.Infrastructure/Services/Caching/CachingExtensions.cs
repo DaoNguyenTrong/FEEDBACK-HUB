@@ -80,7 +80,13 @@ internal static class CachingExtensions
         string connectionString = RedisConnection.RequireConnectionString(
             configuration, "a Redis-backed feature");
 
+        // AbortOnConnectFail = false: with Redis down at first use Connect would throw, failing every request
+        // that resolves the multiplexer; instead it returns and keeps reconnecting in the background.
         services.AddSingleton<IConnectionMultiplexer>(_ =>
-            ConnectionMultiplexer.Connect(connectionString));
+        {
+            ConfigurationOptions options = ConfigurationOptions.Parse(connectionString);
+            options.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(options);
+        });
     }
 }
