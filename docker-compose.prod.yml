@@ -12,6 +12,7 @@
 #   # EmailSettings, ExternalAuthSettings, FcmSettings with real production values. Two keys are required
 #   # of the operator: EmailSettings:SecureSocket (SslOnConnect or StartTls) and the SeaweedFS S3 keys
 #   # SeaweedFsSettings:AccessKey / SecretKey (this file sets only the service URL and the provider).
+#   # The S3 port (8333) is not published; it is reachable only on the compose network.
 #   cp .env.prod.example .env.prod
 #   # then edit .env.prod: POSTGRES_USER/PASSWORD/DB
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build

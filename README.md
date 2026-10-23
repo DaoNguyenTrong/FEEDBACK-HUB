@@ -146,6 +146,7 @@ For full details, see `.claude/reference/ci-and-git-hooks.md`.
 one-shot `migrate` service. Production is multi-instance ready: Redis and shared file storage are required, and
 `appsettings.json` must set `EmailSettings:SecureSocket` and the SeaweedFS access keys. Scale with
 `up -d --scale api=N`, then restart `web` so nginx resolves the new replicas.
+Uploads now live in SeaweedFS, and the old `feedbackhub-api-uploads` volume is gone from the compose file but is not deleted automatically. If you are upgrading a deployment that already has uploads, copy the old volume's contents (`/app/uploads`) into the SeaweedFS bucket before switching, or old file links return 404.
 An nginx container serves the built frontend and reverse-proxies `/api/` and `/hubs/` to the API;
 `/hangfire` and `/metrics` are deliberately not exposed through it, same "network-layer only"
 restriction the API already applies (see `Program.cs`).
