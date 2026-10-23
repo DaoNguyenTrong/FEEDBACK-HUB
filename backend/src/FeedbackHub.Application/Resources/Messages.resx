@@ -25,7 +25,7 @@
     <value>Email mới trùng với email hiện tại.</value>
   </data>
   <data name="EmailChangeNotPending" xml:space="preserve">
-    <value>Không có yêu cầu đổi email nào đang chờ xác nhận.</value>
+    <value>Không có email nào đang chờ xác nhận.</value>
   </data>
   <data name="PasswordHashRequired" xml:space="preserve">
     <value>Mã băm mật khẩu là bắt buộc.</value>

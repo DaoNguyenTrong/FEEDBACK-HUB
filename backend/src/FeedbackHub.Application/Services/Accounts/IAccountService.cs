@@ -15,6 +15,12 @@ public interface IAccountService
 
     Task<ProfileDto> DeleteAvatarAsync(CancellationToken cancellationToken);
 
+    /// <summary>Mails a fresh confirmation link for the pending email change; 409 when none is pending.</summary>
+    Task ResendEmailChangeAsync(CancellationToken cancellationToken);
+
+    /// <summary>Drops the pending email change and its links. Succeeds when nothing is pending.</summary>
+    Task CancelEmailChangeAsync(CancellationToken cancellationToken);
+
     Task ChangePasswordAsync(
         ChangePasswordRequest request,
         CancellationToken cancellationToken);
