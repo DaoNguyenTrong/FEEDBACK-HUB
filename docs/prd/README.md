@@ -19,7 +19,7 @@ Mọi thay đổi trên PRD đã duyệt đưa PRD về *In review*.
 | Mã | PRD | Trạng thái | Phiên bản | Phụ thuộc | Thiết kế |
 |---|---|---|---|---|---|
 | PRD00 | [Tổng quan và nền tảng: thuật ngữ, vai trò và quyền, vòng đời trạng thái, tổ chức và sản phẩm](00-tong-quan-va-nen-tang.md) | Approved | 1.4 | — | [Canvas](https://claude.ai/artifact/21QUWu78AZFfwSxcaWmjQn) |
-| PRD01 | [Quản lý sản phẩm: sản phẩm, domain được phép, khoá công khai, nút widget, người phụ trách](01-quan-ly-san-pham.md) | Approved | 1.0 | 00 | — |
+| PRD01 | [Quản lý sản phẩm: sản phẩm, domain được phép, khoá công khai, nút widget, người phụ trách](01-quan-ly-san-pham.md) | Approved | 1.1 | 00 | [Canvas](https://claude.ai/artifact/21QUWu78AZFfwSxcaWmjQn) |
 | PRD02 | Thu thập feedback (widget web): form, chụp và đánh dấu ảnh, thông tin kỹ thuật, định danh thành viên, chế độ khách, chống lạm dụng | Chưa bắt đầu | — | 00, 01 | — |
 | PRD03 | Xử lý feedback: hộp feedback (danh sách và bảng), chi tiết, đổi trạng thái, giao việc, bình luận, trùng lặp, nhãn | Chưa bắt đầu | — | 00, 02 | — |
 | PRD04 | Cổng người báo: Feedback của tôi, trang link riêng của khách, duyệt In review, mở lại | Chưa bắt đầu | — | 03 | — |
