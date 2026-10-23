@@ -6,7 +6,7 @@
 | PRD | `PRD00` v1.2 (Approved 2026-10-23), `docs/prd/00-tong-quan-va-nen-tang.md` |
 | Thiết kế giao diện | https://claude.ai/artifact/21QUWu78AZFfwSxcaWmjQn — hệ thiết kế: *SystemLight/Dark*, *ComponentsLight/Dark*; module 00: *AppShell*, *OrgContext*, *Members*, *InviteAccept*, *Roles*, *OrgSettings*, *SysOrgs* (sáng, tối; 1280, 834, 390 px) |
 | Trạng thái | Draft |
-| Phiên bản | 0.2 |
+| Phiên bản | 0.3 |
 | Cần appsec review | Có (định danh, token lời mời, phiên, quyền, đường mở lời mời ẩn danh, admin hệ thống) |
 | Người duyệt | Người dùng (sau review của `appsec`) |
 | Cập nhật | 2026-10-23 |
@@ -53,6 +53,8 @@ Bảng truy vết đầy đủ ở §13.
 | Infrastructure | `OrganizationContextAuthorizationHandler` (thay hai handler `ActiveOrganization*` và hai handler theo route `{id}`) | Cổng tổ chức, thứ tự BR-77 bước 1–4 (§5.1) |
 | Infrastructure | `SystemAdministratorAuthorizationHandler` | Policy `SystemAdministrator` |
 | Infrastructure | `RedisFixedWindowRateLimiter` | Đếm giới hạn tần suất chung giữa các máy (§12 QĐ-02) |
+| Infrastructure | `MicrosoftJwtValidator`, `MicrosoftAuthProvider` | Đọc `tid` và `xms_edov` từ token đã kiểm chữ ký, tính `EmailVerified` theo §6.6; bỏ phương án dự phòng `preferred_username` |
+| Application | `AuthService.ExternalLoginAsync` | Kiểm "email đã xác minh" chỉ ở nhánh khớp email và nhánh tạo tài khoản, không còn ở đầu hàm (§6.6) |
 | Infrastructure | `ProductionTopologyValidator` | Khởi động thất bại nếu cấu hình production không đủ cho nhiều máy (§10.3) |
 | API | `CurrentOrganizationController` (`api/organization`) | Tổ chức đang làm việc, thành viên, lời mời, vai trò |
 | API | `InvitationsController` (`api/invitations`) | Tra cứu, chấp nhận lời mời |
@@ -151,6 +153,10 @@ Bảng `audit_logs` không đổi. Thêm cổng `IAuditTrail.RecordAsync(AuditRe
 | Tự rời tổ chức | `OrganizationMember` | `Left` | `{ accountId, accountName, email }` | BR-80, AC-279 |
 
 `UserId` là người làm, `OrganizationId` là tổ chức đang làm việc. Email trong các mục này là ngoại lệ D12: chỉ người có `auditlogs.view` của tổ chức đó đọc được (AC-335). Thay lời mời (mời lại, gửi lời mời mới cùng email) không có mục riêng (D4, AC-325). Không mục nào chứa mã hay `TokenHash`.
+
+### 3.8 `external_logins` (sửa)
+
+Thêm `EmailVerified` bool nullable: email do nhà cung cấp chứng nhận có được tin theo §6.6 ở lần đăng nhập gần nhất. Ghi khi tạo liên kết, cập nhật mỗi lần đăng nhập ngoài; dòng có từ trước để `null` (chưa biết, xử lý như chưa xác minh khi chấp nhận lời mời).
 
 ## 4. Hợp đồng API
 
@@ -350,7 +356,7 @@ Thứ tự kiểm BR-81 điểm 3, dừng ở điều kiện đầu tiên không
 | — | Có phiên đúng tài khoản, tổ chức hoạt động | `Valid` với bốn điều | Vào tổ chức: kích hoạt lại dòng thành viên cũ hoặc tạo mới, gán vai trò của lời mời, xoá lời mời, xoá cache quyền; 200 | Tạo tài khoản đã xác minh (`ConfirmEmail`), vào tổ chức như API-21, đăng nhập; `Joined` (AC-57, AC-182) |
 
 - API-20 không tiêu thụ lời mời, nên trình quét link trong email không làm hỏng nó. Tra cứu luôn qua `POST` thân JSON: mã không nằm trong URL nên không vào log truy cập của nginx hay log request của API.
-- Đăng nhập Google/Microsoft từ trang lời mời dùng `POST api/auth/external/{provider}` có sẵn (không truyền mã), rồi gọi API-21. Tài khoản Google/Microsoft khác email lời mời bị API-21 từ chối `InvitationWrongAccount`; trang không nhắc lại tên tổ chức (AC-305). Tài khoản vừa tạo (`accountCreated = true`) được trang tự chấp nhận (AC-178); tài khoản có sẵn thấy nút *Chấp nhận lời mời* (AC-177). Độ tin cậy email của Microsoft: §7.2 mối đe doạ T5, §14 T2.
+- Đăng nhập Google/Microsoft từ trang lời mời dùng `POST api/auth/external/{provider}` có sẵn (không truyền mã), rồi gọi API-21. Tài khoản Google/Microsoft khác email lời mời bị API-21 từ chối `InvitationWrongAccount`; trang không nhắc lại tên tổ chức (AC-305). Tài khoản vừa tạo (`accountCreated = true`) được trang tự chấp nhận (AC-178); tài khoản có sẵn thấy nút *Chấp nhận lời mời* (AC-177). Tài khoản Microsoft có email chưa xác minh theo §6.6 không bao giờ tới API-21 (đăng nhập ngoài đã từ chối, không tạo tài khoản); API-21 vẫn kiểm lại quy tắc §6.6 với tài khoản có liên kết Microsoft trước khi so email.
 - Đã là thành viên đang hoạt động khi chấp nhận (chỉ xảy ra khi hai tab cùng chấp nhận): xoá lời mời và trả 200, không đổi vai trò.
 - Người đã có tài khoản chưa xác minh không đăng ký lại được (`AccountEmailAlreadyExists`); họ xác minh email theo luồng có sẵn rồi chấp nhận.
 
@@ -369,6 +375,24 @@ Thứ tự kiểm BR-81 điểm 3, dừng ở điều kiện đầu tiên không
 4. Bộ chọn tổ chức hiện tổ chức bị vô hiệu làm mờ, không chọn được (API-01 trả `status`, AC-73); gọi thẳng API-28 vào tổ chức đó bị 403 (FR-30).
 5. API-26 kích hoạt lại: `Status = true`, xoá trường vô hiệu, xoá cache; thành viên, vai trò, vai trò theo sản phẩm, lời mời còn hạn còn nguyên (BR-49, BR-55, AC-106, AC-128, AC-152, AC-334). Hạn lời mời không được cộng thêm (AC-144).
 
+### 6.6 Độ tin cậy email của tài khoản Microsoft (§14 T2, quyết định của người dùng 2026-10-23)
+
+Áp cho mọi đăng nhập Microsoft, không riêng lời mời.
+
+1. `MicrosoftJwtValidator` kiểm chữ ký, issuer, audience như hiện tại, rồi đọc claim từ `ClaimsPrincipal` đã kiểm (không tách từ chuỗi issuer):
+   - `tid`: tài khoản cá nhân khi `tid = 9188040d-6c67-4c5b-b112-36a304b66dad`;
+   - `xms_edov`: nhận cả dạng bool và chuỗi; chỉ giá trị `true` (bool `true` hoặc chuỗi `"true"`, không phân biệt hoa thường) được tính; thiếu claim hay giá trị khác đều là chưa xác minh;
+   - `email` chỉ lấy từ claim `email`; **bỏ** phương án dự phòng `preferred_username` (người dùng tự sửa được).
+2. `EmailVerified = (tid là tài khoản cá nhân) || (xms_edov = true)`.
+3. `AuthService.ExternalLoginAsync`:
+   - Tìm liên kết theo `Provider + ProviderUserId` (`oid`) **trước**; có liên kết thì đăng nhập, không kiểm `EmailVerified` (người đã liên kết vẫn đăng nhập được).
+   - Nhánh khớp tài khoản có sẵn theo email và nhánh tạo tài khoản mới: `EmailVerified = false` → từ chối `ExternalLoginEmailNotVerifiedByProvider` (đã có), không tạo tài khoản, không tạo liên kết. Frontend hiện gợi ý đăng ký bằng email.
+   - Google giữ quy tắc `email_verified` hiện có, nhưng cũng chuyển xuống hai nhánh trên cho thống nhất.
+4. `external_logins` thêm cột `EmailVerified bool null` (M7), ghi lúc tạo liên kết và cập nhật ở mỗi lần đăng nhập Microsoft theo token mới nhất; dòng cũ để `null` (chưa biết). API-21 (chấp nhận lời mời): tài khoản không có mật khẩu và chỉ có liên kết Microsoft (tức email chỉ do Microsoft chứng nhận) mà `EmailVerified` khác `true` → 409 `InvitationWrongAccount`, như tài khoản không đúng email. Tài khoản đăng ký bằng email đã xác minh hoặc có liên kết Google giữ hành vi chung. Vậy quy tắc áp ở ba nơi: khớp email, tạo tài khoản, chấp nhận lời mời.
+5. App registration của Microsoft phải bật optional claim `xms_edov` trong ID token trước khi bản này chạy (§10.2).
+6. Thay quyết định 2025-07-25 trong `.claude/decisions.md` (Microsoft không kiểm `email_verified`); `implementer` ghi mục mới có `Supersedes:` trong PR triển khai.
+7. `appsec` kiểm riêng: cách đọc `tid`; liệu khoá liên kết `oid` có cần đi kèm `tid` (người dùng khách ở nhiều tenant); có test cho mọi nhánh từ chối.
+
 ## 7. Bảo mật và quyền riêng tư
 
 ### 7.1 Tài sản
@@ -383,7 +407,7 @@ Mã lời mời; quyền và vai trò của thành viên (đặc biệt Owner); 
 | T2 | Mã lộ qua log, Referer, lịch sử trình duyệt, chỉ mục tìm kiếm | Mã nằm trong fragment (`#/invite?token=`) nên không tới nginx, không vào Referer; tra cứu bằng thân POST; API-20 trả `no-store`, `no-referrer`, `noindex`; route `/invite` chèn `<meta name="robots" content="noindex">` và `<meta name="referrer" content="no-referrer">`, đọc mã rồi `history.replaceState` xoá khỏi thanh địa chỉ, giữ trong `sessionStorage` của tab đến khi xong; font tự host nên trang không gọi bên thứ ba ngoài SDK Google/Microsoft khi người dùng bấm. Không log thân request; thông điệp ngoại lệ không chứa mã; `OrganizationInvitation` loại khỏi audit tự động |
 | T3 | Lời mời bị chuyển tiếp cho người khác | Chỉ tài khoản có đúng email được mời chấp nhận được (BR-51); đăng ký qua lời mời lấy email từ lời mời, không từ request; người chưa đăng nhập chỉ thấy bốn điều PRD cho phép (BR-81 điểm 5) |
 | T4 | Người có quyền quản lý thành viên hoặc vai trò tự nâng quyền, tự thành Owner, gỡ Owner, xoá vai trò để gỡ quyền người khác | `RoleGrantPolicy` duy nhất (§5.3), kiểm ở máy chủ cho cả việc tự đổi vai trò mình; khoá tổ chức chống tranh chấp (§5.4); không còn endpoint thêm thẳng (FR-59); test cho từng nhánh từ chối (§11) |
-| T5 | Kẻ tấn công dựng tenant Microsoft Entra đặt email trùng email nạn nhân ("nOAuth") để chấp nhận lời mời hoặc khớp tài khoản sẵn có theo email | Với Microsoft chỉ tin email khi tài khoản thuộc tenant cá nhân (MSA) hoặc token có claim `xms_edov = true` (miền email đã được tenant xác minh); không đạt thì coi email chưa xác minh: không khớp tài khoản có sẵn, không khớp lời mời. Ảnh hưởng tới luồng đăng nhập Microsoft đang có: §14 T2, §12 QĐ-12 |
+| T5 | Kẻ tấn công dựng tenant Microsoft Entra đặt email (hoặc `preferred_username`) trùng email nạn nhân ("nOAuth") để chấp nhận lời mời, khớp tài khoản sẵn có theo email, hoặc tạo tài khoản mang email nạn nhân | §6.6: chỉ tin email khi `tid` là tài khoản cá nhân hoặc `xms_edov = true`, đọc từ token đã kiểm chữ ký; bỏ `preferred_username`; email chưa xác minh không khớp tài khoản, không tạo tài khoản, không chấp nhận lời mời; người đã liên kết vẫn khớp theo `oid` (QĐ-12) |
 | T6 | Thành viên đã bị gỡ hoặc đã rời dùng phiên cũ (JWT còn `org_id`) | Cổng §5.1 kiểm thành viên đang hoạt động mỗi request (cache bị xoá ngay khi gỡ); dữ liệu bên trong trả 404 |
 | T7 | Admin hệ thống tìm đường vào dữ liệu của tổ chức | Policy `SystemAdministrator` chỉ mở API-24–API-26, chỉ trả tên, số thành viên, trạng thái; không route nào nhận `organizationId` khác `org_id` để đọc dữ liệu bên trong; vào tổ chức chỉ qua lời mời (BR-53, AC-135) |
 | T8 | Cấp quyền admin hệ thống từ bên trong Hub | Không endpoint HTTP nào ghi `system_administrators`; chỉ lệnh CLI chạy trong máy chủ; test API khẳng định không có route nào như vậy; policy không nhận khoá API |
@@ -417,7 +441,7 @@ BR-74, BR-75, D12 áp dụng như §4.6 và §3.7. `OrganizationMemberDto.email`
 - Kính: `backdrop-filter` chỉ cho rail, thanh trên, panel; popover, menu, toast dùng nền đặc. `@media (prefers-reduced-transparency: reduce)` đổi mọi lớp kính sang màu đặc ghi trên bảng và tắt ánh nền; `prefers-reduced-motion` tắt chuyển động (đã có quy ước).
 - Thành phần mới theo bảng *Components*: nút ba cỡ (40/44/32), ô nhập, chọn, ô tick, rail rộng và rail biểu tượng, thanh trên, bộ chọn tổ chức (popover ở máy tính, sheet từ dưới ở điện thoại), tấm trượt (sheet) cho tạo tổ chức, mời, tạo/sửa vai trò, khối xác nhận ngay dưới dòng (gỡ, thu hồi, xoá vai trò, rời), hộp thoại chỉ cho vô hiệu tổ chức (đúng thiết kế, ít hộp thoại), toast, trạng thái trống, nhãn "Tạm ngừng", "Hết hạn".
 - Ba khoảng: điện thoại < 768 px (thanh trên + menu trượt + sheet dưới), máy tính bảng 768–1199 px (rail biểu tượng), máy tính ≥ 1200 px (rail rộng); vẽ ở 390, 834, 1280 px. Vùng bấm ≥ 44 px trên điện thoại.
-- Khung cũ `AppSidebar`/`AppTopMenu`/chế độ menu: §14 T6.
+- Bố cục chỉ còn rail của bảng *AppShell* (§14 T6, quyết định của người dùng 2026-10-23): rail rộng trên máy tính, rail biểu tượng trên máy tính bảng, thanh trên với menu trượt trên điện thoại. Bỏ năm chế độ menu (Static, Slim, Slim+, Drawer, Horizontal: `MenuMode` trong `lib/layout-preferences.ts`, `AppTopMenu`, `MenuModePreview`, `drawerPinned`) và hai màu menu. Phần *Giao diện* chỉ còn sáng/tối, ngôn ngữ, cỡ chữ. Lựa chọn cũ trong `localStorage` bị bỏ qua khi đọc, không có bước chuyển dữ liệu (QĐ-28).
 
 ### 8.2 Màn hình và API
 
@@ -463,9 +487,11 @@ Quy mô (`docs/process/system-context.md`): ≤ 20 tổ chức, ≤ 500 tài kho
 | M4 | Xoá `organization_member_roles` của thành viên `IsActive = false` (BR-30) | Code cũ đã lọc thành viên đang hoạt động khi tính quyền và Owner cuối cùng |
 | M5 | Thêm `role_permissions (feedbackhub.admin)` cho mọi vai trò `SystemRoleKind = 'Admin'` chưa có (idempotent) | Code cũ hiện mã lạ ở danh sách quyền, không lỗi |
 | M6 | Không động tới `Slug` (cột giữ varchar(100); slug cũ giữ nguyên) | — |
+| M7 | Thêm cột `external_logins.EmailVerified` (bool, nullable, không mặc định) (§6.6) | Code cũ không đọc |
 
 ### 10.2 Thứ tự triển khai
 
+0. Bật optional claim `xms_edov` (ID token) trong app registration Microsoft. Thiếu bước này, mọi tài khoản Microsoft công ty chưa liên kết bị từ chối khi đăng nhập lần đầu (§6.6).
 1. Chạy lệnh `migrate` một lần (service hoặc job riêng) trước khi cập nhật máy API; `DatabaseSettings:MigrateOnStartup = false` trên production nhiều máy (§12 QĐ-03).
 2. Cập nhật lần lượt từng máy API (route mới có, route `{id}` cũ và thêm thẳng không còn).
 3. **Quy tắc cứng: frontend mới chỉ được phát hành sau khi máy API cuối cùng đã cập nhật.** Trong vài phút giữa bước 2 và 3, tab đang mở của bản frontend cũ gặp 404 ở màn hình tổ chức cũ cho đến khi tải lại (chấp nhận theo system-context: "mất vài phút khi cập nhật là chấp nhận được").
@@ -509,6 +535,8 @@ Ngoài ra: Data Protection đặt `SetApplicationName("FeedbackHub")` cố đị
 | Bộ chọn tổ chức, trang chào | Frontend | AC-04, AC-05, AC-74, AC-201 |
 | Hiệu lực ngay | Infrastructure (xoá cache Redis thấy ở instance khác: hai `RedisCacheService` cùng một Redis Testcontainers) | AC-12, AC-190 (phần cache) |
 | Câu mô tả quyền | Frontend unit | AC-294, AC-327 |
+| Độ tin cậy email Microsoft | Infrastructure (`MicrosoftJwtValidator`: `tid` cá nhân, `xms_edov` bool `true`, chuỗi `"true"`/`"TRUE"`, `false`, chuỗi khác, thiếu claim, có `preferred_username` mà không có `email`); Application (`ExternalLoginAsync`: đã liên kết + chưa xác minh → đăng nhập được, `EmailVerified` của liên kết cập nhật; khớp email + chưa xác minh → từ chối, không liên kết; tài khoản mới + chưa xác minh → từ chối, không tạo; Google giữ hành vi); API (API-21: tài khoản chỉ có liên kết Microsoft với `EmailVerified` `false`/`null` bị từ chối, `true` được nhận); Infrastructure (migration M7) | AC-305; QĐ-12 |
+| Bố cục chỉ còn rail | Frontend (layout ở ba khoảng; `localStorage` có `menuMode` cũ bị bỏ qua; *Giao diện* chỉ ba lựa chọn) | — (QĐ-28) |
 | Giới hạn tần suất chung | Infrastructure (Redis Testcontainers: hai limiter cùng khoá dùng chung đếm; Redis lỗi thì về limiter cục bộ) | — (QĐ-02) |
 | Kiểm cấu hình production | API host test với môi trường Production | — (§10.3) |
 | Token design system | Frontend unit (drift `tailwind.css` ↔ `tokens.ts`) | — (QĐ-24) |
@@ -530,7 +558,7 @@ Ngoài ra: Data Protection đặt `SetApplicationName("FeedbackHub")` cố đị
 | QĐ-09 | Mã lời mời 256 bit, chỉ lưu SHA-256, một dòng mỗi (tổ chức, email), xoá hẳn khi dùng, thu hồi, thay, xoá; mã trong fragment URL, tra bằng POST | Mã sai và mã đã thu hồi không phân biệt được; không lưu dấu vết mã đã chết; mã không vào log | Lưu trạng thái `Revoked`/`Accepted`: giữ hash vô ích và thêm trạng thái phải lọc ở mọi truy vấn; mã trong query string: vào log nginx | Module |
 | QĐ-10 | Gửi email mời đồng bộ trong giao dịch, lỗi SMTP thì rollback và trả 503; timeout SMTP ≤ 15 giây; frontend khoá nút, không tự thử lại; log lỗi chỉ kèm `invitationId`; chấp nhận rủi ro SMTP nhận thư mà commit lỗi (§6.2). SA (thay người dùng), 2026-10-23 | "Không email nào được gửi" và "lời mời cũ vẫn còn" giữ đúng khi lỗi; mã không bao giờ nằm trong job; khoá tổ chức không bị giữ quá timeout của nginx | Hangfire: mã thô nằm trong tham số job trong PostgreSQL và dashboard, và người gửi không được báo khi gửi lỗi; Hangfire với mã được bảo vệ bằng `ISecretProtector`: thêm phần chuyển động, vẫn không báo lỗi được; khoá idempotency: thử lại bằng tay đã thay lời mời (BR-63 điểm 3) | Module |
 | QĐ-11 | Đăng ký bằng email qua lời mời là endpoint riêng `register-with-invitation`; Google/Microsoft dùng đăng nhập có sẵn rồi API-21 | Email được xác minh nhờ sở hữu link (BR-63 điểm 6) chỉ ở một chỗ; không thêm nhánh vào đăng nhập ngoài | Thêm `invitationToken` tuỳ chọn vào `register` và `external`: nhánh bảo mật trộn vào luồng chung | Module |
-| QĐ-12 | Microsoft: chỉ tin email khi tenant cá nhân hoặc `xms_edov = true`, áp cho cả khớp tài khoản có sẵn theo email lẫn khớp lời mời | Chặn chiếm lời mời và tài khoản bằng tenant giả ("nOAuth") | Tin claim `email` như hiện tại (quyết định 2025-07-25): bị khai thác được; gọi Graph: không chứng minh được miền | Nền tảng (chờ §14 T2) |
+| QĐ-12 | Microsoft: chỉ tin email khi `tid` là tài khoản cá nhân hoặc `xms_edov = true` (đọc từ token đã kiểm chữ ký, nhận bool và chuỗi); áp ở khớp email, tạo tài khoản, chấp nhận lời mời (qua `external_logins.EmailVerified`) và cho cả đăng nhập Microsoft đang có; người đã liên kết vẫn khớp theo `oid`; bỏ `preferred_username`; bật `xms_edov` trong app registration (§6.6). Thay quyết định 2025-07-25 (`implementer` ghi mục `Supersedes:`). Quyết định của người dùng, 2026-10-23 | Chặn chiếm lời mời và tài khoản bằng tenant giả ("nOAuth"); kiểm ở đầu hàm như hiện nay sẽ khoá người đã liên kết | Tin claim `email` như hiện tại (quyết định 2025-07-25): bị khai thác được; chỉ áp cho lời mời: tài khoản vẫn bị chiếm qua khớp email khi đăng nhập; gọi Graph: không chứng minh được miền | Nền tảng |
 | QĐ-13 | `OrganizationInvitation` loại khỏi audit tự động; mục ngữ nghĩa qua cổng `IAuditTrail`; `Role`, `OrganizationMember` cài `IHasOrganization` | Snapshot sẽ chứa `TokenHash`; PRD cần email và vai trò trong mục, không cần snapshot | Snapshot tự động rồi lọc trường: dễ quên khi thêm trường | Nền tảng (cổng audit) |
 | QĐ-14 | Hai đường đọc vai trò: API-15 (có quyền, cần quản lý vai trò) và API-14 (tên + `canGrant`, cần quản lý thành viên) | BR-77, AC-300, AC-311 | Một endpoint lọc trường theo quyền: hợp đồng mơ hồ | Module |
 | QĐ-15 | Admin hệ thống trong bảng `system_administrators`, chỉ lệnh CLI ghi; policy `SystemAdministrator` chỉ nhận JWT người dùng, tra có cache, không nằm trong JWT | BR-20; thu hồi có hiệu lực trong vài giây; có dấu thời gian cấp | Danh sách email trong cấu hình: phải khởi động lại, lệch giữa các máy; cột trên `accounts`: lệnh cập nhật hồ sơ ghi đè mọi cột, có thể xoá mất cờ | Nền tảng |
@@ -545,9 +573,10 @@ Ngoài ra: Data Protection đặt `SetApplicationName("FeedbackHub")` cố đị
 | QĐ-24 | Token design system một nguồn `theme/tokens.ts`, test drift với `tailwind.css`; font tự host; kính đổi màu đặc theo `prefers-reduced-transparency` | Naive UI cần giá trị màu thật, Tailwind cần CSS: một nguồn cộng test thay việc giữ tay | Biến CSS cho cả Naive: Naive không tính được màu hover từ biến; Google Fonts: gửi IP người dùng cho bên thứ ba (NĐ 13/2023), thêm nguồn ngoài cho CSP. Đoán "máy yếu" bằng phần cứng: không tin cậy | Nền tảng |
 | QĐ-25 | Bỏ route cũ trong cùng bản phát hành; thứ tự migrate → cập nhật từng máy API → frontend, frontend mới chỉ phát hành sau máy API cuối cùng (§10.2); PR có dòng `- Removed:`. SA (thay người dùng), 2026-10-23 | Ít bề mặt phải vá; tab cũ gặp 404 đến khi tải lại, trong mức "vài phút khi cập nhật" | Giữ route cũ một bản: xem QĐ-06 | Module |
 | QĐ-26 | Tổ chức mặc định khi đăng nhập chỉ chọn trong tổ chức đang hoạt động | Tài khoản mà mọi tổ chức đều tạm ngừng phải thấy trang chào, không thấy lỗi (AC-184) | Giữ như cũ: người dùng vào tổ chức tạm ngừng rồi bị đẩy ra | Module |
+| QĐ-28 | Chỉ còn bố cục rail của bảng *AppShell*; bỏ năm chế độ menu và hai màu menu; *Giao diện* còn sáng/tối, ngôn ngữ, cỡ chữ; bỏ qua lựa chọn cũ trong `localStorage`, không chuyển dữ liệu (§8.1). Quyết định của người dùng, 2026-10-23 | Thiết kế đã duyệt chỉ có rail; mỗi chế độ menu nhân đôi số bố cục phải thiết kế và kiểm ở ba khoảng màn hình | Giữ các chế độ cũ song song: bố cục không có trong thiết kế, phải tự vẽ lại theo "Lớp kính"; chuyển lựa chọn cũ sang bố cục mới: không có tương ứng một-một | Module |
 | QĐ-27 | Sửa, xoá vai trò hệ thống báo `OrganizationSystemRoleImmutable` trước BR-58 | AC-55 yêu cầu đúng lý do này; vai trò hệ thống không phải đối tượng sửa được nên xếp cùng bước 5 | Theo D2 báo "không đủ quyền": trái AC-55 | Module |
 
-**Rủi ro còn lại**: cửa sổ vài phút khi cuốn chiếu (T14); email mời phụ thuộc SMTP đồng bộ, và hiếm khi người nhận có link chết nếu commit lỗi sau khi SMTP đã nhận thư (QĐ-10); mẫu email tạm chỉ tiếng Việt trước PRD05; người dùng Microsoft tenant chưa xác minh miền không chấp nhận được lời mời nếu QĐ-12 được duyệt.
+**Rủi ro còn lại**: cửa sổ vài phút khi cuốn chiếu (T14); email mời phụ thuộc SMTP đồng bộ, và hiếm khi người nhận có link chết nếu commit lỗi sau khi SMTP đã nhận thư (QĐ-10); mẫu email tạm chỉ tiếng Việt trước PRD05; người dùng Microsoft thuộc tenant chưa xác minh miền (hoặc khi app registration chưa bật `xms_edov`) không tạo tài khoản, không khớp tài khoản theo email, không chấp nhận được lời mời bằng Microsoft, phải đăng ký bằng email; khoá liên kết chỉ có `oid` chờ `appsec` xác nhận (§6.6 điểm 7).
 
 ## 13. Truy vết
 
@@ -598,8 +627,8 @@ Phần thiết kế không có yêu cầu PRD trực tiếp, giữ vì quy tắc
 
 | # | Câu hỏi | Đề xuất trả lời | Ảnh hưởng | Trạng thái |
 |---|---|---|---|---|
-| T2 | Có áp QĐ-12 (Microsoft chỉ tin email khi tenant cá nhân hoặc `xms_edov = true`) cho cả đăng nhập Microsoft đang có, không chỉ lời mời? | Có. Cần bật optional claim `xms_edov` trong app registration; tài khoản tenant chưa xác minh miền không khớp được tài khoản có sẵn theo email và không chấp nhận được lời mời | Đổi quyết định 2025-07-25; vài người dùng Microsoft công ty nhỏ có thể phải đăng ký bằng email | Mở — SA chuyển cho người dùng |
-| T6 | Khung ứng dụng mới chỉ có rail như bảng *AppShell*; có bỏ chế độ menu trên (`AppTopMenu`) và tuỳ chọn bố cục hiện có? | Bỏ; giữ cài đặt giao diện sáng/tối, ngôn ngữ, cỡ chữ mà bảng *AppShell* có | Giảm mã và test bố cục; người đang dùng menu trên mất tuỳ chọn | Mở — SA chuyển cho người dùng |
+| T2 | Có áp QĐ-12 cho cả đăng nhập Microsoft đang có, không chỉ lời mời? | — | — | Đã trả lời: có, theo đề xuất; thêm các chi tiết `tid` từ token đã kiểm, `xms_edov` bool/chuỗi, liên kết `oid` vẫn đăng nhập, bỏ `preferred_username`, bật claim khi triển khai, `appsec` kiểm ba điểm (§6.6, §7.2 T5, §10.2, §11, QĐ-12). Nguồn: Quyết định của người dùng, 2026-10-23 |
+| T6 | Chỉ giữ rail của *AppShell*, bỏ chế độ menu? | — | — | Đã trả lời: bỏ năm chế độ menu và hai màu menu; *Giao diện* còn sáng/tối, ngôn ngữ, cỡ chữ; bỏ qua lựa chọn cũ trong `localStorage` (§8.1, QĐ-28). Nguồn: Quyết định của người dùng, 2026-10-23 |
 | T1 | Bảng sản phẩm và `IProductAccessScope` dựng trong kế hoạch TECH00 hay TECH01? | — | — | Đã trả lời: không dựng trong kế hoạch TECH00. Giữ §5.5 làm thiết kế; bảng, hiện thực và việc xoá `product_members` khi gỡ, rời thuộc kế hoạch TECH01 kèm nghĩa vụ ở §5.5; bỏ hai bảng khỏi M2; phần sản phẩm của AC-69, AC-259 sang truy vết TECH01 (§3.6, §5.5, §10.1, §13, QĐ-21). Nguồn: SA (thay người dùng), 2026-10-23 |
 | T3 | Gửi email mời đồng bộ trong giao dịch? | — | — | Đã trả lời: đồng bộ, với bốn điều kiện (timeout ≤ 15 giây; frontend khoá nút, không tự thử lại; log chỉ `invitationId`; chấp nhận rủi ro link chết). Hangfire bị loại (§6.2, QĐ-10). Nguồn: SA (thay người dùng), 2026-10-23 |
 | T4 | Bỏ route `{id}` cũ cùng bản phát hành? | — | — | Đã trả lời: bỏ, theo thứ tự §10.2; frontend mới chỉ phát hành sau máy API cuối cùng; PR có dòng `- Removed:` (§10.2, QĐ-25). Nguồn: SA (thay người dùng), 2026-10-23 |
@@ -617,5 +646,6 @@ Phần thiết kế không có yêu cầu PRD trực tiếp, giữ vì quy tắc
 
 | Ngày | Phiên bản | Thay đổi | Nguồn |
 |---|---|---|---|
+| 2026-10-23 | 0.3 | Áp T2: độ tin cậy email Microsoft cho mọi đăng nhập Microsoft và lời mời (§2.1, §3.8 và M7 mới: `external_logins.EmailVerified` để áp quy tắc khi chấp nhận lời mời, §6.3, §6.6 mới, §7.2 T5, §10.2 bước 0, §11, QĐ-12, rủi ro còn lại). Áp T6: chỉ còn bố cục rail, bỏ năm chế độ menu và hai màu menu (§8.1, §11, QĐ-28). Hết câu hỏi kỹ thuật mở; còn chờ PRD-00 v1.3 (P1, P2) và review `appsec`. Vẫn Draft | Quyết định của người dùng |
 | 2026-10-23 | 0.2 | Áp câu trả lời T1, T3, T4, P1–P4: bảng sản phẩm và hiện thực `IProductAccessScope` chuyển sang kế hoạch TECH01 kèm nghĩa vụ ở §5.5, bỏ khỏi M2; bốn điều kiện gửi email mời đồng bộ (§6.2, QĐ-10); quy tắc cứng frontend sau máy API cuối cùng và dòng `- Removed:` (§10.2, QĐ-25); đổi vai trò cần `CanTakeAway` mọi vai trò hiện có (§4.6, §5.3, chờ PRD-00 v1.3); `CannotRemoveSelf` (§4.1, §5.3, §6.4); mẫu email mời tạm tiếng Việt (§6.2); P4 đóng (§7.2). T2, T6 còn mở, chờ người dùng. Vẫn Draft | SA (thay người dùng) |
 | 2026-10-23 | 0.1 | Bản nháp đầu từ PRD-00 v1.2, thiết kế module 00, system-context và code hiện có; giải quyết các ràng buộc *Quyền gán vai trò*, *Quyền sửa vai trò tự tạo*, *Xoá vai trò tự tạo* và phần TECH00 của *Quyền đọc và tải file* | — |
