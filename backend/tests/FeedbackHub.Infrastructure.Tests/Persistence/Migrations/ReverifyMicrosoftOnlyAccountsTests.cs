@@ -124,18 +124,7 @@ public sealed class ReverifyMicrosoftOnlyAccountsTests(PostgresContainerFixture 
         await context.Database.ExecuteSqlRawAsync(ReverifyMicrosoftOnlyAccounts.UpSql);
         Dictionary<Guid, bool> afterFirst = await ConfirmedByIdAsync(seeded);
 
-        List<string> notices = [];
-        NpgsqlConnection connection = (NpgsqlConnection)context.Database.GetDbConnection();
-        NoticeEventHandler handler = (_, e) => notices.Add(e.Notice.MessageText);
-        connection.Notice += handler;
-        try
-        {
-            await context.Database.ExecuteSqlRawAsync(ReverifyMicrosoftOnlyAccounts.UpSql);
-        }
-        finally
-        {
-            connection.Notice -= handler;
-        }
+        List<string> notices = await RunUpSqlCapturingNoticesAsync();
 
         Assert.Equal(afterFirst, await ConfirmedByIdAsync(seeded));
         Assert.Contains(notices, n => n.StartsWith("M8 marked 0 account(s)", StringComparison.Ordinal));
@@ -145,18 +134,7 @@ public sealed class ReverifyMicrosoftOnlyAccountsTests(PostgresContainerFixture 
     public async Task UpSql_Notice_ContainsNoEmailOrUsername()
     {
         Account[] seeded = await SeedFiveAsync();
-        List<string> notices = [];
-        NpgsqlConnection connection = (NpgsqlConnection)context.Database.GetDbConnection();
-        NoticeEventHandler handler = (_, e) => notices.Add(e.Notice.MessageText);
-        connection.Notice += handler;
-        try
-        {
-            await context.Database.ExecuteSqlRawAsync(ReverifyMicrosoftOnlyAccounts.UpSql);
-        }
-        finally
-        {
-            connection.Notice -= handler;
-        }
+        List<string> notices = await RunUpSqlCapturingNoticesAsync();
 
         string notice = Assert.Single(notices, n => n.StartsWith("M8", StringComparison.Ordinal));
         Assert.Contains("1 account(s)", notice);
@@ -188,6 +166,24 @@ public sealed class ReverifyMicrosoftOnlyAccountsTests(PostgresContainerFixture 
             marked.Select(m => m.Id).OrderBy(i => i));
         Assert.Contains((seeded[1].Id, "PasswordAndMicrosoftLink"), review);
         Assert.Contains((seeded[2].Id, "MicrosoftAndGoogleLinks"), review);
+    }
+
+    private async Task<List<string>> RunUpSqlCapturingNoticesAsync()
+    {
+        List<string> notices = [];
+        NpgsqlConnection connection = (NpgsqlConnection)context.Database.GetDbConnection();
+        NoticeEventHandler handler = (_, e) => notices.Add(e.Notice.MessageText);
+        connection.Notice += handler;
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync(ReverifyMicrosoftOnlyAccounts.UpSql);
+        }
+        finally
+        {
+            connection.Notice -= handler;
+        }
+
+        return notices;
     }
 
     private async Task<List<(Guid Id, string Reason)>> ReadAsync(string sql, int reasonColumn)
