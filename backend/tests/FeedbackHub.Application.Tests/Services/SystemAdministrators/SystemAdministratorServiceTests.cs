@@ -63,7 +63,7 @@ public class SystemAdministratorServiceTests
 
         Assert.Equal(new SystemAdministratorChange(SystemAdministratorChangeOutcome.Granted, account.Id, "boss"), change);
         await fixture.Administrators.Received(1).AddAsync(
-            Arg.Is<SystemAdministrator>(row => row.AccountId == account.Id), Arg.Any<CancellationToken>());
+            Arg.Is<SystemAdministrator>(row => row != null && row.AccountId == account.Id), Arg.Any<CancellationToken>());
         await fixture.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         await fixture.Resolver.Received(1).InvalidateAsync(account.Id, Arg.Any<CancellationToken>());
     }

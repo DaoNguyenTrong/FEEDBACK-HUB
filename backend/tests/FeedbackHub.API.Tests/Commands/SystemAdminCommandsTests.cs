@@ -66,7 +66,7 @@ public sealed class SystemAdminCommandsTests(ApiFactoryFixture fixture) : IAsync
     [InlineData("revoke-system-admin")]
     [InlineData("revoke-system-admin", "--email")]
     [InlineData("revoke-system-admin", "--email", "a@example.com", "--force")]
-    public async Task Command_BadArguments_ExitsOneWithUsage(params string[] args)
+    public async Task Command_BadArguments_ExitsOneWithoutOutput(params string[] args)
     {
         (int? exitCode, string output, string error) = await RunAsync(args);
 
