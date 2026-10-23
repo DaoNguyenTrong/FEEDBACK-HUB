@@ -171,6 +171,9 @@
   <data name="SystemAdministratorRequired" xml:space="preserve">
     <value>Chỉ admin hệ thống làm được việc này.</value>
   </data>
+  <data name="DeactivationReasonRequired" xml:space="preserve">
+    <value>Cần ghi lý do vô hiệu tổ chức.</value>
+  </data>
   <data name="ResourceNotFound" xml:space="preserve">
     <value>Không tìm thấy.</value>
   </data>
