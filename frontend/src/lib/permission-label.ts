@@ -8,6 +8,7 @@ const PERMISSION_LABEL_KEYS: Record<string, string> = {
   [Permissions.ApiKeysManage]: 'organizations.permissionApiKeysManage',
   [Permissions.AuditLogsView]: 'organizations.permissionAuditLogsView',
   [Permissions.SettingsManage]: 'organizations.permissionSettingsManage',
+  [Permissions.FeedbackHubAdmin]: 'organizations.permissionFeedbackHubAdmin',
 }
 
 // Falls back to the raw permission code for anything not in the map above, so an unlisted

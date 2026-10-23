@@ -9,6 +9,7 @@ public static class Permissions
     public const string ApiKeysManage = "apikeys.manage";
     public const string AuditLogsView = "auditlogs.view";
     public const string SettingsManage = "settings.manage";
+    public const string FeedbackHubAdmin = "feedbackhub.admin";
 
     /// <summary>
     /// Permission codes checked against the caller's active organization (the JWT <c>org_id</c> claim, via
@@ -32,6 +33,7 @@ public static class Permissions
         FilesManage,
         ApiKeysManage,
         AuditLogsView,
-        SettingsManage
+        SettingsManage,
+        FeedbackHubAdmin
     ];
 }

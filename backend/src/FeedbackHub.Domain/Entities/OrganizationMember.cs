@@ -2,7 +2,7 @@ namespace FeedbackHub.Domain.Entities;
 
 public record OrganizationMemberParams(Guid OrganizationId, Guid AccountId);
 
-public sealed class OrganizationMember : BaseEntity<Guid>
+public sealed class OrganizationMember : BaseEntity<Guid>, IHasOrganization
 {
     private OrganizationMember()
     {

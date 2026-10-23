@@ -226,6 +226,9 @@ export interface LocaleSchema {
     failed: string
     backToApp: string
   }
+  roles: {
+    systemKind: { Owner: string; Admin: string; Member: string }
+  }
   organizations: {
     title: string
     personalWorkspace: string
@@ -284,6 +287,7 @@ export interface LocaleSchema {
     permissionApiKeysManage: string
     permissionAuditLogsView: string
     permissionSettingsManage: string
+    permissionFeedbackHubAdmin: string
   }
   notifications: {
     title: string
@@ -541,6 +545,9 @@ const en: LocaleSchema = {
     failed: 'Unable to confirm the email change right now. Please try again.',
     backToApp: 'Back to the app',
   },
+  roles: {
+    systemKind: { Owner: 'Owner', Admin: 'Admin', Member: 'Member' },
+  },
   organizations: {
     title: 'Organizations',
     personalWorkspace: 'Personal workspace',
@@ -600,6 +607,7 @@ const en: LocaleSchema = {
     permissionApiKeysManage: 'Manage API keys',
     permissionAuditLogsView: 'View audit logs',
     permissionSettingsManage: 'Manage settings',
+    permissionFeedbackHubAdmin: 'FeedbackHub administration',
   },
   notifications: {
     title: 'Notifications',

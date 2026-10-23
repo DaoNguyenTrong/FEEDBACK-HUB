@@ -1,10 +1,11 @@
+using System.Text;
 using FeedbackHub.Domain.Exceptions;
 
 namespace FeedbackHub.Domain.Entities;
 
 public record RoleParams(Guid OrganizationId, string Name, SystemRoleKind? SystemRoleKind = null);
 
-public sealed class Role : BaseEntity<Guid>
+public sealed class Role : BaseEntity<Guid>, IHasOrganization
 {
     private Role()
     {
@@ -34,7 +35,7 @@ public sealed class Role : BaseEntity<Guid>
         }
 
         OrganizationId = p.OrganizationId;
-        Name = p.Name.Trim();
+        Name = p.Name.Trim().Normalize(NormalizationForm.FormC);
         SystemRoleKind = p.SystemRoleKind;
     }
 }

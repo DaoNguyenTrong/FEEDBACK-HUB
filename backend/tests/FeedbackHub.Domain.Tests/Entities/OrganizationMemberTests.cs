@@ -41,4 +41,12 @@ public class OrganizationMemberTests
 
         Assert.True(member.IsActive);
     }
+
+    [Fact]
+    public void OrganizationMember_ImplementsIHasOrganization()
+    {
+        OrganizationMember member = OrganizationMember.Create(new OrganizationMemberParams(Guid.NewGuid(), Guid.NewGuid()));
+
+        Assert.IsAssignableFrom<IHasOrganization>(member);
+    }
 }
