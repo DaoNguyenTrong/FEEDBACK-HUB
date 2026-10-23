@@ -201,6 +201,12 @@
   <data name="UnknownPermissionCode" xml:space="preserve">
     <value>Unknown permission code.</value>
   </data>
+  <data name="OwnerOnlyOperation" xml:space="preserve">
+    <value>Only an Owner can do this.</value>
+  </data>
+  <data name="InsufficientRolePermissions" xml:space="preserve">
+    <value>You don't have every permission of this role.</value>
+  </data>
   <data name="ExternalLoginEmailNotConfirmed" xml:space="preserve">
     <value>An account with this email already exists but has not been confirmed yet. Please confirm the email before linking an external login.</value>
   </data>

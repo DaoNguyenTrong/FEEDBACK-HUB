@@ -7,6 +7,7 @@ using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.AuditLogs;
 using FeedbackHub.Application.Services.AuditTrail;
 using FeedbackHub.Application.Services.OrganizationLocking;
+using FeedbackHub.Application.Services.Roles;
 using FeedbackHub.Application.Services.SystemOrganizations;
 using FeedbackHub.Domain.Interfaces;
 using FeedbackHub.Infrastructure.Persistence;
@@ -40,6 +41,7 @@ internal static class PersistenceExtensions
         services.AddScoped<IAuditTrail, AuditTrail>();
         services.AddScoped<ISystemOrganizationQueries, SystemOrganizationQueries>();
         services.AddScoped<IOrganizationLock, OrganizationLock>();
+        services.AddScoped<IRoleGrantReader, RoleGrantReader>();
         services.AddScoped<IPasswordAttemptStore, PasswordAttemptStore>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();

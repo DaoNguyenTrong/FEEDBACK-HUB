@@ -43,4 +43,6 @@ public static class ApplicationMessages
     public const string OrganizationSystemRoleImmutable = nameof(OrganizationSystemRoleImmutable);
     public const string OrganizationMemberRequiresAtLeastOneRole = nameof(OrganizationMemberRequiresAtLeastOneRole);
     public const string UnknownPermissionCode = nameof(UnknownPermissionCode);
+    public const string OwnerOnlyOperation = nameof(OwnerOnlyOperation);
+    public const string InsufficientRolePermissions = nameof(InsufficientRolePermissions);
 }
