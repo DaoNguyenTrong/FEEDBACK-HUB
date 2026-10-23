@@ -183,6 +183,11 @@ export interface LocaleSchema {
     newPasswordRequired: string
     newPasswordTooShort: string
     passwordChangeTemporarilyLocked: string
+    pendingEmail: string
+    resendEmailChange: string
+    cancelEmailChange: string
+    emailChangeResent: string
+    emailChangeTemporarilyLocked: string
     name: string
     namePlaceholder: string
     nameRequired: string
@@ -210,6 +215,15 @@ export interface LocaleSchema {
     signOutOtherDevicesConfirm: string
     deviceSignedOut: string
     otherDevicesSignedOut: string
+  }
+  confirmEmailChange: {
+    confirming: string
+    success: string
+    noLongerValid: string
+    alreadyTaken: string
+    missingToken: string
+    failed: string
+    backToApp: string
   }
   organizations: {
     title: string
@@ -486,6 +500,11 @@ const en: LocaleSchema = {
     newPasswordTooShort: 'New password must be at least {min} characters.',
     passwordChangeTemporarilyLocked:
       'Changing the password is temporarily locked after too many wrong current passwords. Please try again in a few minutes.',
+    pendingEmail: 'Waiting for confirmation: {email}. Open the link in the email to switch.',
+    resendEmailChange: 'Resend',
+    cancelEmailChange: 'Cancel',
+    emailChangeResent: 'Confirmation email sent again.',
+    emailChangeTemporarilyLocked: 'Email change is temporarily locked. Try again later.',
     name: 'Name',
     namePlaceholder: 'Enter the full name',
     nameRequired: 'Name is required.',
@@ -513,6 +532,15 @@ const en: LocaleSchema = {
     signOutOtherDevicesConfirm: 'This will sign you out of every other device. Continue?',
     deviceSignedOut: 'Device signed out',
     otherDevicesSignedOut: 'Signed out of other devices',
+  },
+  confirmEmailChange: {
+    confirming: 'Confirming your new email…',
+    success: 'Your email has been changed.',
+    noLongerValid: 'This email change link is no longer valid.',
+    alreadyTaken: 'An account with this email already exists.',
+    missingToken: 'This email change link is missing or malformed.',
+    failed: 'Unable to confirm the email change right now. Please try again.',
+    backToApp: 'Back to the app',
   },
   organizations: {
     title: 'Organizations',

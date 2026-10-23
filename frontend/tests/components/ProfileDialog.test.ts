@@ -456,6 +456,186 @@ describe('ProfileDialog', () => {
     expect(wrapper.text()).not.toContain('Firefox on macOS')
   })
 
+  describe('email change', () => {
+    const passwordSelector = '[data-testid="profile-email-current-password"] input'
+
+    async function changeEmailAndSubmit(
+      wrapper: Awaited<ReturnType<typeof openDialog>>['wrapper'],
+      password?: string,
+    ) {
+      await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
+      if (password !== undefined) {
+        await wrapper.find<HTMLInputElement>(passwordSelector).setValue(password)
+      }
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+    }
+
+    it('shows the pending line with Resend and Cancel when pendingEmail is set', async () => {
+      server.use(
+        http.get('*/api/profile', () =>
+          HttpResponse.json(makeProfile({ pendingEmail: 'new@example.com' })),
+        ),
+      )
+
+      const { wrapper } = await openDialog()
+
+      const line = wrapper.find('[data-testid="profile-pending-email"]')
+      expect(line.exists()).toBe(true)
+      expect(line.text()).toContain('new@example.com')
+      expect(wrapper.find('[data-testid="profile-pending-email-resend"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="profile-pending-email-cancel"]').exists()).toBe(true)
+    })
+
+    it('does not show the pending line when no change is pending', async () => {
+      server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
+
+      const { wrapper } = await openDialog()
+
+      expect(wrapper.find('[data-testid="profile-pending-email"]').exists()).toBe(false)
+    })
+
+    it('shows Current password only after the email field changes and hasPassword is true', async () => {
+      server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
+
+      const { wrapper } = await openDialog()
+      expect(wrapper.find(passwordSelector).exists()).toBe(false)
+
+      await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
+      expect(wrapper.find(passwordSelector).exists()).toBe(true)
+
+      await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('jane@example.com')
+      expect(wrapper.find(passwordSelector).exists()).toBe(false)
+    })
+
+    it('never shows Current password when hasPassword is false', async () => {
+      server.use(
+        http.get('*/api/profile', () => HttpResponse.json(makeProfile({ hasPassword: false }))),
+      )
+
+      const { wrapper } = await openDialog()
+      await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
+
+      expect(wrapper.find(passwordSelector).exists()).toBe(false)
+    })
+
+    it('sends the current password only when the email changes, and shows the pending line after', async () => {
+      server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
+      let body: Record<string, unknown> | undefined
+      server.use(
+        http.put('*/api/profile', async ({ request }) => {
+          body = (await request.json()) as Record<string, unknown>
+          return HttpResponse.json(makeProfile({ pendingEmail: 'new@example.com' }))
+        }),
+      )
+
+      const { wrapper } = await openDialog()
+      await changeEmailAndSubmit(wrapper, 'secret-pass')
+
+      expect(body?.currentPassword).toBe('secret-pass')
+      expect(body?.email).toBe('new@example.com')
+      expect(wrapper.find('[data-testid="profile-pending-email"]').text()).toContain(
+        'new@example.com',
+      )
+      expect(placeholderInput(wrapper, en.profile.emailPlaceholder).element.value).toBe(
+        'jane@example.com',
+      )
+      expect(wrapper.find(passwordSelector).exists()).toBe(false)
+    })
+
+    it('sends no current password when the email is unchanged', async () => {
+      server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
+      let body: Record<string, unknown> | undefined
+      server.use(
+        http.put('*/api/profile', async ({ request }) => {
+          body = (await request.json()) as Record<string, unknown>
+          return HttpResponse.json(makeProfile())
+        }),
+      )
+
+      const { wrapper } = await openDialog()
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      expect(body).toBeDefined()
+      expect(body?.currentPassword ?? null).toBeNull()
+    })
+
+    it.each([
+      [
+        'InvalidCurrentPassword',
+        401,
+        { detail: 'Current password is incorrect' },
+        'Current password is incorrect',
+      ],
+      ['FieldRequired', 400, { detail: 'Required' }, en.profile.currentPasswordRequired],
+      [
+        'EmailChangeTemporarilyLocked',
+        429,
+        { detail: 'Locked' },
+        en.profile.emailChangeTemporarilyLocked,
+      ],
+    ])('maps %s under the password field', async (code, status, extra, expected) => {
+      server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
+      server.use(
+        http.put('*/api/profile', () =>
+          problemResponse({ status, title: 'Err', code, ...extra }, status),
+        ),
+      )
+      const errorSpy = vi.spyOn(feedback, 'showErrorMessage')
+
+      const { wrapper } = await openDialog()
+      await changeEmailAndSubmit(wrapper, 'x')
+
+      expect(wrapper.text()).toContain(expected)
+      expect(errorSpy).not.toHaveBeenCalled()
+    })
+
+    it('Resend calls the resend endpoint', async () => {
+      server.use(
+        http.get('*/api/profile', () =>
+          HttpResponse.json(makeProfile({ pendingEmail: 'new@example.com' })),
+        ),
+      )
+      let called = false
+      server.use(
+        http.post('*/api/profile/email/resend', () => {
+          called = true
+          return new HttpResponse(null, { status: 204 })
+        }),
+      )
+
+      const { wrapper } = await openDialog()
+      await wrapper.find('[data-testid="profile-pending-email-resend"]').trigger('click')
+      await flushPromises()
+
+      expect(called).toBe(true)
+      expect(wrapper.find('[data-testid="profile-pending-email"]').exists()).toBe(true)
+    })
+
+    it('Cancel calls the cancel endpoint and hides the line', async () => {
+      server.use(
+        http.get('*/api/profile', () =>
+          HttpResponse.json(makeProfile({ pendingEmail: 'new@example.com' })),
+        ),
+      )
+      let called = false
+      server.use(
+        http.delete('*/api/profile/email/pending', () => {
+          called = true
+          return new HttpResponse(null, { status: 204 })
+        }),
+      )
+
+      const { wrapper } = await openDialog()
+      await wrapper.find('[data-testid="profile-pending-email-cancel"]').trigger('click')
+      await flushPromises()
+
+      expect(called).toBe(true)
+      expect(wrapper.find('[data-testid="profile-pending-email"]').exists()).toBe(false)
+    })
+  })
+
   describe('avatar', () => {
     function pickFile(wrapper: Awaited<ReturnType<typeof openDialog>>['wrapper'], file: File) {
       const input = wrapper.find<HTMLInputElement>('[data-testid="profile-avatar-input"]')
