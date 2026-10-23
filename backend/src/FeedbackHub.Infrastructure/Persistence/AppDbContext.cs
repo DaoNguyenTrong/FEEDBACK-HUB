@@ -22,6 +22,21 @@ public sealed class AppDbContext(
         typeof(PushSubscription)
     ];
 
+    // Secrets and lockout state never go into the audit snapshot, whichever way the account changed.
+    private static readonly HashSet<(Type Entity, string Property)> AuditExcludedProperties =
+    [
+        (typeof(Account), nameof(Account.PasswordHash)),
+        (typeof(Account), nameof(Account.FailedLoginCount)),
+        (typeof(Account), nameof(Account.FailedLoginWindowStartedAt)),
+        (typeof(Account), nameof(Account.LockedUntil)),
+        (typeof(Account), nameof(Account.FailedPasswordChangeCount)),
+        (typeof(Account), nameof(Account.PasswordChangeWindowStartedAt)),
+        (typeof(Account), nameof(Account.PasswordChangeLockedUntil)),
+        (typeof(Account), nameof(Account.FailedEmailChangeCount)),
+        (typeof(Account), nameof(Account.EmailChangeWindowStartedAt)),
+        (typeof(Account), nameof(Account.EmailChangeLockedUntil))
+    ];
+
     public DbSet<Account> Accounts => Set<Account>();
 
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
@@ -137,6 +152,11 @@ public sealed class AppDbContext(
                 }
 
                 string propertyName = property.Metadata.Name;
+
+                if (AuditExcludedProperties.Contains((entry.Entity.GetType(), propertyName)))
+                {
+                    continue;
+                }
 
                 if (entry.State == EntityState.Added)
                 {
