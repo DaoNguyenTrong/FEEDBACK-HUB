@@ -217,7 +217,7 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     public async Task AcquireAsync_CancelledWhileScriptPending_Propagates()
     {
         (IConnectionMultiplexer pending, _) = PendingRedis();
-        await using Fixture f = CreateFixture(multiplexer: pending);
+        await using Fixture f = CreateFixture(multiplexer: pending, time: new ManualTime { TimersNeverFire = true });
         using CancellationTokenSource cts = new();
 
         Task<RateLimitLease> acquire = f.Limiter.AcquireAsync(1, cts.Token).AsTask();
@@ -303,7 +303,7 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     public async Task IdleDuration_AcquireInFlight_IsNullUntilItEnds()
     {
         (IConnectionMultiplexer pending, _) = PendingRedis();
-        await using Fixture f = CreateFixture(multiplexer: pending);
+        await using Fixture f = CreateFixture(multiplexer: pending, time: new ManualTime { TimersNeverFire = true });
         using CancellationTokenSource cts = new();
 
         Task<RateLimitLease> acquire = f.Limiter.AcquireAsync(1, cts.Token).AsTask();
@@ -403,6 +403,28 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
         public override DateTimeOffset GetUtcNow() => now;
 
         public void Advance(TimeSpan by) => now += by;
+
+        /// <summary>
+        /// True: timers never fire, so a test controls the limiter's WaitAsync bound itself (cancels instead of
+        /// racing 500 ms). False: real timers, for the test that needs the bound to fire.
+        /// </summary>
+        public bool TimersNeverFire { get; init; }
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            return TimersNeverFire ? new InertTimer() : base.CreateTimer(callback, state, dueTime, period);
+        }
+
+        private sealed class InertTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+            public void Dispose()
+            {
+            }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 
     private sealed class CapturingLogger : ILogger

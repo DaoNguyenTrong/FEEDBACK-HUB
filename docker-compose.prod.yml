@@ -23,8 +23,9 @@
 #
 # Scaling: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --scale api=N`.
 # `web`'s nginx proxies to `api:8080`; Docker DNS returns every replica, but nginx resolves the name once at
-# start and keeps those addresses. Restart `web` after scaling or redeploying `api`
-# (`docker compose ... restart web`) so it sees the current replicas.
+# start and keeps those addresses. Restart `web` after scaling or redeploying `api` or `minio`
+# (`docker compose ... restart web`) so it sees the current addresses; `minio` must be running when `web`
+# restarts, or nginx cannot resolve the name and does not start.
 
 # Shared by `migrate` and `api`, so both build the host from the same configuration. `migrate` ignores
 # MigrateOnStartup: it always applies the migrations, then exits.

@@ -145,8 +145,8 @@ For full details, see `.claude/reference/ci-and-git-hooks.md`.
 `docker-compose.prod.yml` builds and runs the API and frontend as containers, with Redis, MinIO and a
 one-shot `migrate` service. Production is multi-instance ready: Redis and shared file storage are required, and
 `appsettings.json` must set `EmailSettings:SecureSocket`. Scale with
-`up -d --scale api=N`. Restart `web` after scaling or redeploying `api`: nginx resolves the replicas once at start
-and keeps those addresses. Compose environment values override `appsettings.json`, so change the Redis or storage
+`up -d --scale api=N`. Restart `web` after scaling or redeploying `api` or `minio`: nginx resolves their names once at start
+and keeps those addresses. `minio` must be running when `web` restarts, or nginx cannot resolve the name and does not start. Compose environment values override `appsettings.json`, so change the Redis or storage
 endpoints in `docker-compose.prod.yml` or `.env.prod`.
 File storage is MinIO AIStor Free, a single node. The operator supplies its licence file (`MINIO_LICENSE_FILE` in
 `.env.prod`, default `./minio.license`, never committed) and its root user and password (`MINIO_ROOT_USER` /
@@ -171,7 +171,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 Each release tag also publishes both images, versioned from the tag: `ghcr.io/<owner>/<repo>/{backend,frontend}:X.Y.Z` (`:latest` follows the newest stable tag; on GitLab, `$CI_REGISTRY_IMAGE/...`). Build them yourself as above, or point the `api`/`web` services at those images to deploy without building on the server.
 
-Migrations run once in the `migrate` service before `api` starts (`DatabaseSettings:MigrateOnStartup=false`). Uploaded files persist in `feedbackhub-minio-data`, API logs in `feedbackhub-api-logs`, Redis in `feedbackhub-redis-data`; Postgres data in `feedbackhub-postgres-data`. The daily backup covers `feedbackhub-postgres-data` and `feedbackhub-minio-data`.
+Migrations run once in the `migrate` service before `api` starts (`DatabaseSettings:MigrateOnStartup=false`). Uploaded files persist in `feedbackhub-minio-data`, API logs in `feedbackhub-api-logs`, Redis in `feedbackhub-redis-data`; Postgres data in `feedbackhub-postgres-data`. No backup mechanism ships: include `feedbackhub-postgres-data` and `feedbackhub-minio-data` in your daily backup.
 
 Deploy notes:
 

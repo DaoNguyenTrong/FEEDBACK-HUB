@@ -2,7 +2,7 @@ namespace FeedbackHub.Application.Common.Settings;
 
 public sealed class MinioSettings
 {
-    public string ServiceUrl { get; init; } = "http://localhost:9000";
+    public string ServiceUrl { get; init; } = "http://localhost:9010";
 
     public string AccessKey { get; init; } = "";
 
