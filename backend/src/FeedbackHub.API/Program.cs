@@ -23,6 +23,7 @@ using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Infrastructure;
 using FeedbackHub.Infrastructure.Services.Notifications;
+using FeedbackHub.Infrastructure.Services.RateLimiting;
 using Prometheus;
 using Serilog;
 using Microsoft.Extensions.FileProviders;
@@ -116,6 +117,8 @@ builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, Authorizati
 RateLimiterSettings rateLimiterSettings = builder.Configuration
     .GetSection(nameof(RateLimiterSettings)).Get<RateLimiterSettings>() ?? new RateLimiterSettings();
 
+string rateLimiterStore = RateLimiterStore.Resolve(rateLimiterSettings.Store);
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -132,24 +135,18 @@ builder.Services.AddRateLimiter(options =>
 
         await ApiProblemDetailsFactory.WriteAsync(context.HttpContext, problemDetails, cancellationToken);
     };
-    options.AddPolicy("auth", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = rateLimiterSettings.AuthPermitLimit,
-                Window = TimeSpan.FromMinutes(rateLimiterSettings.AuthWindowMinutes),
-                QueueLimit = 0
-            }));
-    options.AddPolicy("auth-refresh", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = rateLimiterSettings.RefreshPermitLimit,
-                Window = TimeSpan.FromMinutes(rateLimiterSettings.RefreshWindowMinutes),
-                QueueLimit = 0
-            }));
+    options.AddPolicy("auth", httpContext => RateLimitPartitions.FixedWindow(
+        httpContext,
+        "auth",
+        rateLimiterSettings.AuthPermitLimit,
+        TimeSpan.FromMinutes(rateLimiterSettings.AuthWindowMinutes),
+        rateLimiterStore));
+    options.AddPolicy("auth-refresh", httpContext => RateLimitPartitions.FixedWindow(
+        httpContext,
+        "auth-refresh",
+        rateLimiterSettings.RefreshPermitLimit,
+        TimeSpan.FromMinutes(rateLimiterSettings.RefreshWindowMinutes),
+        rateLimiterStore));
 });
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
