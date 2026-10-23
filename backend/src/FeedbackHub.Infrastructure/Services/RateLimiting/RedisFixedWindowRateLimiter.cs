@@ -20,12 +20,13 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
     // so a per-instance throttle would log once a minute for each partition instead of once per policy.
     private static readonly ConcurrentDictionary<string, long> LastWarningMs = new();
 
-    // Fixed window: the first request of a window sets the TTL, so the window starts there.
+    // Fixed window: the first request of a window sets the TTL, so the window starts there; a key found
+    // without a TTL (a lost PEXPIRE) is given one, so it can never count forever.
     // Returns { count, pttl }; the TTL is also the Retry-After for a rejected request, at no extra round trip.
     private static readonly LuaScript Script = LuaScript.Prepare(
         """
         local count = redis.call('INCR', @key)
-        if count == 1 then
+        if redis.call('PTTL', @key) == -1 then
           redis.call('PEXPIRE', @key, @windowMs)
         end
         return { count, redis.call('PTTL', @key) }
@@ -39,6 +40,7 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
     private readonly RateLimiter fallback;
     private readonly ILogger logger;
     private readonly TimeProvider timeProvider;
+    private long lastAcquireMs;
 
     public RedisFixedWindowRateLimiter(
         IConnectionMultiplexer redis,
@@ -49,6 +51,14 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
         ILogger logger,
         TimeProvider timeProvider)
     {
+        ArgumentNullException.ThrowIfNull(redis);
+        ArgumentNullException.ThrowIfNull(fallback);
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentOutOfRangeException.ThrowIfLessThan(permitLimit, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(window, TimeSpan.FromMilliseconds(1));
+        policy = PolicyOf(key);
+
         this.redis = redis;
         this.key = key;
         this.permitLimit = permitLimit;
@@ -56,21 +66,45 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
         this.fallback = fallback;
         this.logger = logger;
         this.timeProvider = timeProvider;
-        policy = PolicyOf(key);
+        lastAcquireMs = timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
     }
 
-    public override TimeSpan? IdleDuration => null;
+    /// <summary>
+    /// The partitioned limiter evicts a partition only once this exceeds its idle threshold, and treats null as
+    /// "in use" forever, so a limiter that never reported idleness would pin every client key in memory.
+    /// </summary>
+    public override TimeSpan? IdleDuration
+    {
+        get
+        {
+            if (fallback.IdleDuration is null)
+            {
+                return null;
+            }
+
+            long elapsedMs = timeProvider.GetUtcNow().ToUnixTimeMilliseconds() - Volatile.Read(ref lastAcquireMs);
+            return TimeSpan.FromMilliseconds(Math.Max(0, elapsedMs));
+        }
+    }
 
     public override RateLimiterStatistics? GetStatistics() => null;
 
-    protected override RateLimitLease AttemptAcquireCore(int permitCount) => RedisLease.Rejected(null);
+    protected override RateLimitLease AttemptAcquireCore(int permitCount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNotEqual(permitCount, 1);
+        return RedisLease.Rejected(null);
+    }
 
     protected override async ValueTask<RateLimitLease> AcquireAsyncCore(int permitCount, CancellationToken cancellationToken)
     {
+        ArgumentOutOfRangeException.ThrowIfNotEqual(permitCount, 1);
+        Volatile.Write(ref lastAcquireMs, timeProvider.GetUtcNow().ToUnixTimeMilliseconds());
+
         try
         {
-            RedisResult result = await redis.GetDatabase().ScriptEvaluateAsync(
-                Script, new { key = (RedisKey)key, windowMs });
+            RedisResult result = await redis.GetDatabase()
+                .ScriptEvaluateAsync(Script, new { key = (RedisKey)key, windowMs })
+                .WaitAsync(cancellationToken);
             RedisResult[] values = (RedisResult[])result!;
             long count = (long)values[0];
             long pttl = (long)values[1];
@@ -79,13 +113,15 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
                 ? RedisLease.Granted
                 : RedisLease.Rejected(pttl > 0 ? TimeSpan.FromMilliseconds(pttl) : null);
         }
-        catch (Exception ex) when (ex is RedisException or RedisTimeoutException or RedisConnectionException)
+        catch (Exception ex) when (ex is RedisException or RedisTimeoutException or RedisConnectionException or RedisCommandException)
         {
             WarnOncePerMinute(ex);
             return await fallback.AcquireAsync(permitCount, cancellationToken);
         }
     }
 
+    // RateLimiter.DisposeAsync runs DisposeAsyncCore and then Dispose(false); Dispose() runs Dispose(true).
+    // Each path therefore disposes the fallback exactly once.
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -94,15 +130,19 @@ public sealed class RedisFixedWindowRateLimiter : RateLimiter
         }
     }
 
+    protected override ValueTask DisposeAsyncCore() => fallback.DisposeAsync();
+
     private static string PolicyOf(string key)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
         if (!key.StartsWith(KeyPrefix, StringComparison.Ordinal))
         {
-            return key;
+            throw new ArgumentException($"The key must start with '{KeyPrefix}'.", nameof(key));
         }
 
         int end = key.IndexOf(':', KeyPrefix.Length);
-        return end < 0 ? key[KeyPrefix.Length..] : key[KeyPrefix.Length..end];
+        string name = end < 0 ? key[KeyPrefix.Length..] : key[KeyPrefix.Length..end];
+        return name.Length > 0 ? name : throw new ArgumentException("The key must name a policy.", nameof(key));
     }
 
     private void WarnOncePerMinute(Exception ex)

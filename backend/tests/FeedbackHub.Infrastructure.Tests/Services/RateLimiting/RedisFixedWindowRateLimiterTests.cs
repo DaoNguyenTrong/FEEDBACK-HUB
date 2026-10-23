@@ -2,7 +2,6 @@ using System.Threading.RateLimiting;
 using FeedbackHub.Infrastructure.Services.RateLimiting;
 using FeedbackHub.Infrastructure.Tests.TestSupport;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using StackExchange.Redis;
 
@@ -12,44 +11,69 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
 {
     private static readonly TimeSpan Window = TimeSpan.FromSeconds(30);
 
-    private static string NewPolicy() => $"p{Guid.NewGuid():N}";
-
-    private static string NewKey(string policy) => $"feedbackhub:ratelimit:{policy}:203.0.113.7";
-
-    private static RateLimiter Fallback(int limit) => new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+    private sealed record Fixture(
+        RedisFixedWindowRateLimiter Limiter,
+        CountingFallback Fallback,
+        ManualTime Time,
+        CapturingLogger Logger,
+        string Key,
+        ConnectionMultiplexer? OwnedRedis) : IAsyncDisposable
     {
-        PermitLimit = limit,
-        Window = Window,
-        QueueLimit = 0,
-        AutoReplenishment = false,
-    });
+        public async ValueTask DisposeAsync()
+        {
+            await Limiter.DisposeAsync();
+            if (OwnedRedis is not null)
+            {
+                await OwnedRedis.DisposeAsync();
+            }
+        }
+    }
 
-    private RedisFixedWindowRateLimiter Create(string key, int limit, TimeSpan window, ILogger? logger = null, TimeProvider? time = null) =>
-        new(redis.Multiplexer, key, limit, window, Fallback(limit), logger ?? NullLogger.Instance, time ?? TimeProvider.System);
+    private Fixture CreateFixture(
+        string? policy = null,
+        string partition = "203.0.113.7",
+        int limit = 5,
+        TimeSpan? window = null,
+        bool redisDown = false,
+        IConnectionMultiplexer? multiplexer = null,
+        string? key = null,
+        ManualTime? time = null,
+        CapturingLogger? logger = null)
+    {
+        key ??= $"feedbackhub:ratelimit:{policy ?? $"p{Guid.NewGuid():N}"}:{partition}";
+        ConnectionMultiplexer? owned = redisDown
+            ? ConnectionMultiplexer.Connect("127.0.0.1:1,abortConnect=false,connectTimeout=300,syncTimeout=300,asyncTimeout=300,connectRetry=1")
+            : null;
+        CountingFallback fallback = new(Math.Max(1, limit));
+        time ??= new ManualTime();
+        logger ??= new CapturingLogger();
+        RedisFixedWindowRateLimiter limiter = new(
+            multiplexer ?? owned ?? redis.Multiplexer, key, limit, window ?? Window, fallback, logger, time);
+        return new Fixture(limiter, fallback, time, logger, key, owned);
+    }
 
-    private static IConnectionMultiplexer DeadRedis() =>
-        ConnectionMultiplexer.Connect("127.0.0.1:1,abortConnect=false,connectTimeout=300,syncTimeout=300,asyncTimeout=300,connectRetry=1");
+    // AcquireAsync
 
     [Fact]
     public async Task AcquireAsync_WithinLimit_Grants()
     {
-        RedisFixedWindowRateLimiter limiter = Create(NewKey(NewPolicy()), 3, Window);
+        await using Fixture f = CreateFixture(limit: 3);
 
         for (int i = 0; i < 3; i++)
         {
-            using RateLimitLease lease = await limiter.AcquireAsync(1, CancellationToken.None);
+            using RateLimitLease lease = await f.Limiter.AcquireAsync(1, CancellationToken.None);
             Assert.True(lease.IsAcquired);
         }
     }
 
     [Fact]
-    public async Task AcquireAsync_OverLimit_Rejects()
+    public async Task AcquireAsync_OverLimit_RejectsWithRetryAfter()
     {
-        RedisFixedWindowRateLimiter limiter = Create(NewKey(NewPolicy()), 2, Window);
+        await using Fixture f = CreateFixture(limit: 2);
 
-        (await limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
-        (await limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
-        using RateLimitLease third = await limiter.AcquireAsync(1, CancellationToken.None);
+        (await f.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
+        (await f.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
+        using RateLimitLease third = await f.Limiter.AcquireAsync(1, CancellationToken.None);
 
         Assert.False(third.IsAcquired);
         Assert.True(third.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter));
@@ -59,15 +83,14 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     [Fact]
     public async Task AcquireAsync_TwoLimitersSameKey_ShareOneCount()
     {
-        string key = NewKey(NewPolicy());
-        RedisFixedWindowRateLimiter a = Create(key, 5, Window);
-        RedisFixedWindowRateLimiter b = Create(key, 5, Window);
+        await using Fixture a = CreateFixture(limit: 5);
+        await using Fixture b = CreateFixture(limit: 5, key: a.Key);
 
         int granted = 0;
         for (int i = 0; i < 3; i++)
         {
-            using RateLimitLease la = await a.AcquireAsync(1, CancellationToken.None);
-            using RateLimitLease lb = await b.AcquireAsync(1, CancellationToken.None);
+            using RateLimitLease la = await a.Limiter.AcquireAsync(1, CancellationToken.None);
+            using RateLimitLease lb = await b.Limiter.AcquireAsync(1, CancellationToken.None);
             granted += (la.IsAcquired ? 1 : 0) + (lb.IsAcquired ? 1 : 0);
         }
 
@@ -77,43 +100,52 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     [Fact]
     public async Task AcquireAsync_AfterWindow_CountsFromZero()
     {
-        RedisFixedWindowRateLimiter limiter = Create(NewKey(NewPolicy()), 1, TimeSpan.FromSeconds(1));
+        await using Fixture f = CreateFixture(limit: 1, window: TimeSpan.FromSeconds(1));
 
-        (await limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
-        using (RateLimitLease over = await limiter.AcquireAsync(1, CancellationToken.None))
+        (await f.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
+        using (RateLimitLease over = await f.Limiter.AcquireAsync(1, CancellationToken.None))
         {
             Assert.False(over.IsAcquired);
         }
 
         await Task.Delay(TimeSpan.FromMilliseconds(1300));
 
-        using RateLimitLease after = await limiter.AcquireAsync(1, CancellationToken.None);
+        using RateLimitLease after = await f.Limiter.AcquireAsync(1, CancellationToken.None);
         Assert.True(after.IsAcquired);
     }
 
     [Fact]
     public async Task AcquireAsync_KeyAlwaysHasTtl()
     {
-        string key = NewKey(NewPolicy());
-        RedisFixedWindowRateLimiter limiter = Create(key, 5, Window);
+        await using Fixture f = CreateFixture();
 
-        (await limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
-        TimeSpan? ttl = await redis.Multiplexer.GetDatabase().KeyTimeToLiveAsync(key);
+        (await f.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
+        TimeSpan? ttl = await redis.Multiplexer.GetDatabase().KeyTimeToLiveAsync(f.Key);
 
         Assert.NotNull(ttl);
-        Assert.InRange(ttl.Value, TimeSpan.Zero, Window);
-        Assert.True(ttl.Value > TimeSpan.Zero);
+        Assert.InRange(ttl.Value, TimeSpan.FromMilliseconds(1), Window);
+    }
+
+    [Fact]
+    public async Task AcquireAsync_KeyWithoutTtl_GetsOne()
+    {
+        await using Fixture f = CreateFixture();
+        await redis.Multiplexer.GetDatabase().StringSetAsync(f.Key, 1);
+
+        (await f.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
+
+        TimeSpan? ttl = await redis.Multiplexer.GetDatabase().KeyTimeToLiveAsync(f.Key);
+        Assert.NotNull(ttl);
     }
 
     [Fact]
     public async Task AcquireAsync_RedisDown_UsesFallbackAndStillLimits()
     {
-        RedisFixedWindowRateLimiter limiter = new(
-            DeadRedis(), NewKey(NewPolicy()), 2, Window, Fallback(2), NullLogger.Instance, TimeProvider.System);
+        await using Fixture f = CreateFixture(limit: 2, redisDown: true);
 
-        using RateLimitLease first = await limiter.AcquireAsync(1, CancellationToken.None);
-        using RateLimitLease second = await limiter.AcquireAsync(1, CancellationToken.None);
-        using RateLimitLease third = await limiter.AcquireAsync(1, CancellationToken.None);
+        using RateLimitLease first = await f.Limiter.AcquireAsync(1, CancellationToken.None);
+        using RateLimitLease second = await f.Limiter.AcquireAsync(1, CancellationToken.None);
+        using RateLimitLease third = await f.Limiter.AcquireAsync(1, CancellationToken.None);
 
         Assert.True(first.IsAcquired);
         Assert.True(second.IsAcquired);
@@ -121,42 +153,157 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
     }
 
     [Fact]
+    public async Task AcquireAsync_RedisServerError_UsesFallback()
+    {
+        await using Fixture f = CreateFixture(limit: 1);
+        await redis.Multiplexer.GetDatabase().HashSetAsync(f.Key, "field", "value"); // INCR on a hash: WRONGTYPE
+
+        using RateLimitLease first = await f.Limiter.AcquireAsync(1, CancellationToken.None);
+        using RateLimitLease second = await f.Limiter.AcquireAsync(1, CancellationToken.None);
+
+        Assert.True(first.IsAcquired);
+        Assert.False(second.IsAcquired);
+        Assert.Equal(2, f.Fallback.AcquireCount);
+    }
+
+    [Fact]
+    public async Task AcquireAsync_CancelledToken_Propagates()
+    {
+        await using Fixture f = CreateFixture();
+        using CancellationTokenSource cts = new();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            async () => await f.Limiter.AcquireAsync(1, cts.Token));
+
+        Assert.Equal(0, f.Fallback.AcquireCount);
+    }
+
+    [Fact]
     public async Task AcquireAsync_RedisDown_LogsAtMostOncePerMinute()
     {
-        string policy = NewPolicy();
+        string policy = $"p{Guid.NewGuid():N}";
         ManualTime time = new();
         CapturingLogger logger = new();
-        IConnectionMultiplexer deadRedis = DeadRedis();
-        RedisFixedWindowRateLimiter first = new(deadRedis, NewKey(policy), 100, Window, Fallback(100), logger, time);
-        RedisFixedWindowRateLimiter second = new(deadRedis, $"feedbackhub:ratelimit:{policy}:198.51.100.9", 100, Window, Fallback(100), logger, time);
+        await using Fixture first = CreateFixture(policy, limit: 100, redisDown: true, time: time, logger: logger);
+        await using Fixture second = CreateFixture(policy, "198.51.100.9", limit: 100, redisDown: true, time: time, logger: logger);
 
         for (int i = 0; i < 5; i++)
         {
-            (await first.AcquireAsync(1, CancellationToken.None)).Dispose();
-            (await second.AcquireAsync(1, CancellationToken.None)).Dispose();
+            (await first.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
+            (await second.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
             time.Advance(TimeSpan.FromSeconds(5));
         }
 
         Assert.Equal(1, logger.Warnings);
 
         time.Advance(TimeSpan.FromSeconds(61));
-        (await first.AcquireAsync(1, CancellationToken.None)).Dispose();
+        (await first.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
 
         Assert.Equal(2, logger.Warnings);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public async Task AcquireAsync_PermitCountNotOne_Throws(int permitCount)
+    {
+        await using Fixture f = CreateFixture();
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            async () => await f.Limiter.AcquireAsync(permitCount, CancellationToken.None));
+    }
+
+    // AttemptAcquire
+
     [Fact]
-    public void AttemptAcquire_NeverCallsRedisAndIsNotAcquired()
+    public async Task AttemptAcquire_Always_ReturnsNotAcquiredWithoutRedis()
     {
         IConnectionMultiplexer multiplexer = Substitute.For<IConnectionMultiplexer>();
-        RedisFixedWindowRateLimiter limiter = new(
-            multiplexer, NewKey(NewPolicy()), 5, Window, Fallback(5), NullLogger.Instance, TimeProvider.System);
+        await using Fixture f = CreateFixture(multiplexer: multiplexer);
 
-        using RateLimitLease lease = limiter.AttemptAcquire(1);
+        using RateLimitLease lease = f.Limiter.AttemptAcquire(1);
 
         Assert.False(lease.IsAcquired);
         Assert.Empty(multiplexer.ReceivedCalls());
     }
+
+    // IdleDuration
+
+    [Fact]
+    public async Task IdleDuration_FallbackIdle_CountsFromTheLastAcquire()
+    {
+        await using Fixture f = CreateFixture();
+        (await f.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
+
+        f.Time.Advance(TimeSpan.FromSeconds(20));
+
+        Assert.Equal(TimeSpan.FromSeconds(20), f.Limiter.IdleDuration);
+    }
+
+    [Fact]
+    public async Task IdleDuration_FallbackInUse_IsNull()
+    {
+        await using Fixture f = CreateFixture();
+        f.Fallback.InUse = true;
+        f.Time.Advance(TimeSpan.FromSeconds(20));
+
+        Assert.Null(f.Limiter.IdleDuration);
+    }
+
+    [Fact]
+    public async Task IdleDuration_AfterAnotherAcquire_RestartsFromZero()
+    {
+        await using Fixture f = CreateFixture();
+        f.Time.Advance(TimeSpan.FromSeconds(20));
+
+        (await f.Limiter.AcquireAsync(1, CancellationToken.None)).Dispose();
+
+        Assert.Equal(TimeSpan.Zero, f.Limiter.IdleDuration);
+    }
+
+    // Dispose
+
+    [Fact]
+    public async Task Dispose_Sync_DisposesTheFallbackOnce()
+    {
+        await using Fixture f = CreateFixture();
+
+        f.Limiter.Dispose();
+
+        Assert.Equal(1, f.Fallback.DisposeCount);
+        await Assert.ThrowsAsync<ObjectDisposedException>(
+            async () => await f.Fallback.AcquireAsync(1, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DisposeAsync_Always_DisposesTheFallbackOnce()
+    {
+        await using Fixture f = CreateFixture();
+
+        await f.Limiter.DisposeAsync();
+
+        Assert.Equal(1, f.Fallback.DisposeCount);
+        await Assert.ThrowsAsync<ObjectDisposedException>(
+            async () => await f.Fallback.AcquireAsync(1, CancellationToken.None));
+    }
+
+    // Constructor
+
+    [Fact]
+    public void Constructor_PermitLimitBelowOne_Throws() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => CreateFixture(limit: 0));
+
+    [Fact]
+    public void Constructor_WindowBelowOneMillisecond_Throws() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => CreateFixture(window: TimeSpan.FromTicks(1)));
+
+    [Theory]
+    [InlineData("other:prefix:x")]
+    [InlineData("feedbackhub:ratelimit:")]
+    [InlineData("feedbackhub:ratelimit::203.0.113.7")]
+    public void Constructor_InvalidKey_Throws(string key) =>
+        Assert.Throws<ArgumentException>(() => CreateFixture(key: key));
 
     private sealed class ManualTime : TimeProvider
     {
@@ -184,6 +331,55 @@ public sealed class RedisFixedWindowRateLimiterTests(RedisContainerFixture redis
             {
                 Interlocked.Increment(ref warnings);
             }
+        }
+    }
+
+    /// <summary>The production-shaped fallback (auto-replenishing fixed window) with counters on top.</summary>
+    private sealed class CountingFallback : RateLimiter
+    {
+        private readonly FixedWindowRateLimiter inner;
+        private int acquireCount;
+        private int disposeCount;
+
+        public CountingFallback(int limit) => inner = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = limit,
+            Window = Window,
+            QueueLimit = 0,
+            AutoReplenishment = true,
+        });
+
+        public bool InUse { get; set; }
+
+        public int AcquireCount => Volatile.Read(ref acquireCount);
+
+        public int DisposeCount => Volatile.Read(ref disposeCount);
+
+        public override TimeSpan? IdleDuration => InUse ? null : TimeSpan.Zero;
+
+        public override RateLimiterStatistics? GetStatistics() => inner.GetStatistics();
+
+        protected override RateLimitLease AttemptAcquireCore(int permitCount) => inner.AttemptAcquire(permitCount);
+
+        protected override ValueTask<RateLimitLease> AcquireAsyncCore(int permitCount, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref acquireCount);
+            return inner.AcquireAsync(permitCount, cancellationToken);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Interlocked.Increment(ref disposeCount);
+                inner.Dispose();
+            }
+        }
+
+        protected override ValueTask DisposeAsyncCore()
+        {
+            Interlocked.Increment(ref disposeCount);
+            return inner.DisposeAsync();
         }
     }
 }
