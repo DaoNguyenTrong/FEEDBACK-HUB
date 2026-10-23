@@ -8,7 +8,8 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace FeedbackHub.Infrastructure.Services.Auth.External;
 
-internal sealed record MicrosoftTokenPayload(string Subject, string? Email, string? Name);
+internal sealed record MicrosoftTokenPayload(
+    string Subject, string? Email, string? Name, string TenantId, bool EmailDomainOwnerVerified);
 
 internal interface IMicrosoftJwtValidator
 {
@@ -23,15 +24,35 @@ internal sealed class MicrosoftJwtValidator : IMicrosoftJwtValidator
 {
     private static readonly ConcurrentDictionary<string, ConfigurationManager<OpenIdConnectConfiguration>> ConfigManagers = new();
 
+    private readonly OpenIdConnectConfiguration? configurationOverride;
+
+    public MicrosoftJwtValidator()
+    {
+    }
+
+    // Test seam: supplies the OIDC configuration (signing keys, issuer template) instead of fetching discovery.
+    internal MicrosoftJwtValidator(OpenIdConnectConfiguration configuration)
+    {
+        configurationOverride = configuration;
+    }
+
     public async Task<MicrosoftTokenPayload> ValidateAsync(
         string credential, string tenantId, string clientId, CancellationToken cancellationToken)
     {
-        ConfigurationManager<OpenIdConnectConfiguration> configManager = ConfigManagers.GetOrAdd(tenantId, id =>
-            new ConfigurationManager<OpenIdConnectConfiguration>(
-                $"https://login.microsoftonline.com/{id}/v2.0/.well-known/openid-configuration",
-                new OpenIdConnectConfigurationRetriever()));
+        OpenIdConnectConfiguration config;
+        if (configurationOverride is not null)
+        {
+            config = configurationOverride;
+        }
+        else
+        {
+            ConfigurationManager<OpenIdConnectConfiguration> configManager = ConfigManagers.GetOrAdd(tenantId, id =>
+                new ConfigurationManager<OpenIdConnectConfiguration>(
+                    $"https://login.microsoftonline.com/{id}/v2.0/.well-known/openid-configuration",
+                    new OpenIdConnectConfigurationRetriever()));
 
-        OpenIdConnectConfiguration config = await configManager.GetConfigurationAsync(cancellationToken);
+            config = await configManager.GetConfigurationAsync(cancellationToken);
+        }
 
         Regex issuerPattern = BuildIssuerPattern(config.Issuer);
 
@@ -49,17 +70,40 @@ internal sealed class MicrosoftJwtValidator : IMicrosoftJwtValidator
             ClockSkew = TimeSpan.FromMinutes(1)
         };
 
-        JwtSecurityTokenHandler handler = new();
-        ClaimsPrincipal principal = handler.ValidateToken(credential, validationParameters, out _);
+        // MapInboundClaims = false: claims keep their raw names (sub, email, tid, xms_edov); the default
+        // mapping renames them and silently falls back to the wrong claims (TECH00 6.6).
+        JwtSecurityTokenHandler handler = new() { MapInboundClaims = false };
+        ClaimsPrincipal principal = handler.ValidateToken(credential, validationParameters, out SecurityToken validatedToken);
 
-        string subject = principal.FindFirst("oid")?.Value
-            ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+        string subject = principal.FindFirst("sub")?.Value
             ?? throw new SecurityTokenException("Token is missing a subject claim.");
-        string? email = principal.FindFirst("email")?.Value
-            ?? principal.FindFirst("preferred_username")?.Value;
-        string? name = principal.FindFirst("name")?.Value;
+        string tid = principal.FindFirst("tid")?.Value
+            ?? throw new SecurityTokenException("Token is missing a tenant claim.");
 
-        return new MicrosoftTokenPayload(subject, email, name);
+        string? issuerTenant = ExtractIssuerTenant(validatedToken.Issuer);
+        if (issuerTenant is null || !string.Equals(issuerTenant, tid, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new SecurityTokenInvalidIssuerException("Issuer tenant does not match the tid claim.");
+        }
+
+        string? email = principal.FindFirst("email")?.Value;
+        string? name = principal.FindFirst("name")?.Value;
+        bool emailDomainOwnerVerified = string.Equals(
+            principal.FindFirst("xms_edov")?.Value, "true", StringComparison.OrdinalIgnoreCase);
+
+        return new MicrosoftTokenPayload(subject, email, name, tid, emailDomainOwnerVerified);
+    }
+
+    // Expected shape: https://login.microsoftonline.com/{tenant}/v2.0
+    private static string? ExtractIssuerTenant(string? issuer)
+    {
+        if (!Uri.TryCreate(issuer, UriKind.Absolute, out Uri? uri))
+        {
+            return null;
+        }
+
+        string[] segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 2 && segments[1] == "v2.0" ? segments[0] : null;
     }
 
     // Regex.Escape escapes only the opening brace ("\{tenantid}"), so escaping first and then replacing the
