@@ -196,7 +196,6 @@ public class ProductionTopologyValidatorTests
         Assert.Contains("EmailSettings:SecureSocket", error);
     }
 
-
     [Theory]
     [InlineData("Production", false, false, true)]
     [InlineData("Production", true, false, false)]
