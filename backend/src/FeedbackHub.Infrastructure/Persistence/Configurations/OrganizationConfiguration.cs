@@ -16,6 +16,7 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
             .HasMaxLength(200)
             .IsRequired();
 
+        // Slugs created before the 50-character domain cap can be up to 100 long and must still load.
         builder.Property(organization => organization.Slug)
             .HasMaxLength(100)
             .IsRequired();

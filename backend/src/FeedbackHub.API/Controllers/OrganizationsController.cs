@@ -14,11 +14,13 @@ public sealed class OrganizationsController(
     IOrganizationMembershipService organizationMembershipService,
     IRoleService roleService) : ControllerBase
 {
-    /// <summary>Creates a new organization. The caller becomes its Owner.</summary>
+    /// <summary>Creates a new organization. The caller, whose email must be confirmed, becomes its Owner.</summary>
     [HttpPost]
     [ProducesResponseType(typeof(OrganizationDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<OrganizationDto>> Create(
         CreateOrganizationRequest request,
         CancellationToken cancellationToken)
@@ -28,7 +30,7 @@ public sealed class OrganizationsController(
         return StatusCode(StatusCodes.Status201Created, organization);
     }
 
-    /// <summary>Returns the organizations the current account is an active member of.</summary>
+    /// <summary>Returns the organizations the current account is an active member of, deactivated ones included.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<OrganizationDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -106,21 +108,6 @@ public sealed class OrganizationsController(
         CancellationToken cancellationToken)
     {
         await organizationMembershipService.RemoveMemberAsync(id, accountId, cancellationToken);
-
-        return NoContent();
-    }
-
-
-    /// <summary>Deactivates an organization. The caller must be its Owner; all members immediately lose access.</summary>
-    [HttpDelete("{id:guid}")]
-    [Authorize(Policy = Permissions.OrganizationManage)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Deactivate(Guid id, CancellationToken cancellationToken)
-    {
-        await organizationService.DeactivateAsync(id, cancellationToken);
 
         return NoContent();
     }
