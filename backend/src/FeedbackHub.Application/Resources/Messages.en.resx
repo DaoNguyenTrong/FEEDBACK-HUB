@@ -171,6 +171,9 @@
   <data name="SystemAdministratorRequired" xml:space="preserve">
     <value>Only a system administrator can do this.</value>
   </data>
+  <data name="DeactivationReasonRequired" xml:space="preserve">
+    <value>A reason is required to deactivate the organization.</value>
+  </data>
   <data name="ResourceNotFound" xml:space="preserve">
     <value>Not found.</value>
   </data>

@@ -6,8 +6,10 @@ using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.AuditLogs;
 using FeedbackHub.Application.Services.AuditTrail;
+using FeedbackHub.Application.Services.SystemOrganizations;
 using FeedbackHub.Domain.Interfaces;
 using FeedbackHub.Infrastructure.Persistence;
+using FeedbackHub.Infrastructure.Persistence.Queries;
 using FeedbackHub.Infrastructure.Persistence.Repositories;
 
 namespace FeedbackHub.Infrastructure;
@@ -35,6 +37,7 @@ internal static class PersistenceExtensions
         services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IAuditTrail, AuditTrail>();
+        services.AddScoped<ISystemOrganizationQueries, SystemOrganizationQueries>();
         services.AddScoped<IPasswordAttemptStore, PasswordAttemptStore>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();

@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IPermissionCatalogService, PermissionCatalogService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<SystemAdministratorActor>();
+        services.AddScoped<ISystemOrganizationService, SystemOrganizationService>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IDevDataSeeder, DevDataSeeder>();
 

@@ -89,8 +89,8 @@ public class AuthServiceTests
             RefreshTokenReuseGraceSeconds = refreshTokenReuseGraceSeconds
         });
 
-        // TokenIssuer has no I/O beyond the already-substituted collaborators above (IUnitOfWork,
-        // IJwtTokenService, IPermissionResolver) — wiring the real implementation here (rather than
+        // TokenIssuer has no I/O beyond its substituted collaborators (IUnitOfWork, IJwtTokenService,
+        // IPermissionResolver, ISystemAdministratorResolver) — wiring the real implementation here (rather than
         // mocking ITokenIssuer) preserves every pre-split assertion on token-issuing behavior unchanged.
         ITokenIssuer tokenIssuer = new TokenIssuer(
             unitOfWork,
