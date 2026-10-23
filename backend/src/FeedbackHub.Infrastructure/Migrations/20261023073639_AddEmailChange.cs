@@ -12,14 +12,14 @@ namespace FeedbackHub.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "Email",
+                name: "email",
                 table: "email_verification_tokens",
                 type: "character varying(200)",
                 maxLength: 200,
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
-                name: "Purpose",
+                name: "purpose",
                 table: "email_verification_tokens",
                 type: "character varying(20)",
                 maxLength: 20,
@@ -56,11 +56,11 @@ namespace FeedbackHub.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "Email",
+                name: "email",
                 table: "email_verification_tokens");
 
             migrationBuilder.DropColumn(
-                name: "Purpose",
+                name: "purpose",
                 table: "email_verification_tokens");
 
             migrationBuilder.DropColumn(
