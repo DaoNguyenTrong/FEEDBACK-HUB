@@ -16,7 +16,7 @@ Tài liệu này mô tả đường đi từ ý tưởng đến phát hành, ai 
 | 7 | Phát hành | Bản phát hành, changelog | Skill `release-kit:git-release` | Người dùng | Tag và merge vào `main` |
 | 8 | Vận hành và phản hồi | Feedback thật từ chính FeedbackHub | Người dùng | — | Quay lại giai đoạn 0, 1 hoặc 5 theo cỡ việc |
 
-Phiên chính là người điều phối: hỏi người dùng, chuyển câu trả lời cho agent, gọi agent theo thứ tự, và không tự làm thay công việc của agent. Subagent không hỏi được người dùng và không gọi được agent khác.
+Phiên chính là người điều phối: gửi mọi câu hỏi cho `solution-architect` trả lời thay người dùng, chỉ hỏi người dùng những câu agent đó chuyển lên, chuyển câu trả lời cho agent, gọi agent theo thứ tự, và không tự làm thay công việc của agent. Subagent không hỏi được người dùng và không gọi được agent khác.
 
 ## 2. Cỡ công việc
 
@@ -91,6 +91,17 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 ## 9. Quyết định quy trình
 
 Quyết định về cách làm việc (agent, cổng duyệt, review) ghi ở đây, mới nhất ở trên; quyết định kỹ thuật theo `AGENTS.md` § Decision Log.
+
+### 2026-10-23 — `solution-architect` trả lời câu hỏi thay người dùng
+Người dùng thấy bị hỏi quá nhiều: PRD-00 và thiết kế module 00 đã có hơn 80 câu hỏi, phần lớn được chấp nhận theo đề xuất. Từ nay mọi câu hỏi của agent đi tới `solution-architect` trước. Agent này đóng vai một SA dày dặn kinh nghiệm, chuyên Vue 3 và dashboard, ưu tiên cách đơn giản nhất thật sự cần, SOLID và Clean Architecture, giao diện tối giản và cân đối. Nó trả lời thay người dùng và chỉ chuyển lên những câu thuộc danh sách người dùng phải quyết:
+- duyệt tài liệu và kế hoạch;
+- các lệnh mà quy tắc dành cho người dùng;
+- tiền và pháp lý;
+- hướng sản phẩm, hoặc đổi một quyết định người dùng đã đưa;
+- nới quy tắc bảo mật;
+- lựa chọn khó đảo ngược mà không đoán được ý người dùng.
+
+Câu trả lời của SA được ghi nguồn "SA (thay người dùng)", để người dùng soát lại khi duyệt tài liệu. Phương án loại: để `product-manager` tự ghi nhiều mặc định hơn. Cách này không có người chịu trách nhiệm cho câu trả lời, và câu hỏi về thiết kế, kỹ thuật vẫn phải hỏi người dùng.
 
 ### 2026-10-22 — Soạn PRD: khoanh phạm vi, chỉ hỏi điều người dùng phải quyết, BA review sớm
 Bản nháp đầu của PRD-00 đi qua 8 phiên bản và 78 câu hỏi; người dùng chấp nhận đề xuất ở 77 câu, PRD phình tới 246 AC vì quyết luôn chi tiết của PRD-03/04/05/07, và lỗi nặng nhất (đường leo quyền có sẵn trong nền tảng) chỉ lộ ra khi BA review ở bản 0.5. Vì vậy:
