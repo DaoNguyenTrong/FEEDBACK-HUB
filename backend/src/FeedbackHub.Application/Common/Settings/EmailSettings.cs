@@ -19,5 +19,8 @@ public sealed class EmailSettings
 
     public int VerificationTokenExpiryHours { get; init; } = 24;
 
+    /// <summary>One deadline for connect, authenticate and send together (not per step). Keep it below the proxy timeout.</summary>
+    public int SendTimeoutSeconds { get; init; } = 15;
+
     public string FrontendBaseUrl { get; init; } = string.Empty;
 }

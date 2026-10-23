@@ -204,4 +204,7 @@
   <data name="InternalServerError" xml:space="preserve">
     <value>An unexpected error occurred. Please try again later.</value>
   </data>
+  <data name="EmailDeliveryFailed" xml:space="preserve">
+    <value>The email could not be sent. Please try again later.</value>
+  </data>
 </root>
