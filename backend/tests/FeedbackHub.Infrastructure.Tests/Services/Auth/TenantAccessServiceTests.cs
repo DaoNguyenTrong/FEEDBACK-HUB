@@ -159,6 +159,26 @@ public sealed class TenantAccessServiceTests(PostgresContainerFixture postgres, 
         await organizationRepository.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
+    // An active membership row whose organization can't be read fails closed, without the suspended state.
+    [Fact]
+    public async Task GetAccessAsync_ActiveMemberOrganizationNotFound_ReturnsNotMember()
+    {
+        Organization organization = await SeedOrganizationAsync();
+        Account account = await SeedAccountAsync();
+        await SeedMemberAsync(organization.Id, account.Id);
+        IRepository<Organization, Guid> organizationRepository = Substitute.For<IRepository<Organization, Guid>>();
+        organizationRepository.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns((Organization?)null);
+        IUnitOfWork unitOfWork = Substitute.For<IUnitOfWork>();
+        unitOfWork.Repository<OrganizationMember, Guid>().Returns(new GenericRepository<OrganizationMember, Guid>(context));
+        unitOfWork.Repository<Organization, Guid>().Returns(organizationRepository);
+
+        TenantAccessStatus status =
+            await CreateService(CreateCache(), unitOfWork).GetAccessAsync(account.Id, organization.Id);
+
+        Assert.Equal(TenantAccessStatus.NotMember, status);
+        await organizationRepository.Received(1).GetByIdAsync(organization.Id, Arg.Any<CancellationToken>());
+    }
+
     // AC-190 (cache part): a suspension made through one instance is seen by every other one at its next request.
     [Fact]
     public async Task GetAccessAsync_InvalidatedOnOneInstance_OtherInstanceSeesChangeAtOnce()
@@ -208,5 +228,19 @@ public sealed class TenantAccessServiceTests(PostgresContainerFixture postgres, 
         TenantAccessStatus status = await CreateService(cache).GetAccessAsync(account.Id, organization.Id);
 
         Assert.Equal(TenantAccessStatus.NotMember, status);
+    }
+
+    // During a rolling deploy an instance of the previous build still reads the bool under the bare account id.
+    [Fact]
+    public async Task InvalidateMemberAsync_BoolCachedUnderPreviousKey_IsRemoved()
+    {
+        Guid organizationId = Guid.NewGuid();
+        Guid accountId = Guid.NewGuid();
+        ICacheService cache = CreateCache();
+        await cache.SetAsync($"tenant-access:{organizationId}", accountId.ToString(), true, TimeSpan.FromSeconds(60));
+
+        await CreateService(cache).InvalidateMemberAsync(organizationId, accountId);
+
+        Assert.Null(await cache.GetAsync<bool?>($"tenant-access:{organizationId}", accountId.ToString()));
     }
 }

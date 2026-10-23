@@ -245,7 +245,7 @@ public class ExceptionHandlingMiddlewareTests
     }
 
     [Fact]
-    public async Task ForbiddenException_WithExtensions_AreWrittenToProblemDetails()
+    public async Task InvokeAsync_ForbiddenExceptionWithExtensions_WritesThemAtTopLevel()
     {
         Fixture f = CreateFixture(_ => throw new ForbiddenException(
             ApplicationMessages.OrganizationSuspended,
@@ -256,9 +256,17 @@ public class ExceptionHandlingMiddlewareTests
         f.Context.Response.Body.Seek(0, SeekOrigin.Begin);
         using JsonDocument body = await JsonDocument.ParseAsync(f.Context.Response.Body);
         Assert.Equal(StatusCodes.Status403Forbidden, f.Context.Response.StatusCode);
+        Assert.Equal(StatusCodes.Status403Forbidden, TopLevel(body, "status").GetInt32());
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, TopLevel(body, "code").GetString());
         Assert.Equal("Acme", body.RootElement.GetProperty("organizationName").GetString());
         Assert.DoesNotContain(
             body.RootElement.EnumerateObject(),
             property => string.Equals(property.Name, "extensions", StringComparison.OrdinalIgnoreCase));
     }
+
+    // Base members serialize in whatever case the host's options give (see DeserializeOptions); extensions verbatim.
+    private static JsonElement TopLevel(JsonDocument body, string name) =>
+        body.RootElement.EnumerateObject()
+            .Single(property => string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+            .Value;
 }

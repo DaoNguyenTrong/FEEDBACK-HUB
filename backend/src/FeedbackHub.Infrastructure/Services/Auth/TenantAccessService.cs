@@ -43,9 +43,14 @@ internal sealed class TenantAccessService(
             cancellationToken);
     }
 
-    public Task InvalidateMemberAsync(
-        Guid organizationId, Guid accountId, CancellationToken cancellationToken = default) =>
-        cacheService.RemoveAsync(Scope(organizationId), Key(accountId), cancellationToken);
+    public async Task InvalidateMemberAsync(
+        Guid organizationId, Guid accountId, CancellationToken cancellationToken = default)
+    {
+        await cacheService.RemoveAsync(Scope(organizationId), Key(accountId), cancellationToken);
+        // One-release migration step: instances of the previous build still read a bool under the bare account id
+        // during a rolling deploy. Remove once no such build runs.
+        await cacheService.RemoveAsync(Scope(organizationId), accountId.ToString(), cancellationToken);
+    }
 
     public Task InvalidateOrganizationAsync(
         Guid organizationId, CancellationToken cancellationToken = default) =>
