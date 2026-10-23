@@ -3,8 +3,8 @@
 | Mục | Giá trị |
 |---|---|
 | Mã | `PRD01` (tiền tố cho mọi mã trong tài liệu này) |
-| Trạng thái | In review |
-| Phiên bản | 0.3 |
+| Trạng thái | Approved |
+| Phiên bản | 1.0 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-10-23 |
 | Phụ thuộc | PRD-00 v1.3 (PRD01 được duyệt cùng lúc hoặc sau PRD-00 v1.3) |
@@ -342,6 +342,7 @@ Ai nhận, kênh và nội dung: PRD05. Module này chỉ nêu sự kiện phát
 | 2026-10-23 | 0.1 | Bản nháp đầu, từ PRD-00 v1.2 (§3.3 nhóm *Sản phẩm*, §12 ba mục PRD01, câu 12, 8, 56, 94), spec lõi §4, §5, §7.2, §9, §11, §12 và `docs/process/system-context.md` | — |
 | 2026-10-23 | 0.2 | Áp dụng câu trả lời 1–6 (§14 *Quyết định*). Câu 1: giữ BR-15, BR-16; khôi phục thuộc dòng *Lưu trữ sản phẩm* của PRD-00 §3.3. Câu 2: §3 nêu Phụ trách nhận mã nhúng từ Quản trị. Câu 3: BR-12; §12 PRD03 thêm dòng bộ chọn người được giao dùng cùng quy tắc. Câu 4: BR-05 thêm dạng IPv4, nhận `http` và `https`, tên có dấu chấm là tên miền, tên không dấu chấm bị từ chối trừ localhost; §8, §9, §11 thêm ghi chú trang `http`; §12 PRD02 thêm dòng nhận diện thành viên trên trang `http`; AC-14 thêm `erp`, `192.168.1.*`; thêm AC-59–61; D5, D6 cập nhật. Câu 5: BR-03, BR-04 nêu khoá đã ngừng không bị xoá, mỗi khoá cũ ngừng đúng 24 giờ sau lúc bị thay. Câu 6: dòng *Thiết kế*. D1: US-12, FR-20 lên Must. D13: bỏ số feedback chưa kết thúc khỏi khối xác nhận lưu trữ (BR-15, AC-45). Sửa AC-25 (*Cho trước*: K1 là khoá cũ còn hạn). Hết câu hỏi mở: trạng thái *In review* | Quyết định của người dùng (câu 4); SA (thay người dùng) (câu 1–3, 5, 6, D1, D13) |
 | 2026-10-23 | 0.3 | Áp dụng review BA v0.2 và câu trả lời 7–17. Dòng *Phụ thuộc*: PRD-00 v1.3; §3 thêm câu dẫn tới thuật ngữ và ngoại lệ mới ở PRD-00 v1.3. Câu 7: BR-18 bước 2, thêm đoạn kết; AC-53 tách thành AC-53, AC-62, AC-63; §8. Câu 8: §12 PRD04 tách hai dòng. Câu 9, 10: BR-15, FR-04, AC-47, thêm AC-64. Câu 11: BR-05 (localhost giữ cổng khi dán), thêm AC-65, AC-66. Câu 12: BR-05 (Public Suffix List, IPv6, tên miền có dấu, 253 ký tự, 127.0.0.1 khác localhost, giới hạn khi thêm đồng thời), BR-20, AC-14, thêm AC-67–71. Câu 13: BR-07, AC-17, thêm AC-72. Câu 14: BR-11, BR-14, AC-35, AC-41. Câu 15: BR-11, AC-34. Câu 16: BR-21, §2 bỏ "lâu ngày", §11, AC-07, thêm AC-74–76. Câu 17: BR-09, §9, §11, AC-27, AC-28, thêm AC-77. Review BA (N1): FR-01, AC-01 nêu đủ mặc định; *Áp dụng cho* của BR-06, BR-09, BR-10 thêm FR-01, của BR-11 thêm FR-13; AC-58 thêm FR-05. (N2): thêm AC-73, AC-78–88; BR-16 nêu khoá cũ còn hạn nhận lại sau khôi phục. (N13): AC-11, AC-12, AC-17, AC-20, AC-22, AC-59, AC-60 viết theo việc Hub nhận hay từ chối feedback; AC-46 ghi kiểm được khi PRD03, PRD04 đã triển khai. D5, D7, D9, D17 dẫn tới các quyết định mới. Theo kiểm tra cuối của BA v0.3: *Áp dụng cho* của BR-15 thêm FR-02, FR-05–FR-08, FR-10, FR-11, của BR-07 thêm FR-06; FR-07 nêu sản phẩm đã lưu trữ không tạo khoá mới được; AC-71 bỏ một mục trước nửa sau; AC-35, AC-41, AC-84, AC-86 ghi kiểm được khi PRD03 đã triển khai; BR-18 bước 6 kiểm "sản phẩm đã lưu trữ" trước các điều kiện khác. Giữ *In review* | SA (thay người dùng) (câu 7–17); BA review (N1, N2, N13, kiểm tra cuối) |
+| 2026-10-23 | 1.0 | Người dùng duyệt PRD cùng bảng Mặc định đề xuất và các câu trả lời của SA thay người dùng (1–3, 5–17); câu 4 là quyết định của người dùng | Quyết định của người dùng |
 
 ### Quyết định
 

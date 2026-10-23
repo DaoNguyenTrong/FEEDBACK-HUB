@@ -7,7 +7,7 @@ Trạng thái chi tiết của PRD nằm ở `docs/prd/README.md` và của tài
 | Module | PRD | UI | Tech | appsec | Plan | Code | Merged |
 |---|---|---|---|---|---|---|---|
 | 00 Nền tảng | Approved | Approved | — | bắt buộc | — | — | — |
-| 01 Quản lý sản phẩm | — | — | — | không cần | — | — | — |
+| 01 Quản lý sản phẩm | Approved | — | — | không cần | — | — | — |
 | 02 Thu thập feedback (widget) | — | — | — | bắt buộc | — | — | — |
 | 03 Xử lý feedback | — | — | — | không cần | — | — | — |
 | 04 Cổng người báo | — | — | — | bắt buộc | — | — | — |
