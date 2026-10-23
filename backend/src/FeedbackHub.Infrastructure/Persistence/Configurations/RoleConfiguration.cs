@@ -20,8 +20,7 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
             .HasConversion<string>()
             .HasMaxLength(20);
 
-        builder.HasIndex(role => new { role.OrganizationId, role.Name })
-            .IsUnique();
+        // The unique lower(Name) index exists only in SQL (M3 RenameDuplicateRoleNames); EF cannot model it.
 
         builder.HasIndex(role => new { role.OrganizationId, role.SystemRoleKind })
             .IsUnique()

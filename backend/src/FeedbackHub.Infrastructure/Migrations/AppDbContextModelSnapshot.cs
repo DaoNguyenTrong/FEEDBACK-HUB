@@ -629,9 +629,6 @@ namespace FeedbackHub.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrganizationId", "Name")
-                        .IsUnique();
-
                     b.HasIndex("OrganizationId", "SystemRoleKind")
                         .IsUnique()
                         .HasFilter("\"SystemRoleKind\" IS NOT NULL");
