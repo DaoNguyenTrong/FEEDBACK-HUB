@@ -43,6 +43,8 @@ gh pr view <number> --json statusCheckRollup --jq '.statusCheckRollup[] | "\(.na
 
 Dispatch the `code-reviewer` subagent (Agent tool, `subagent_type: code-reviewer`) and give it the PR number, so it reviews `gh pr diff <number>`. It checks the docs against the rules they describe (for example, a doc that names a file or command that no longer exists) and labels each finding `blocking` or `non-blocking`.
 
+When the PR sets a PRD under `docs/prd/` to *Approved*, also tell it to check the approval order in that PRD's change log (`docs/prd/README.md` § Quy trình, step 4). For the approved version, a `business-analyst` review row must come before the user-approval row, and no content change may follow the user-approval row. Changes to the link and metadata rows are exempt (`docs/process/lifecycle.md`, *Thay đổi sau khi đã duyệt*). A missing BA row, or a content change after the approval, is `blocking`.
+
 Post its output as a PR comment so the decision is on record:
 
 ```bash
