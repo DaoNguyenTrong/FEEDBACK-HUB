@@ -27,6 +27,9 @@ internal static class EmailExtensions
         if (string.IsNullOrWhiteSpace(emailSettings.FrontendBaseUrl))
             throw new InvalidOperationException("EmailSettings:FrontendBaseUrl is required.");
 
+        // Fails startup on an unknown SecureSocket value instead of the first email.
+        _ = EmailSecureSocket.Resolve(emailSettings);
+
         services.Configure<EmailSettings>(configuration.GetSection(nameof(EmailSettings)));
         services.AddScoped<ISmtpClientFactory, SmtpClientFactory>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
