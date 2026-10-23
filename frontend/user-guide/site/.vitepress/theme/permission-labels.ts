@@ -12,6 +12,7 @@ const basePermissionLabels: Record<string, Localized> = {
   'apikeys.manage': { vi: 'Quản lý khoá API', en: 'Manage API keys' },
   'auditlogs.view': { vi: 'Xem nhật ký hoạt động', en: 'View audit logs' },
   'settings.manage': { vi: 'Quản lý cài đặt', en: 'Manage settings' },
+  'feedbackhub.admin': { vi: 'Quản trị FeedbackHub', en: 'FeedbackHub administration' },
 }
 
 export const permissionLabels: Record<string, Localized> = {

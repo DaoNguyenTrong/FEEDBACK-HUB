@@ -12,7 +12,7 @@ public static class SystemRoleDefaults
     public static readonly IReadOnlyDictionary<SystemRoleKind, IReadOnlyList<string>> PermissionsByKind =
         new Dictionary<SystemRoleKind, IReadOnlyList<string>>
         {
-            [SystemRoleKind.Admin] = [Permissions.OrganizationMembersManage],
+            [SystemRoleKind.Admin] = [Permissions.OrganizationMembersManage, Permissions.FeedbackHubAdmin],
             [SystemRoleKind.Member] = []
         };
 }

@@ -8,4 +8,5 @@ export const Permissions = {
   ApiKeysManage: 'apikeys.manage',
   AuditLogsView: 'auditlogs.view',
   SettingsManage: 'settings.manage',
+  FeedbackHubAdmin: 'feedbackhub.admin',
 } as const

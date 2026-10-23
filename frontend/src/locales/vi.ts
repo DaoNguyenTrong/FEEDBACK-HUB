@@ -238,6 +238,9 @@ const vi: LocaleSchema = {
     failed: 'Không thể xác nhận đổi email lúc này. Vui lòng thử lại.',
     backToApp: 'Về ứng dụng',
   },
+  roles: {
+    systemKind: { Owner: 'Chủ sở hữu', Admin: 'Admin', Member: 'Member' },
+  },
   organizations: {
     title: 'Tổ chức',
     personalWorkspace: 'Không gian cá nhân',
@@ -297,6 +300,7 @@ const vi: LocaleSchema = {
     permissionApiKeysManage: 'Quản lý khoá API',
     permissionAuditLogsView: 'Xem nhật ký hoạt động',
     permissionSettingsManage: 'Quản lý cài đặt',
+    permissionFeedbackHubAdmin: 'Quản trị FeedbackHub',
   },
   notifications: {
     title: 'Thông báo',
