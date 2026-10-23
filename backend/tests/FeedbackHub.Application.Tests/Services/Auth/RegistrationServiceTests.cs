@@ -394,7 +394,7 @@ public class RegistrationServiceTests
 
         await f.EmailVerificationTokenRepo.Received(1).AddAsync(
             Arg.Is<EmailVerificationToken>(t =>
-                t.Purpose == EmailVerificationPurpose.VerifyEmail && t.Email == account.Email),
+                t != null && t.Purpose == EmailVerificationPurpose.VerifyEmail && t.Email == account.Email),
             Arg.Any<CancellationToken>());
     }
 

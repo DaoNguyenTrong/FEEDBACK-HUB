@@ -143,7 +143,7 @@ const vi: LocaleSchema = {
     microsoftEmailNotConfirmed:
       'Đã có tài khoản dùng email này nhưng chưa được xác thực. Hãy xác thực để liên kết đăng nhập Microsoft.',
     microsoftEmailNotVerifiedByProvider:
-      'Microsoft chưa xác thực địa chỉ email này. Vui lòng xác thực với Microsoft trước.',
+      'Microsoft chưa xác minh email của tài khoản này. Hãy đăng ký bằng email.',
     microsoftLoginFailed: 'Không thể đăng nhập bằng Microsoft lúc này. Vui lòng thử lại.',
     registerLink: 'Chưa có tài khoản? Tạo tài khoản',
   },
@@ -191,6 +191,7 @@ const vi: LocaleSchema = {
     currentPasswordPlaceholder: 'Nhập mật khẩu hiện tại',
     newPasswordPlaceholder: 'Nhập mật khẩu mới',
     currentPasswordRequired: 'Vui lòng nhập mật khẩu hiện tại.',
+    invalidCurrentPassword: 'Mật khẩu hiện tại không đúng.',
     newPasswordRequired: 'Vui lòng nhập mật khẩu mới.',
     newPasswordTooShort: 'Mật khẩu mới phải có ít nhất {min} ký tự.',
     passwordChangeTemporarilyLocked:

@@ -57,9 +57,9 @@ public sealed class EmailChangeConcurrencyTests(PostgresContainerFixture fixture
             // Inspected below, per task.
         }
 
-        Task[] failed = saves.Where(t => t.IsFaulted).ToArray();
-        Assert.Single(failed);
-        ConflictException conflict = Assert.IsType<ConflictException>(failed[0].Exception!.InnerException);
+        List<Task> failed = saves.Where(t => t.IsFaulted).ToList();
+        Task failedSave = Assert.Single(failed);
+        ConflictException conflict = Assert.IsType<ConflictException>(failedSave.Exception!.InnerException);
         Assert.Equal(ApplicationMessages.AccountEmailAlreadyExists, conflict.Message);
 
         await using AppDbContext reader = fixture.CreateDbContext();

@@ -216,7 +216,7 @@ async function updateProfile() {
       profileErrors.value = mapValidationErrors(error.problem.errors)
       const code = error.problem.code
       if (code === 'InvalidCurrentPassword') {
-        profileErrors.value.currentpassword = error.problem.detail ?? error.problem.title
+        profileErrors.value.currentpassword = t('profile.invalidCurrentPassword')
       } else if (code === 'FieldRequired') {
         profileErrors.value.currentpassword = t('profile.currentPasswordRequired')
       } else if (code === 'EmailChangeTemporarilyLocked') {

@@ -562,12 +562,7 @@ describe('ProfileDialog', () => {
     })
 
     it.each([
-      [
-        'InvalidCurrentPassword',
-        401,
-        { detail: 'Current password is incorrect' },
-        'Current password is incorrect',
-      ],
+      ['InvalidCurrentPassword', 401, { detail: 'Backend wording' }, en.profile.invalidCurrentPassword],
       ['FieldRequired', 400, { detail: 'Required' }, en.profile.currentPasswordRequired],
       [
         'EmailChangeTemporarilyLocked',

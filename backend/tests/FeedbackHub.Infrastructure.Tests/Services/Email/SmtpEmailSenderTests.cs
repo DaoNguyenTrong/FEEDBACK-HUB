@@ -222,6 +222,40 @@ public class SmtpEmailSenderTests
     }
 
     [Fact]
+    public async Task SendAsync_CallerCancelSurfacesAsOtherException_PropagatesOperationCanceled()
+    {
+        Fixture f = CreateFixture();
+        using CancellationTokenSource caller = new();
+        f.Client.ConnectAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<SecureSocketOptions>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ =>
+            {
+                caller.Cancel();
+                throw new IOException("socket closed");
+            });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => f.Sender.SendAsync(Recipient, "Subject", "<p>Body</p>", caller.Token));
+    }
+
+    [Fact]
+    public async Task SendAsync_EachStep_SetsClientTimeoutToRemainingTime()
+    {
+        Fixture f = CreateFixture(username: "smtp-user", sendTimeoutSeconds: 15);
+        List<int> timeouts = [];
+        f.Client.When(c => c.ConnectAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<SecureSocketOptions>(), Arg.Any<CancellationToken>()))
+            .Do(_ => timeouts.Add(f.Client.Timeout));
+        f.Client.When(c => c.AuthenticateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()))
+            .Do(_ => timeouts.Add(f.Client.Timeout));
+        f.Client.When(c => c.SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>(), Arg.Any<ITransferProgress>()))
+            .Do(_ => timeouts.Add(f.Client.Timeout));
+
+        await f.Sender.SendAsync(Recipient, "Subject", "<p>Body</p>", CancellationToken.None);
+
+        Assert.Equal(3, timeouts.Count);
+        Assert.All(timeouts, t => Assert.InRange(t, 1, 15000));
+    }
+
+    [Fact]
     public async Task SendAsync_CallerCancels_PropagatesOperationCanceled()
     {
         Fixture f = CreateFixture();
