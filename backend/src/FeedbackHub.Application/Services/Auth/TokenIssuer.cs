@@ -3,7 +3,9 @@ using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Services.Accounts;
+using FeedbackHub.Application.Resources;
 using FeedbackHub.Domain.Entities;
+using FeedbackHub.Domain.Exceptions;
 
 namespace FeedbackHub.Application.Services.Auth;
 
@@ -35,6 +37,13 @@ internal sealed class TokenIssuer(
         Guid? familyId,
         CancellationToken cancellationToken)
     {
+        // The one place every sign-in path passes through, so a locked account gets no session from any of them.
+        // The login message, not a lock-specific one: it must not say more about the account than "invalid" does.
+        if (!account.Status)
+        {
+            throw new UnauthorizedException(ApplicationMessages.InvalidUsernameOrPassword);
+        }
+
         // A rotated token stays in its login's family, so the family is the session; a new login starts a new one.
         Guid sessionId = familyId is { } existingFamily && existingFamily != Guid.Empty ? existingFamily : Guid.NewGuid();
         string accessToken = jwtTokenService.GenerateAccessToken(account, organizationId, sessionId);

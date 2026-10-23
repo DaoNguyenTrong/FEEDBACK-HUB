@@ -2,9 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
+using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Services.Auth;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
@@ -772,6 +774,121 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         HttpResponseMessage response = await client.GetAsync("/api/permissions");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // Locked account (TokenIssuer is the single place that refuses a session)
+
+    private sealed class FakeExternalAuthProvider(ExternalUserInfo userInfo) : IExternalAuthProvider
+    {
+        public string ProviderName => "google";
+
+        public Task<ExternalUserInfo> ValidateAsync(string credential, CancellationToken cancellationToken) =>
+            Task.FromResult(userInfo);
+    }
+
+    private async Task<Account> SeedLockedAccountAsync(string username, string password = "correct-password")
+    {
+        await using AppDbContext context = CreateDbContext();
+        Account account = await AuthTestHelper.SeedConfirmedAccountAsync(
+            context, username: username, email: $"{username}@example.com", passwordHash: null);
+        account.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(password, FastPasswordHasher.WorkFactor));
+        account.Deactivate();
+        context.Accounts.Update(account);
+        await context.SaveChangesAsync();
+        return account;
+    }
+
+    [Fact]
+    public async Task Login_LockedAccount_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        await SeedLockedAccountAsync("locked-login");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("locked-login", "correct-password"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refresh_LockedAccount_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        Account account = await SeedLockedAccountAsync("locked-refresh");
+        await using (AppDbContext context = CreateDbContext())
+        {
+            context.RefreshTokens.Add(RefreshToken.Create(new RefreshTokenParams(
+                account.Id, ComputeSha256("locked-refresh-token"), DateTime.UtcNow.AddDays(1), null, null, false, DateTime.UtcNow)));
+            await context.SaveChangesAsync();
+        }
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/refresh", new RefreshTokenRequest("locked-refresh-token"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task VerifyEmail_LockedAccount_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        const string rawToken = "raw-locked-verify-token";
+        await using (AppDbContext context = CreateDbContext())
+        {
+            Account account = Account.Create(new AccountParams("Locked", "locked-verify", "locked-verify@example.com"));
+            account.SetPasswordHash("hash");
+            account.Deactivate();
+            context.Accounts.Add(account);
+            context.EmailVerificationTokens.Add(EmailVerificationToken.Create(new EmailVerificationTokenParams(
+                account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddHours(1),
+                EmailVerificationPurpose.VerifyEmail, account.Email)));
+            await context.SaveChangesAsync();
+        }
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/verify-email", new VerifyEmailRequest(rawToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.False(await verifyContext.RefreshTokens.AnyAsync());
+    }
+
+    [Fact]
+    public async Task ExternalLogin_LinkedLockedAccount_Returns401()
+    {
+        Account account = await SeedLockedAccountAsync("locked-external");
+        await using (AppDbContext context = CreateDbContext())
+        {
+            context.ExternalLogins.Add(ExternalLogin.Create(new ExternalLoginParams(
+                account.Id, "google", "google-user-1", account.Email)));
+            await context.SaveChangesAsync();
+        }
+        HttpClient client = fixture
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.AddScoped<IExternalAuthProvider>(_ =>
+                    new FakeExternalAuthProvider(new ExternalUserInfo("google-user-1", account.Email, "Locked", true)))))
+            .CreateClient();
+        client.DefaultRequestHeaders.Add("X-TimeZone", "UTC");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/external/google", new ExternalLoginRequest("some-credential"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.False(await verifyContext.RefreshTokens.AnyAsync());
+    }
+
+    [Fact]
+    public async Task SwitchOrganization_LockedAccount_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        Account account = await SeedLockedAccountAsync("locked-switch");
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     private static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)
