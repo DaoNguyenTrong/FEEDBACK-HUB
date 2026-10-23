@@ -38,13 +38,13 @@ public class MicrosoftAuthProviderTests
     public async Task ValidateAsync_ValidPayload_MapsToExternalUserInfo()
     {
         Fixture f = CreateFixture();
-        MicrosoftTokenPayload payload = new("microsoft-oid-1", "user@example.com", "Test User", "9188040d-6c67-4c5b-b112-36a304b66dad", false);
+        MicrosoftTokenPayload payload = new("microsoft-sub-1", "user@example.com", "Test User", "9188040d-6c67-4c5b-b112-36a304b66dad", false);
         f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(payload);
 
         ExternalUserInfo result = await f.Provider.ValidateAsync("some-credential", CancellationToken.None);
 
-        Assert.Equal("microsoft-oid-1", result.ProviderUserId);
+        Assert.Equal("microsoft-sub-1", result.ProviderUserId);
         Assert.Equal("user@example.com", result.Email);
         Assert.Equal("Test User", result.Name);
         Assert.True(result.EmailVerified);

@@ -1,5 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Security.Cryptography;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -53,7 +51,8 @@ public class MicrosoftJwtValidatorTests
     }
 
     private static string CreateToken(
-        Dictionary<string, object?> claims, string? issuerTenant = null, string defaultTenant = WorkTenant)
+        Dictionary<string, object?> claims, string? issuerTenant = null, string defaultTenant = WorkTenant,
+        SecurityKey? signingKey = null, bool expired = false, string audience = ClientId)
     {
         Dictionary<string, object> payload = new()
         {
@@ -76,10 +75,11 @@ public class MicrosoftJwtValidatorTests
         SecurityTokenDescriptor descriptor = new()
         {
             Issuer = $"https://login.microsoftonline.com/{issuerTenant ?? defaultTenant}/v2.0",
-            Audience = ClientId,
-            Expires = DateTime.UtcNow.AddMinutes(10),
+            Audience = audience,
+            NotBefore = expired ? DateTime.UtcNow.AddHours(-3) : null,
+            Expires = expired ? DateTime.UtcNow.AddHours(-2) : DateTime.UtcNow.AddMinutes(10),
             Claims = payload,
-            SigningCredentials = new SigningCredentials(SigningKey, SecurityAlgorithms.RsaSha256)
+            SigningCredentials = new SigningCredentials(signingKey ?? SigningKey, SecurityAlgorithms.RsaSha256)
         };
         return new JsonWebTokenHandler().CreateToken(descriptor);
     }
@@ -124,6 +124,40 @@ public class MicrosoftJwtValidatorTests
     }
 
     [Fact]
+    public async Task ValidateAsync_XmsEdov_ArrayValue_IsNotVerified()
+    {
+        MicrosoftTokenPayload payload = await Validate(
+            CreateToken(new Dictionary<string, object?> { ["xms_edov"] = new[] { "true" } }));
+
+        Assert.False(payload.EmailDomainOwnerVerified);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_TokenSignedWithOtherKey_Throws()
+    {
+        string token = CreateToken(
+            new Dictionary<string, object?>(), signingKey: new RsaSecurityKey(RSA.Create(2048)) { KeyId = "k1" });
+
+        await Assert.ThrowsAnyAsync<SecurityTokenException>(() => Validate(token));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ExpiredToken_Throws()
+    {
+        string token = CreateToken(new Dictionary<string, object?>(), expired: true);
+
+        await Assert.ThrowsAsync<SecurityTokenExpiredException>(() => Validate(token));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WrongAudience_Throws()
+    {
+        string token = CreateToken(new Dictionary<string, object?>(), audience: "other-client");
+
+        await Assert.ThrowsAsync<SecurityTokenInvalidAudienceException>(() => Validate(token));
+    }
+
+    [Fact]
     public async Task ValidateAsync_EmailMissingButPreferredUsernamePresent_EmailIsNull()
     {
         MicrosoftTokenPayload payload = await Validate(CreateToken(new Dictionary<string, object?>
@@ -148,7 +182,7 @@ public class MicrosoftJwtValidatorTests
     {
         string token = CreateToken(new Dictionary<string, object?>(), issuerTenant: "99999999-9999-9999-9999-999999999999");
 
-        await Assert.ThrowsAnyAsync<SecurityTokenException>(() => Validate(token));
+        await Assert.ThrowsAsync<SecurityTokenInvalidIssuerException>(() => Validate(token));
     }
 
     [Fact]

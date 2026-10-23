@@ -88,8 +88,16 @@ internal sealed class MicrosoftJwtValidator : IMicrosoftJwtValidator
 
         string? email = principal.FindFirst("email")?.Value;
         string? name = principal.FindFirst("name")?.Value;
-        bool emailDomainOwnerVerified = string.Equals(
-            principal.FindFirst("xms_edov")?.Value, "true", StringComparison.OrdinalIgnoreCase);
+        // Read the raw payload value: a JSON array (even ["true"]) is split into per-element claims and would
+        // otherwise look like a plain "true". Only a JSON boolean true or the string "true" counts.
+        bool emailDomainOwnerVerified = validatedToken is JwtSecurityToken jwt
+            && jwt.Payload.TryGetValue("xms_edov", out object? edov)
+            && edov switch
+            {
+                bool b => b,
+                string str => string.Equals(str, "true", StringComparison.OrdinalIgnoreCase),
+                _ => false
+            };
 
         return new MicrosoftTokenPayload(subject, email, name, tid, emailDomainOwnerVerified);
     }
