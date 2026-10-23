@@ -27,6 +27,9 @@
   <data name="EmailChangeNotPending" xml:space="preserve">
     <value>There is no email change waiting for confirmation.</value>
   </data>
+  <data name="EmailChangeLinkNoLongerValid" xml:space="preserve">
+    <value>This email change link is no longer valid.</value>
+  </data>
   <data name="PasswordHashRequired" xml:space="preserve">
     <value>Password hash is required.</value>
   </data>

@@ -20,7 +20,8 @@ anonymous caller, 404 to a signed-in one (an `/api` request without `X-TimeZone`
 surfaces opt out explicitly:
 
 - Controllers: `[AllowAnonymous]` on `HealthController` and on `AuthController`'s `login`, `register`,
-  `verify-email`, `resend-verification`, `external/{provider}` and `refresh` (pinned by their controller tests).
+  `verify-email`, `resend-verification`, `confirm-email-change`, `external/{provider}` and `refresh` (pinned by their
+  controller tests).
 - `Program.cs`: `.AllowAnonymous()` on `/metrics`, `/hangfire` and the dev-only OpenAPI/Scalar routes (pinned by
   `FallbackAuthorizationTests`). A new `Map...` endpoint meant to be public needs the same call. `/metrics` and
   `/hangfire` (full job control, no app-level check) rely on the deployment: nginx answers 404 for both and the
