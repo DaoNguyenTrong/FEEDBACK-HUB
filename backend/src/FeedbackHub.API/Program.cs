@@ -215,7 +215,7 @@ if (app.Environment.IsDevelopment())
 }
 
 StorageSettings storageSettings = app.Services.GetRequiredService<IOptions<StorageSettings>>().Value;
-if (storageSettings.Provider == "Local")
+if (FeedbackHub.Infrastructure.DependencyInjection.IsLocalStorage(storageSettings.Provider))
 {
     string storagePath = Path.IsPathRooted(storageSettings.BasePath)
         ? storageSettings.BasePath
