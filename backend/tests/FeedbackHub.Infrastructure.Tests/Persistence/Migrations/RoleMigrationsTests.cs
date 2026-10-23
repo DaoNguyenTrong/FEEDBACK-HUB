@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -99,6 +100,30 @@ public sealed class RoleMigrationsTests(PostgresContainerFixture fixture) : IAsy
         Assert.Equal("Tester", (await NamesAsync(orgY))[otherOrg]);
     }
 
+    // Pins NFC and btrim in the step-2 key: the pairs differ only by normalization form or by a trailing space.
+    [Fact]
+    public async Task M3_NfcAndTrailingSpacePairs_LaterOneRenamed_IndexCreated()
+    {
+        await RestorePreM3IndexAsync();
+        Guid org = await SeedOrganizationAsync();
+        string composed = "Ước";
+        Guid nfcFirst = await SeedRoleAsync(org, composed);
+        Guid nfcSecond = await SeedRoleAsync(org, composed.Normalize(NormalizationForm.FormD));
+        Guid trimFirst = await SeedRoleAsync(org, "Tester");
+        Guid trimSecond = await SeedRoleAsync(org, "Tester ");
+
+        await context.Database.ExecuteSqlRawAsync(RenameDuplicateRoleNames.UpSql);
+
+        Dictionary<Guid, string> names = await NamesAsync(org);
+        Assert.Equal(composed, names[nfcFirst]);
+        Assert.Equal(composed + " (2)", names[nfcSecond]);
+        Assert.Equal("Tester", names[trimFirst]);
+        Assert.Equal("Tester (2)", names[trimSecond]);
+        Assert.Equal(1, await context.Database.SqlQuery<int>(
+            $"""SELECT count(*)::int AS "Value" FROM pg_indexes WHERE indexname = 'IX_roles_OrganizationId_lower_Name'""")
+            .SingleAsync());
+    }
+
     [Fact]
     public async Task M3_CustomRoleNamedLikeSystemRole_Renamed()
     {
@@ -147,6 +172,22 @@ public sealed class RoleMigrationsTests(PostgresContainerFixture fixture) : IAsy
     }
 
     [Fact]
+    public async Task M3_MultibyteNameAt100Chars_SuffixFitsIn100()
+    {
+        await RestorePreM3IndexAsync();
+        Guid org = await SeedOrganizationAsync();
+        string name = new('ư', 100);
+        await SeedRoleAsync(org, name);
+        Guid duplicate = await SeedRoleAsync(org, name.ToUpperInvariant());
+
+        await context.Database.ExecuteSqlRawAsync(RenameDuplicateRoleNames.UpSql);
+
+        string renamed = (await NamesAsync(org))[duplicate];
+        Assert.Equal(100, renamed.Length);
+        Assert.EndsWith(" (2)", renamed);
+    }
+
+    [Fact]
     public async Task M3_Notice_ContainsIdsNotNames()
     {
         await RestorePreM3IndexAsync();
@@ -156,7 +197,7 @@ public sealed class RoleMigrationsTests(PostgresContainerFixture fixture) : IAsy
 
         await context.Database.ExecuteSqlRawAsync(RenameDuplicateRoleNames.UpSql);
 
-        string notice = Assert.Single(notices, n => n.StartsWith("M3"));
+        string notice = Assert.Single(notices, n => n.StartsWith("M3") && n.Contains(org.ToString()));
         Assert.Contains(duplicate.ToString(), notice);
         Assert.Contains(org.ToString(), notice);
         Assert.DoesNotContain("secretname", notice, StringComparison.OrdinalIgnoreCase);
@@ -246,8 +287,10 @@ public sealed class RoleMigrationsTests(PostgresContainerFixture fixture) : IAsy
 
         await context.Database.ExecuteSqlRawAsync(RemoveRolesOfInactiveMembers.UpSql);
 
+        Guid[] seeded = [activeMember.Id, inactiveMember.Id];
         List<Guid> remaining = await context.Set<OrganizationMemberRole>()
-            .AsNoTracking().Select(r => r.OrganizationMemberId).ToListAsync();
+            .AsNoTracking().Where(r => seeded.Contains(r.OrganizationMemberId))
+            .Select(r => r.OrganizationMemberId).ToListAsync();
         Assert.Equal([activeMember.Id], remaining);
     }
 
@@ -265,11 +308,12 @@ public sealed class RoleMigrationsTests(PostgresContainerFixture fixture) : IAsy
         await context.Database.ExecuteSqlRawAsync(GrantFeedbackHubAdminToAdminRoles.UpSql);
         await context.Database.ExecuteSqlRawAsync(GrantFeedbackHubAdminToAdminRoles.UpSql);
 
+        Guid[] seeded = [adminA, adminB, member];
         List<Guid> holders = await context.Set<RolePermission>().AsNoTracking()
-            .Where(p => p.PermissionCode == "feedbackhub.admin").Select(p => p.RoleId).ToListAsync();
-        Assert.Equal(2, holders.Count);
-        Assert.Contains(adminA, holders);
-        Assert.Contains(adminB, holders);
+            .Where(p => p.PermissionCode == "feedbackhub.admin" && seeded.Contains(p.RoleId))
+            .Select(p => p.RoleId).ToListAsync();
+        Assert.Equal(1, holders.Count(id => id == adminA));
+        Assert.Equal(1, holders.Count(id => id == adminB));
         Assert.DoesNotContain(member, holders);
     }
 
@@ -291,8 +335,10 @@ public sealed class RoleMigrationsTests(PostgresContainerFixture fixture) : IAsy
         await using AppDbContext secondContext = fixture.CreateDbContext();
         firstContext.Set<Role>().Add(Role.Create(new RoleParams(org, "Tester")));
         secondContext.Set<Role>().Add(Role.Create(new RoleParams(org, "TESTER")));
-        UnitOfWork first = new(firstContext, new ServiceCollection().BuildServiceProvider());
-        UnitOfWork second = new(secondContext, new ServiceCollection().BuildServiceProvider());
+        await using ServiceProvider firstServices = new ServiceCollection().BuildServiceProvider();
+        await using ServiceProvider secondServices = new ServiceCollection().BuildServiceProvider();
+        UnitOfWork first = new(firstContext, firstServices);
+        UnitOfWork second = new(secondContext, secondServices);
 
         await first.SaveChangesAsync();
         ConflictException conflict = await Assert.ThrowsAsync<ConflictException>(() => second.SaveChangesAsync());
