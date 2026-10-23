@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw'
+import { HttpTransportType } from '@microsoft/signalr'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { NotificationDto } from '@/api/generated/model/notificationDto'
@@ -48,9 +49,10 @@ function fire(event: string, ...args: unknown[]) {
 }
 
 vi.mock('@microsoft/signalr', () => ({
+  HttpTransportType: { WebSockets: 1 },
   HubConnectionBuilder: class {
-    withUrl(url: string) {
-      withUrlMock(url)
+    withUrl(url: string, options?: unknown) {
+      withUrlMock(url, options)
       return this
     }
     withAutomaticReconnect() {
@@ -457,11 +459,30 @@ describe('useNotificationsStore', () => {
         const store = useNotificationsStore()
         await store.connectRealtime()
 
-        expect(withUrlMock).toHaveBeenCalledWith('https://api.example.test/hubs/notifications')
+        expect(withUrlMock).toHaveBeenCalledWith(
+          'https://api.example.test/hubs/notifications',
+          expect.anything(),
+        )
         await store.disconnectRealtime()
       } finally {
         apiClient.defaults.baseURL = original
       }
+    })
+
+    it('connects the notification hub with WebSockets only and skips negotiation', async () => {
+      withUrlMock.mockClear()
+      const store = useNotificationsStore()
+      await store.connectRealtime()
+
+      expect(withUrlMock).toHaveBeenCalledWith(
+        expect.stringContaining('/hubs/notifications'),
+        expect.objectContaining({
+          transport: HttpTransportType.WebSockets,
+          skipNegotiation: true,
+          withCredentials: true,
+        }),
+      )
+      await store.disconnectRealtime()
     })
 
     it('disconnectRealtime stops the hub connection', async () => {

@@ -80,7 +80,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
     // deploy được ở nhiều môi trường. Bỏ '/' cuối: 'https://x/' + '/hubs' sẽ thành '//hubs'.
     const apiBaseUrl = (apiClient.defaults.baseURL ?? '').replace(/\/+$/, '')
     const current = new signalR.HubConnectionBuilder()
-      .withUrl(`${apiBaseUrl}/hubs/notifications`, { withCredentials: true })
+      .withUrl(`${apiBaseUrl}/hubs/notifications`, {
+        withCredentials: true,
+        transport: signalR.HttpTransportType.WebSockets,
+        skipNegotiation: true,
+      })
       .withAutomaticReconnect()
       .build()
     connection = current

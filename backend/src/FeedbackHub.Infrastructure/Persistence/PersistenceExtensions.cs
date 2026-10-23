@@ -27,6 +27,7 @@ internal static class PersistenceExtensions
         });
 
         services.AddDataProtection()
+            .SetApplicationName("FeedbackHub")
             .PersistKeysToDbContext<AppDbContext>();
 
         services.AddScoped(typeof(IRepository<,>), typeof(GenericRepository<,>));
