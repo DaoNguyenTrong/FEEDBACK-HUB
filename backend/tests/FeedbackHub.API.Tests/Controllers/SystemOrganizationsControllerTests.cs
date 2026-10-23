@@ -13,6 +13,7 @@ using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.SystemOrganizations;
 using FeedbackHub.Domain.Auditing;
 using FeedbackHub.Domain.Entities;
+using FeedbackHub.Domain.Exceptions;
 using FeedbackHub.Infrastructure.Persistence;
 
 namespace FeedbackHub.API.Tests.Controllers;
@@ -22,12 +23,22 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
 {
     private const string Reason = "Hết hợp đồng";
 
+    public enum WorkingContext
+    {
+        Personal,
+        SuspendedOrganization,
+        LostOrganization
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public Task DisposeAsync() => fixture.ResetAsync();
 
     private AppDbContext CreateDbContext() =>
         fixture.Services.CreateScope().ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // NotFoundException carries its key without a messages constant; read it from the exception the service throws.
+    private static readonly string EntityNotFoundCode = new NotFoundException(nameof(Organization), Guid.Empty).Message;
 
     private static readonly Guid AnyOrganizationId = Guid.Parse("0199f1a4-0000-7000-8000-000000000001");
 
@@ -159,19 +170,19 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
 
     // TECH00 §5.2: the policy ignores org_id, and neither the tenant middleware nor the organization gate applies.
     [Theory]
-    [InlineData("personal")]
-    [InlineData("suspended")]
-    [InlineData("lost")]
-    public async Task AllEndpoints_SystemAdministratorWhateverOrganizationContext_AreAllowed(string context)
+    [InlineData(WorkingContext.Personal)]
+    [InlineData(WorkingContext.SuspendedOrganization)]
+    [InlineData(WorkingContext.LostOrganization)]
+    public async Task AllEndpoints_SystemAdministratorWhateverOrganizationContext_AreAllowed(WorkingContext context)
     {
         Account admin = await SeedSystemAdministratorAsync();
         Guid? workingOrganizationId = null;
-        if (context != "personal")
+        if (context != WorkingContext.Personal)
         {
             Organization working = await SeedOrganizationAsync("Nơi làm việc");
             OrganizationMember membership = await SeedMemberAsync(working.Id, admin.Id);
             await using AppDbContext db = CreateDbContext();
-            if (context == "suspended")
+            if (context == WorkingContext.SuspendedOrganization)
             {
                 working.Deactivate(new DeactivationParams(admin.Id, false, null, DateTime.UtcNow));
                 db.Organizations.Update(working);
@@ -255,7 +266,7 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
     [InlineData("pageSize=101")]
     [InlineData("pageSize=0")]
     [InlineData("pageNumber=0")]
-    public async Task List_PageSizeOver100_Returns400(string query)
+    public async Task List_PageOutOfRange_Returns400ValidationFailed(string query)
     {
         Account admin = await SeedSystemAdministratorAsync();
 
@@ -275,7 +286,7 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
 
         HttpResponseMessage response = await DeactivateAsync(ClientFor(admin), Guid.NewGuid(), new { reason = Reason });
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        await AssertCodeAsync(response, HttpStatusCode.NotFound, EntityNotFoundCode);
     }
 
     // AC-138, AC-139
@@ -353,6 +364,15 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
         Assert.False(stored.Status);
         Assert.True(stored.DeactivatedBySystemAdministrator);
         Assert.Equal(Reason, stored.DeactivationReason);
+        await using AppDbContext context = CreateDbContext();
+        List<AuditLog> changeRows = await context.AuditLogs.AsNoTracking()
+            .Where(log => log.Kind == AuditLogKind.Change
+                && log.EntityName == nameof(Organization)
+                && log.EntityId == target.Id.ToString()
+                && log.Action == nameof(EntityState.Modified))
+            .ToListAsync();
+        Assert.NotEmpty(changeRows);
+        Assert.All(changeRows, row => Assert.Null(row.OrganizationId));
     }
 
     // AC-375: an administrator who belongs to the organization acts as its member, both ways.
@@ -408,7 +428,7 @@ public sealed class SystemOrganizationsControllerTests(ApiFactoryFixture fixture
 
         HttpResponseMessage response = await ReactivateAsync(ClientFor(admin), Guid.NewGuid());
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        await AssertCodeAsync(response, HttpStatusCode.NotFound, EntityNotFoundCode);
     }
 
     [Fact]

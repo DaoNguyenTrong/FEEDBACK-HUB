@@ -149,6 +149,8 @@ public class SystemOrganizationServiceTests
         await fixture.AuditTrail.DidNotReceive().RecordAsync(Arg.Any<AuditEvent>(), Arg.Any<CancellationToken>());
         await fixture.TenantAccess.DidNotReceive()
             .InvalidateOrganizationAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await fixture.Permissions.DidNotReceive()
+            .InvalidateOrganizationAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -326,6 +328,9 @@ public class SystemOrganizationServiceTests
         await fixture.AuditTrail.Received(1).RecordAsync(
             Arg.Is<AuditEvent>(e => e != null && e.Type == AuditEventType.OrganizationReactivated && e.ActorKind == ActorKind.Account),
             Arg.Any<CancellationToken>());
+        await fixture.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        Assert.True(organization.Status);
+        Assert.False(organization.DeactivatedBySystemAdministrator);
     }
 
     [Fact]
@@ -339,5 +344,9 @@ public class SystemOrganizationServiceTests
 
         await fixture.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
         await fixture.AuditTrail.DidNotReceive().RecordAsync(Arg.Any<AuditEvent>(), Arg.Any<CancellationToken>());
+        await fixture.TenantAccess.DidNotReceive()
+            .InvalidateOrganizationAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await fixture.Permissions.DidNotReceive()
+            .InvalidateOrganizationAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 }
