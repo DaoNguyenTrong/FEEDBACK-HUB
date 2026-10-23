@@ -51,6 +51,9 @@ public sealed class UnitOfWork(
     /// <summary>Name of the unique index on <c>system_administrators.AccountId</c> (AddSystemAdministrators migration).</summary>
     internal const string SystemAdministratorAccountUniqueIndexName = "IX_system_administrators_AccountId";
 
+    /// <summary>Name of the unique index on <c>organizations.Slug</c> (AddOrganizations migration).</summary>
+    internal const string OrganizationSlugUniqueIndexName = "IX_organizations_Slug";
+
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -74,6 +77,15 @@ public sealed class UnitOfWork(
         {
             // Two grants for the same account raced past the service's existence check.
             throw new ConflictException(ApplicationMessages.SystemAdministratorAlreadyGranted);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: OrganizationSlugUniqueIndexName
+        })
+        {
+            // Two creations raced past the service's slug check; the loser must not learn who won (AC-330).
+            throw new ConflictException(ApplicationMessages.OrganizationSlugAlreadyExists);
         }
     }
 

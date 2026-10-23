@@ -17,6 +17,7 @@ public static class Permissions
     /// </summary>
     public static readonly IReadOnlyList<string> ActiveOrganizationScoped =
     [
+        OrganizationManage,
         FilesManage,
         ApiKeysManage,
         AuditLogsView,

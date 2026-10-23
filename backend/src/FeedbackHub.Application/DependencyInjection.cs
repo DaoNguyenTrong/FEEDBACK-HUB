@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
         services.AddScoped<IPushSubscriptionService, PushSubscriptionService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IOrganizationContextService, OrganizationContextService>();
         services.AddScoped<IOrganizationMembershipService, OrganizationMembershipService>();
         services.AddScoped<IPermissionCatalogService, PermissionCatalogService>();
         services.AddScoped<IRoleService, RoleService>();

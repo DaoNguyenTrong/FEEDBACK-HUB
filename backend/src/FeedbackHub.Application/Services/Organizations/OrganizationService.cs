@@ -11,24 +11,30 @@ namespace FeedbackHub.Application.Services.Organizations;
 public sealed class OrganizationService(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
-    ITenantAccessService tenantAccessService,
-    IPermissionResolver permissionResolver,
-    IRoleService roleService,
-    IDateTimeProvider dateTimeProvider) : IOrganizationService
+    IRoleService roleService) : IOrganizationService
 {
     public async Task<OrganizationDto> CreateAsync(CreateOrganizationRequest request, CancellationToken cancellationToken)
     {
         Guid accountId = GetCurrentAccountId();
 
-        string slug = request.Slug.Trim().ToLowerInvariant();
+        // BR-23: an account flagged for re-verification can still sign in, so being signed in proves nothing.
+        Account? account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken);
+        if (account is null || !account.EmailConfirmed)
+        {
+            throw new ForbiddenException(ApplicationMessages.EmailNotConfirmed);
+        }
+
+        Organization organization = Organization.Create(new OrganizationParams(request.Name, request.Slug));
         IRepository<Organization, Guid> organizationRepository = unitOfWork.Repository<Organization, Guid>();
 
-        if (await organizationRepository.FirstOrDefaultAsync(o => o.Slug == slug, cancellationToken) is not null)
+        // Never names the organization holding the slug, whatever its status; the unique index backs this check.
+        Organization? slugHolder =
+            await organizationRepository.FirstOrDefaultAsync(o => o.Slug == organization.Slug, cancellationToken);
+        if (slugHolder is not null)
         {
             throw new ConflictException(ApplicationMessages.OrganizationSlugAlreadyExists);
         }
 
-        Organization organization = Organization.Create(new OrganizationParams(request.Name, request.Slug));
         await organizationRepository.AddAsync(organization, cancellationToken);
 
         IReadOnlyDictionary<SystemRoleKind, Role> systemRoles =
@@ -45,7 +51,7 @@ public sealed class OrganizationService(
 
         return new OrganizationDto(
             organization.Id, organization.Name, organization.Slug, organization.Status,
-            [ownerRole.Name], Permissions.All);
+            [ownerRole.Name], [RoleRefDto.From(ownerRole)], Permissions.All);
     }
 
     public async Task<IReadOnlyList<OrganizationDto>> ListMineAsync(CancellationToken cancellationToken)
@@ -55,20 +61,27 @@ public sealed class OrganizationService(
         IReadOnlyList<OrganizationMember> memberships = await unitOfWork.Repository<OrganizationMember, Guid>()
             .ListAsync(m => m.AccountId == accountId && m.IsActive, cancellationToken);
 
+        if (memberships.Count == 0)
+        {
+            return [];
+        }
+
         Dictionary<Guid, List<Role>> rolesByMembershipId = await LoadRolesByMembershipIdAsync(
             memberships.Select(m => m.Id).ToList(), cancellationToken);
 
         ILookup<Guid, string> permissionCodesByRoleId = await LoadPermissionCodesByRoleIdAsync(
             rolesByMembershipId.Values.SelectMany(roles => roles), cancellationToken);
 
-        IRepository<Organization, Guid> organizationRepository = unitOfWork.Repository<Organization, Guid>();
+        List<Guid> organizationIds = memberships.Select(m => m.OrganizationId).Distinct().ToList();
+        Dictionary<Guid, Organization> organizationById = (await unitOfWork.Repository<Organization, Guid>()
+                .ListAsync(o => organizationIds.Contains(o.Id), cancellationToken))
+            .ToDictionary(o => o.Id);
+
         List<OrganizationDto> result = [];
 
         foreach (OrganizationMember membership in memberships)
         {
-            Organization? organization = await organizationRepository.GetByIdAsync(membership.OrganizationId, cancellationToken);
-
-            if (organization is null)
+            if (!organizationById.TryGetValue(membership.OrganizationId, out Organization? organization))
             {
                 continue;
             }
@@ -85,6 +98,7 @@ public sealed class OrganizationService(
                 organization.Slug,
                 organization.Status,
                 roles.Select(role => role.Name).ToList(),
+                roles.Select(RoleRefDto.From).ToList(),
                 permissionCodes.ToList()));
         }
 
@@ -119,21 +133,6 @@ public sealed class OrganizationService(
         }
 
         return result;
-    }
-
-    public async Task DeactivateAsync(Guid organizationId, CancellationToken cancellationToken)
-    {
-        IRepository<Organization, Guid> organizationRepository = unitOfWork.Repository<Organization, Guid>();
-        Organization organization = await organizationRepository.GetByIdAsync(organizationId, cancellationToken)
-            ?? throw new NotFoundException(nameof(Organization), organizationId);
-
-        // Temporary: Task 10 replaces this method with the audited deactivation flow.
-        organization.Deactivate(new DeactivationParams(GetCurrentAccountId(), false, null, dateTimeProvider.UtcNow));
-        organizationRepository.Update(organization);
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        await tenantAccessService.InvalidateOrganizationAsync(organizationId, cancellationToken);
-        await permissionResolver.InvalidateOrganizationAsync(organizationId, cancellationToken);
     }
 
     private async Task<Dictionary<Guid, List<Role>>> LoadRolesByMembershipIdAsync(

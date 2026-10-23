@@ -61,6 +61,21 @@ public class OrganizationPermissionPolicyProviderTests
         Assert.Equal(code, typed.PermissionCode);
     }
 
+    // API-04, API-05 act on the JWT's organization: the code must never fall back to an {id} route check.
+    [Fact]
+    public async Task GetPolicyAsync_OrganizationManage_BuildsOrganizationContextRequirement()
+    {
+        Fixture f = CreateFixture();
+
+        AuthorizationPolicy? policy = await f.Provider.GetPolicyAsync(Permissions.OrganizationManage);
+
+        Assert.NotNull(policy);
+        OrganizationContextRequirement typed =
+            Assert.IsType<OrganizationContextRequirement>(Assert.Single(policy.Requirements));
+        Assert.Equal(Permissions.OrganizationManage, typed.PermissionCode);
+        Assert.Equal(DenyMode.Forbidden, typed.DenyMode);
+    }
+
     [Fact]
     public void Permissions_ActiveOrganizationScoped_IsSubsetOfAll()
     {
