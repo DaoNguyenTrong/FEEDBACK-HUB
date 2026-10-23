@@ -59,9 +59,10 @@ The organization gate (`OrganizationContextAuthorizationHandler`, TECH00 §5.1) 
 `ActiveOrganizationMember*` policies and the `Permissions.ActiveOrganizationScoped` codes. It checks in this order
 and answers the first failure: not signed in (401), outside the organization — personal context, API key or
 non-member (403 or 404), organization suspended (403 `OrganizationSuspended` with `organizationName`), missing
-permission (403 `OrganizationAccessDenied`). The route-scoped codes (`organizations.manage`,
-`organizations.members.manage`, `organizations.roles.manage`) and `OrganizationMember` still check the `{id}`
-organization, with no suspended step, until those routes go (phase 3 Task 10, phase 4).
+permission (403 `OrganizationAccessDenied`). `organizations.manage` is in `Permissions.ActiveOrganizationScoped` too and
+is checked against the JWT organization: the `DELETE api/organizations/{id}` route is gone. Only the route-scoped codes
+`organizations.members.manage` and `organizations.roles.manage` (and `OrganizationMember`) still check the `{id}`
+organization, with no suspended step, until those routes go (phase 4).
 Effective permissions resolve per request through a short-TTL cache, not the JWT. The frontend's
 `meta.permission` route gate is UI-only (`frontend-conventions.md`).
 
