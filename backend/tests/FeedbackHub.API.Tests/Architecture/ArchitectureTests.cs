@@ -150,8 +150,8 @@ public sealed class ArchitectureTests
 
     /// <summary>
     /// C1: an audit event's organization comes from the entity it describes, never from a caller-supplied Guid.
-    /// No public constructor, no public static method returning one that takes a <c>Guid</c> (only <c>Guid?</c>
-    /// for the actor), and no public setter on <c>OrganizationId</c>.
+    /// No public constructor, no public static method returning one that takes a <c>Guid</c> (a <c>Guid?</c> only as
+    /// <c>actorAccountId</c>), and no public setter on <c>OrganizationId</c>.
     /// </summary>
     [Fact]
     public void AuditEvent_HasNoPublicConstructorOrFactoryTakingOrganizationGuid()
@@ -161,7 +161,9 @@ public sealed class ArchitectureTests
         Assert.Empty(auditEvent.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
         string[] offenders = [.. auditEvent.GetMethods(BindingFlags.Public | BindingFlags.Static)
             .Where(method => method.ReturnType == auditEvent)
-            .Where(method => method.GetParameters().Any(parameter => parameter.ParameterType == typeof(Guid)))
+            .Where(method => method.GetParameters().Any(parameter =>
+                parameter.ParameterType == typeof(Guid)
+                || (parameter.ParameterType == typeof(Guid?) && parameter.Name != "actorAccountId")))
             .Select(method => method.ToString() ?? method.Name)];
         Assert.Empty(offenders);
 
