@@ -36,7 +36,7 @@ Ràng buộc gốc: `docs/process/system-context.md` § Triển khai và vận h
   ```
 - **C#:** theo `code-conventions.md`: không `var`, có `CancellationToken`. Test theo `testing.md`: `Method_Scenario_Expected`, xUnit `Assert`.
 - **Giới hạn tần suất qua Redis:**
-  - Cửa sổ cố định. Một script Lua: `INCR`, và nếu giá trị bằng 1 thì `PEXPIRE` theo độ dài cửa sổ. Đếm bắt đầu từ request đầu tiên của cửa sổ.
+  - Cửa sổ cố định. Một script Lua: `INCR`, rồi nếu khoá chưa có hạn (`PTTL` = -1) thì `PEXPIRE` theo độ dài cửa sổ; trả `{count, pttl}`. Đếm bắt đầu từ request đầu tiên của cửa sổ.
   - Khoá có dạng `feedbackhub:ratelimit:{policy}:{partition}`.
   - Redis lỗi thì dùng limiter trong bộ nhớ của máy đó với cùng tham số, và ghi log cảnh báo tối đa một lần mỗi 60 giây cho mỗi policy. Không bao giờ fail-open.
 - **Khoá phân vùng:** `HttpContext.Connection.RemoteIpAddress` sau `UseForwardedHeaders`, như hiện nay.
@@ -80,7 +80,8 @@ Ràng buộc gốc: `docs/process/system-context.md` § Triển khai và vận h
   - `AcquireAsyncCore` chạy script Lua. Kết quả `<= permitLimit` thì cấp, ngược lại từ chối.
   - `RedisException`, `RedisTimeoutException` hoặc `RedisConnectionException` → trả lease của `fallback.AcquireAsync`.
   - `GetStatistics` trả `null`.
-  - `IdleDuration` trả `null`: limiter không giữ trạng thái cục bộ ngoài `fallback`.
+  - `IdleDuration` trả `null` khi đang có request trong limiter hoặc `fallback.IdleDuration` là `null`; ngược lại trả thời gian từ lần acquire cuối. ASP.NET chỉ dọn phân vùng có `IdleDuration` khác `null`, nên trả `null` mãi sẽ giữ mọi phân vùng trong bộ nhớ.
+  - `fallback` phải tự nạp lại (`AutoReplenishment = true`): limiter này không phải `ReplenishingRateLimiter` nên ASP.NET không nạp hộ; constructor từ chối fallback không tự nạp.
 
 - [ ] **Step 1: Viết test thất bại (Redis Testcontainers)**
 
@@ -131,7 +132,7 @@ Expected: PASS.
   - `public static class RateLimitPartitions`:
     - `public static RateLimitPartition<string> FixedWindow(HttpContext context, string policyName, int permitLimit, TimeSpan window, string store)`.
     - `Memory` → `RateLimitPartition.GetFixedWindowLimiter`, giống hiện nay (`QueueLimit = 0`).
-    - `Redis` → `RateLimitPartition.Get(partitionKey, key => new RedisFixedWindowRateLimiter(...))`. Lấy `IConnectionMultiplexer`, `ILoggerFactory`, `TimeProvider` từ `context.RequestServices`. `fallback` là một `FixedWindowRateLimiter` cùng tham số.
+    - `Redis` → `RateLimitPartition.Get(partitionKey, key => new RedisFixedWindowRateLimiter(...))`. Lấy `IConnectionMultiplexer`, `ILoggerFactory`, `TimeProvider` từ `context.RequestServices`. `fallback` là một `FixedWindowRateLimiter` mới cho mỗi limiter (limiter dispose fallback của nó), cùng tham số, `AutoReplenishment = true`. Không dùng `RateLimitPartition.GetFixedWindowLimiter` cho fallback: nó ép `AutoReplenishment = false`. Tên policy không có dấu `:`.
   - `Program.cs` gọi `RateLimiterStore.Resolve` một lần lúc cấu hình. Khi `Store = Redis`, bảo đảm `IConnectionMultiplexer` đã đăng ký: dùng lại `CachingExtensions.EnsureRedisMultiplexer`, chuyển nó sang `public` hoặc `internal` kèm `InternalsVisibleTo` theo cách repo đang làm. Hai policy `auth` và `auth-refresh` dùng `RateLimitPartitions.FixedWindow`.
   - `TimeProvider.System` đăng ký singleton nếu chưa có.
 
