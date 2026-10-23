@@ -58,24 +58,24 @@ public class ActiveOrganizationMembershipAuthorizationHandlerTests
         Guid organizationId = Guid.NewGuid();
         Guid accountId = Guid.NewGuid();
         Fixture f = CreateFixture(organizationId, accountId.ToString());
-        f.TenantAccessService.HasActiveAccessAsync(accountId, organizationId, Arg.Any<CancellationToken>())
-            .Returns(true);
+        f.TenantAccessService.GetAccessAsync(accountId, organizationId, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Active);
 
         AuthorizationHandlerContext context = await AuthorizeAsync(f.Handler);
 
         Assert.True(context.HasSucceeded);
     }
 
-    [Fact]
-    public async Task HandleAsync_NoActiveAccess_DoesNotSucceed()
+    [Theory]
+    [InlineData(TenantAccessStatus.NotMember)]
+    [InlineData(TenantAccessStatus.Suspended)]
+    public async Task HandleAsync_NoActiveAccess_DoesNotSucceed(TenantAccessStatus status)
     {
-        // HasActiveAccessAsync returning false covers non-members as well as inactive/revoked
-        // memberships — that distinction lives in TenantAccessService (see TenantAccessServiceTests).
         Guid organizationId = Guid.NewGuid();
         Guid accountId = Guid.NewGuid();
         Fixture f = CreateFixture(organizationId, accountId.ToString());
-        f.TenantAccessService.HasActiveAccessAsync(accountId, organizationId, Arg.Any<CancellationToken>())
-            .Returns(false);
+        f.TenantAccessService.GetAccessAsync(accountId, organizationId, Arg.Any<CancellationToken>())
+            .Returns(status);
 
         AuthorizationHandlerContext context = await AuthorizeAsync(f.Handler);
 
@@ -90,7 +90,7 @@ public class ActiveOrganizationMembershipAuthorizationHandlerTests
         AuthorizationHandlerContext context = await AuthorizeAsync(f.Handler);
 
         Assert.False(context.HasSucceeded);
-        await f.TenantAccessService.DidNotReceive().HasActiveAccessAsync(
+        await f.TenantAccessService.DidNotReceive().GetAccessAsync(
             Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
@@ -104,7 +104,7 @@ public class ActiveOrganizationMembershipAuthorizationHandlerTests
         AuthorizationHandlerContext context = await AuthorizeAsync(f.Handler);
 
         Assert.False(context.HasSucceeded);
-        await f.TenantAccessService.DidNotReceive().HasActiveAccessAsync(
+        await f.TenantAccessService.DidNotReceive().GetAccessAsync(
             Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
@@ -115,13 +115,13 @@ public class ActiveOrganizationMembershipAuthorizationHandlerTests
         Guid routeOrganizationId = Guid.NewGuid();
         Guid accountId = Guid.NewGuid();
         Fixture f = CreateFixture(claimOrganizationId, accountId.ToString(), routeOrganizationId);
-        f.TenantAccessService.HasActiveAccessAsync(accountId, claimOrganizationId, Arg.Any<CancellationToken>())
-            .Returns(true);
+        f.TenantAccessService.GetAccessAsync(accountId, claimOrganizationId, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Active);
 
         AuthorizationHandlerContext context = await AuthorizeAsync(f.Handler);
 
         Assert.True(context.HasSucceeded);
-        await f.TenantAccessService.DidNotReceive().HasActiveAccessAsync(
+        await f.TenantAccessService.DidNotReceive().GetAccessAsync(
             Arg.Any<Guid>(), routeOrganizationId, Arg.Any<CancellationToken>());
     }
 }

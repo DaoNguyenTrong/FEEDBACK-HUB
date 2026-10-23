@@ -128,7 +128,7 @@ public sealed class AuthService(
         }
 
         if (rotatingToken.OrganizationId is { } organizationId &&
-            !await tenantAccessService.HasActiveAccessAsync(account.Id, organizationId, cancellationToken))
+            await tenantAccessService.GetAccessAsync(account.Id, organizationId, cancellationToken) != TenantAccessStatus.Active)
         {
             throw new UnauthorizedException(ApplicationMessages.InvalidRefreshToken);
         }

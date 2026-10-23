@@ -24,10 +24,10 @@ internal sealed class ActiveOrganizationMembershipAuthorizationHandler(
             return;
         }
 
-        bool hasAccess = await tenantAccessService.HasActiveAccessAsync(
+        TenantAccessStatus status = await tenantAccessService.GetAccessAsync(
             accountId, organizationId, httpContextAccessor.HttpContext!.RequestAborted);
 
-        if (hasAccess)
+        if (status == TenantAccessStatus.Active)
         {
             context.Succeed(requirement);
         }

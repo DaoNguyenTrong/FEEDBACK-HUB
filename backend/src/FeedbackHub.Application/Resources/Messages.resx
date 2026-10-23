@@ -165,6 +165,9 @@
   <data name="OrganizationAccessDenied" xml:space="preserve">
     <value>Bạn không có quyền truy cập tổ chức này.</value>
   </data>
+  <data name="OrganizationSuspended" xml:space="preserve">
+    <value>Tổ chức này đang tạm ngừng hoạt động.</value>
+  </data>
   <data name="OrganizationMemberAlreadyExists" xml:space="preserve">
     <value>Tài khoản đã là thành viên của tổ chức này.</value>
   </data>

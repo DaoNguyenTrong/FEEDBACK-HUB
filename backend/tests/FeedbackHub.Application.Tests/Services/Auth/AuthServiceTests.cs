@@ -61,7 +61,8 @@ public class AuthServiceTests
         jwtTokenService.GenerateRefreshToken().Returns(_ => Guid.NewGuid().ToString());
 
         ITenantAccessService tenantAccessService = Substitute.For<ITenantAccessService>();
-        tenantAccessService.HasActiveAccessAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
+        tenantAccessService.GetAccessAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Active);
 
         IPermissionResolver permissionResolver = Substitute.For<IPermissionResolver>();
         permissionResolver.GetEffectivePermissionsAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
@@ -1107,8 +1108,10 @@ public class AuthServiceTests
         f.JwtTokenService.Received(1).GenerateAccessToken(account, organizationId, Arg.Any<Guid>());
     }
 
-    [Fact]
-    public async Task RefreshTokenAsync_TokenHasOrganization_AccessRevoked_ThrowsUnauthorized()
+    [Theory]
+    [InlineData(TenantAccessStatus.NotMember)]
+    [InlineData(TenantAccessStatus.Suspended)]
+    public async Task RefreshTokenAsync_TokenHasOrganization_AccessRevoked_ThrowsUnauthorized(TenantAccessStatus status)
     {
         Fixture f = CreateFixture();
         Account account = CreateAccount();
@@ -1117,8 +1120,8 @@ public class AuthServiceTests
             account.Id, TokenHash.Compute("old-token"), DateTime.UtcNow.AddDays(1), null, null, false, DateTime.UtcNow, organizationId));
         RepositoryPredicateStub.StubFirstOrDefault(f.RefreshTokenRepo, [oldToken]);
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
-        f.TenantAccessService.HasActiveAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
-            .Returns(false);
+        f.TenantAccessService.GetAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
+            .Returns(status);
 
         await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
             ApplicationMessages.InvalidRefreshToken,

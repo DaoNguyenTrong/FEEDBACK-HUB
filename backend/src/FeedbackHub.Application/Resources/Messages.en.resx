@@ -165,6 +165,9 @@
   <data name="OrganizationAccessDenied" xml:space="preserve">
     <value>You do not have access to this organization.</value>
   </data>
+  <data name="OrganizationSuspended" xml:space="preserve">
+    <value>This organization is suspended.</value>
+  </data>
   <data name="OrganizationMemberAlreadyExists" xml:space="preserve">
     <value>This account is already a member of the organization.</value>
   </data>

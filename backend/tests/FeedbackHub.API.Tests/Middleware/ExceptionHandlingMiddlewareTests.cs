@@ -243,4 +243,22 @@ public class ExceptionHandlingMiddlewareTests
         Assert.Equal(StatusCodes.Status500InternalServerError, f.Context.Response.StatusCode);
         Assert.Equal(StatusCodes.Status500InternalServerError, body.Status);
     }
+
+    [Fact]
+    public async Task ForbiddenException_WithExtensions_AreWrittenToProblemDetails()
+    {
+        Fixture f = CreateFixture(_ => throw new ForbiddenException(
+            ApplicationMessages.OrganizationSuspended,
+            new Dictionary<string, string> { ["organizationName"] = "Acme" }));
+
+        await f.Middleware.InvokeAsync(f.Context);
+
+        f.Context.Response.Body.Seek(0, SeekOrigin.Begin);
+        using JsonDocument body = await JsonDocument.ParseAsync(f.Context.Response.Body);
+        Assert.Equal(StatusCodes.Status403Forbidden, f.Context.Response.StatusCode);
+        Assert.Equal("Acme", body.RootElement.GetProperty("organizationName").GetString());
+        Assert.DoesNotContain(
+            body.RootElement.EnumerateObject(),
+            property => string.Equals(property.Name, "extensions", StringComparison.OrdinalIgnoreCase));
+    }
 }
