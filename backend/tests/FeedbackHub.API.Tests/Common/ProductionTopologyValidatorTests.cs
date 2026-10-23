@@ -6,6 +6,7 @@ using FeedbackHub.Infrastructure;
 using FeedbackHub.Infrastructure.Services.Email;
 using FeedbackHub.Infrastructure.Services.Notifications;
 using FeedbackHub.Infrastructure.Services.RateLimiting;
+using YamlDotNet.Serialization;
 
 namespace FeedbackHub.API.Tests.Common;
 
@@ -162,6 +163,39 @@ public class ProductionTopologyValidatorTests
 
         Assert.Empty(Run(values));
     }
+
+    // The shipped compose file plus the example appsettings must satisfy the validator except for what only the
+    // operator can choose, so a compose edit that drops a required key fails here instead of at deploy time.
+    [Fact]
+    public void Validate_DockerComposeProdEnvironment_OnlyMissesOperatorSecrets()
+    {
+        string? directory = AppContext.BaseDirectory;
+        while (directory is not null && !File.Exists(Path.Combine(directory, "docker-compose.prod.yml")))
+        {
+            directory = Path.GetDirectoryName(directory);
+        }
+
+        Assert.NotNull(directory);
+
+        Dictionary<string, object> compose = new DeserializerBuilder().Build()
+            .Deserialize<Dictionary<string, object>>(File.ReadAllText(Path.Combine(directory, "docker-compose.prod.yml")));
+        Dictionary<object, object> services = (Dictionary<object, object>)compose["services"];
+        Dictionary<object, object> api = (Dictionary<object, object>)services["api"];
+        Dictionary<object, object> environment = (Dictionary<object, object>)api["environment"];
+
+        Dictionary<string, string?> fromCompose = environment.ToDictionary(
+            pair => ((string)pair.Key).Replace("__", ":"),
+            pair => (string?)pair.Value);
+
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.Example.json"), optional: false)
+            .AddInMemoryCollection(fromCompose)
+            .Build();
+
+        string error = Assert.Single(ProductionTopologyValidator.Validate(configuration));
+        Assert.Contains("EmailSettings:SecureSocket", error);
+    }
+
 
     [Theory]
     [InlineData("Production", false, false, true)]

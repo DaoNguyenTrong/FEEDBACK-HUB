@@ -10,6 +10,27 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-23 — Production refuses to start unless the multi-instance security conditions hold
+
+Each instance trusts only its own configuration, so one forgotten setting (local file storage, a Memory cache, an unlisted proxy, an insecure auth cookie, plaintext SMTP) silently breaks or weakens the whole fleet. A pure startup validator lists every unmet condition and fails fast, in Production only. Rejected: documentation alone, and warnings that scroll past in logs.
+
+### 2026-10-23 — Data Protection uses a fixed application name and SignalR clients use WebSockets only
+
+Instances otherwise isolate Data Protection keys by content root, so a cookie or token issued by one instance fails on another. SignalR long polling and server-sent events need sticky sessions behind a load balancer; WebSockets with skipped negotiation need none. Rejected: sticky sessions, a transport fallback chain.
+
+### 2026-10-23 — Migrations run once through a one-shot `migrate` command, never at API startup in production
+
+Several replicas starting together would race to apply the same migrations. A single `migrate` run that must complete before any API container starts removes the race and keeps schema changes out of the health-check start-up window. Rejected: a startup advisory lock (hidden coupling, slow first boot) and leaving `MigrateOnStartup` on.
+
+### 2026-10-23 — Rate limits are counted in Redis with a local in-memory fallback, never fail-open
+
+Per-instance counters multiply every limit by the replica count. Redis gives one fixed-window count shared by all instances. If Redis fails, each instance falls back to its own limiter with the same parameters rather than allowing everything, which keeps brute-force protection under an outage at the cost of looser global limits.
+
+### 2026-10-23 — Redis is mandatory in production
+
+Multiple API replicas need a shared cache, a SignalR backplane and shared rate-limit counters; a per-process fallback silently gives wrong results as soon as a second replica starts. The production compose file therefore ships Redis and the API validates it at startup. Rejected: leaving Redis to the deploy environment, which let single-replica defaults survive a scale-out unnoticed.
+Supersedes: 2026-08-25 — Cache + SignalR pick Memory/Redis via config; Redis is not hard-required
+
 ### 2026-10-23 — Microsoft external login trusts an email only from the personal tenant or `xms_edov`, and the issuer tenant must equal `tid`
 
 The default claim mapping silently read `preferred_username` (user-editable) as the email, so any Entra tenant could assert someone else's address (nOAuth). Rejected: keeping regex-only issuer validation, which lets one tenant's token carry another's issuer. Trade-off: unverified work-tenant users must register by email.

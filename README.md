@@ -142,10 +142,10 @@ For full details, see `.claude/reference/ci-and-git-hooks.md`.
 
 ## Production (Docker)
 
-`docker-compose.prod.yml` builds and runs the API and frontend as containers (single-instance —
-caching and SignalR are in-memory, don't scale `api` past 1 replica without pointing
-`ConnectionStrings:Redis` at a Redis from your deploy environment first — this compose file no
-longer ships a Redis container).
+`docker-compose.prod.yml` builds and runs the API and frontend as containers, with Redis, SeaweedFS and a
+one-shot `migrate` service. Production is multi-instance ready: Redis and shared file storage are required, and
+`appsettings.json` must set `EmailSettings:SecureSocket` and the SeaweedFS access keys. Scale with
+`up -d --scale api=N`, then restart `web` so nginx resolves the new replicas.
 An nginx container serves the built frontend and reverse-proxies `/api/` and `/hubs/` to the API;
 `/hangfire` and `/metrics` are deliberately not exposed through it, same "network-layer only"
 restriction the API already applies (see `Program.cs`).
@@ -164,8 +164,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 Each release tag also publishes both images, versioned from the tag: `ghcr.io/<owner>/<repo>/{backend,frontend}:X.Y.Z` (`:latest` follows the newest stable tag; on GitLab, `$CI_REGISTRY_IMAGE/...`). Build them yourself as above, or point the `api`/`web` services at those images to deploy without building on the server.
 
-Migrations apply automatically on startup (see `DatabaseSettings:MigrateOnStartup` above for several instances). Uploaded files and API logs persist in named volumes
-(`feedbackhub-api-uploads`, `feedbackhub-api-logs`); Postgres data in `feedbackhub-postgres-data`.
+Migrations run once in the `migrate` service before `api` starts (`DatabaseSettings:MigrateOnStartup=false`). Uploaded files persist in `feedbackhub-seaweedfs-data`, API logs in `feedbackhub-api-logs`, Redis in `feedbackhub-redis-data`; Postgres data in `feedbackhub-postgres-data`.
 
 Deploy notes:
 
