@@ -114,48 +114,4 @@ describe('useOrganizationsStore', () => {
       expect(organizations.myOrganizations.map((o) => o.id)).toEqual(['org-1'])
     })
   })
-
-  describe('deactivate', () => {
-    it('deletes the organization and drops only the matching one from state', async () => {
-      let deletedId: string | undefined
-      server.use(
-        http.delete('*/api/organizations/:id', ({ params }) => {
-          deletedId = params.id as string
-          return new HttpResponse(null, { status: 204 })
-        }),
-      )
-      const organizations = useOrganizationsStore()
-      organizations.myOrganizations = [
-        makeOrganization(),
-        makeOrganization({ id: 'org-2', name: 'Globex' }),
-        makeOrganization({ id: 'org-3', name: 'Initech' }),
-      ]
-
-      await organizations.deactivate('org-2')
-
-      expect(deletedId).toBe('org-2')
-      expect(organizations.myOrganizations.map((o) => o.id)).toEqual(['org-1', 'org-3'])
-    })
-
-    it('leaves state unchanged when the id is not in the list', async () => {
-      server.use(
-        http.delete('*/api/organizations/:id', () => new HttpResponse(null, { status: 204 })),
-      )
-      const organizations = useOrganizationsStore()
-      organizations.myOrganizations = [makeOrganization()]
-
-      await organizations.deactivate('org-missing')
-
-      expect(organizations.myOrganizations.map((o) => o.id)).toEqual(['org-1'])
-    })
-
-    it('keeps the organization in state when the request fails', async () => {
-      server.use(http.delete('*/api/organizations/:id', () => problemResponse(403, 'Forbidden')))
-      const organizations = useOrganizationsStore()
-      organizations.myOrganizations = [makeOrganization()]
-
-      await expect(organizations.deactivate('org-1')).rejects.toBeInstanceOf(ApiError)
-      expect(organizations.myOrganizations.map((o) => o.id)).toEqual(['org-1'])
-    })
-  })
 })

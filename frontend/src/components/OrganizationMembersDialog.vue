@@ -12,7 +12,6 @@ const visible = defineModel<boolean>('visible', { required: true })
 
 const { t } = useI18n()
 const client = getOrganizations()
-const organizationsStore = useOrganizationsStore()
 const rolesStore = useRolesStore()
 
 const members = ref<OrganizationMemberDto[]>([])
@@ -21,7 +20,6 @@ const loadError = ref<string | null>(null)
 const adding = ref(false)
 const removingId = ref<string | null>(null)
 const updatingRolesId = ref<string | null>(null)
-const deactivating = ref(false)
 
 const addFormRef = ref<FormInst | null>(null)
 const addForm = reactive<AddMemberRequest>({
@@ -40,9 +38,6 @@ const roleOptions = computed(() =>
   rolesStore.roles.map((role) => ({ label: role.name, value: role.id })),
 )
 
-const isOwner = computed(
-  () => props.organization?.myPermissionCodes.includes(Permissions.OrganizationManage) ?? false,
-)
 const canManage = computed(
   () =>
     props.organization?.myPermissionCodes.includes(Permissions.OrganizationMembersManage) ?? false,
@@ -137,28 +132,6 @@ function confirmRemoveMember(member: OrganizationMemberDto) {
         reportError(error)
       } finally {
         removingId.value = null
-      }
-    },
-  })
-}
-
-function confirmDeactivate() {
-  requestConfirmation({
-    header: t('common.confirm'),
-    message: t('organizations.deactivateConfirm'),
-    rejectLabel: t('common.cancel'),
-    acceptLabel: t('common.confirm'),
-    accept: async () => {
-      if (!props.organization) return
-      deactivating.value = true
-      try {
-        await organizationsStore.deactivate(props.organization.id)
-        showSuccessMessage(t('organizations.deactivated'))
-        visible.value = false
-      } catch (error) {
-        reportError(error)
-      } finally {
-        deactivating.value = false
       }
     },
   })
@@ -266,19 +239,6 @@ watch(visible, (open) => {
           {{ t('organizations.addMember') }}
         </n-button>
       </n-form>
-
-      <div v-if="isOwner" class="mt-6 border-t border-surface-200 pt-4 dark:border-surface-800">
-        <n-button
-          type="error"
-          ghost
-          class="min-h-11 w-full"
-          :loading="deactivating"
-          data-testid="organization-deactivate"
-          @click="confirmDeactivate"
-        >
-          {{ t('organizations.deactivate') }}
-        </n-button>
-      </div>
     </template>
   </n-modal>
 </template>

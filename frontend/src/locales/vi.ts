@@ -273,10 +273,6 @@ const vi: LocaleSchema = {
     removeMemberConfirm: 'Xóa thành viên này khỏi tổ chức?',
     memberRemoved: 'Đã xóa thành viên',
     memberRolesUpdated: 'Đã cập nhật vai trò',
-    deactivate: 'Ngưng hoạt động tổ chức',
-    deactivateConfirm:
-      'Ngưng hoạt động tổ chức này? Mọi thành viên sẽ mất quyền truy cập ngay lập tức. Hành động này không thể hoàn tác.',
-    deactivated: 'Đã ngưng hoạt động tổ chức',
     roles: 'Vai trò',
     rolesTitle: 'Vai trò của {name}',
     rolesEmpty: 'Chưa có vai trò nào.',
