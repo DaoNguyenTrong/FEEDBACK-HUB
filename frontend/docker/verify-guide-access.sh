@@ -28,8 +28,9 @@ fi
 
 docker network create "$network" >/dev/null
 
-# The stub answers only what nginx's auth_request asks; nginx resolves `api` at start, so it must be up first.
-docker run -d --name "$api" --network "$network" --network-alias api nginx:alpine sh -c '
+# The stub answers only what nginx's auth_request asks; nginx resolves `api` and `minio` at start, so the stub
+# carries both names and must be up first.
+docker run -d --name "$api" --network "$network" --network-alias api --network-alias minio nginx:alpine sh -c '
 cat > /etc/nginx/conf.d/default.conf <<EOF
 server {
   listen 8080;
