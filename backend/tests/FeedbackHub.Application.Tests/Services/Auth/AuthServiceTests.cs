@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Accounts;
@@ -1056,6 +1057,7 @@ public class AuthServiceTests
         f.OrganizationMemberRepo.ListAsync(
                 Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>())
             .Returns([membership]);
+        RepositoryPredicateStub.StubListAsync(f.OrganizationRepo, [organization]);
         f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
         LoginRequest request = new(account.Username, "correct-password");
 
@@ -1075,12 +1077,15 @@ public class AuthServiceTests
             .Returns(account);
         f.PasswordHasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns(true);
 
+        Organization first = Organization.Create(new OrganizationParams("First", "first"));
+        Organization second = Organization.Create(new OrganizationParams("Second", "second"));
         f.OrganizationMemberRepo.ListAsync(
                 Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>())
             .Returns([
-                OrganizationMember.Create(new OrganizationMemberParams(Guid.NewGuid(), account.Id)),
-                OrganizationMember.Create(new OrganizationMemberParams(Guid.NewGuid(), account.Id))
+                OrganizationMember.Create(new OrganizationMemberParams(first.Id, account.Id)),
+                OrganizationMember.Create(new OrganizationMemberParams(second.Id, account.Id))
             ]);
+        RepositoryPredicateStub.StubListAsync(f.OrganizationRepo, [first, second]);
         LoginRequest request = new(account.Username, "correct-password");
 
         AuthResult result = await f.Service.LoginAsync(request, null, null, CancellationToken.None);
@@ -1108,60 +1113,176 @@ public class AuthServiceTests
         f.JwtTokenService.Received(1).GenerateAccessToken(account, organizationId, Arg.Any<Guid>());
     }
 
-    [Theory]
-    [InlineData(TenantAccessStatus.NotMember)]
-    [InlineData(TenantAccessStatus.Suspended)]
-    public async Task RefreshTokenAsync_TokenHasOrganization_AccessRevoked_ThrowsUnauthorized(TenantAccessStatus status)
+    private static RefreshToken CreateOrganizationRefreshToken(
+        Guid accountId, Guid organizationId, Guid familyId, bool isPersistent, DateTime loginAt)
+    {
+        return RefreshToken.Create(new RefreshTokenParams(
+            accountId,
+            TokenHash.Compute("old-token"),
+            DateTime.UtcNow.AddDays(1),
+            null,
+            null,
+            isPersistent,
+            loginAt,
+            organizationId,
+            familyId));
+    }
+
+    // QĐ-31: losing the organization keeps the session (same family) and drops it to the personal context.
+    [Fact]
+    public async Task RefreshTokenAsync_RemovedMember_IssuesTokensWithoutOrganizationSameFamily()
     {
         Fixture f = CreateFixture();
         Account account = CreateAccount();
         Guid organizationId = Guid.NewGuid();
-        RefreshToken oldToken = RefreshToken.Create(new RefreshTokenParams(
-            account.Id, TokenHash.Compute("old-token"), DateTime.UtcNow.AddDays(1), null, null, false, DateTime.UtcNow, organizationId));
+        Guid familyId = Guid.NewGuid();
+        DateTime loginAt = DateTime.UtcNow.AddHours(-3);
+        RefreshToken oldToken = CreateOrganizationRefreshToken(account.Id, organizationId, familyId, true, loginAt);
         RepositoryPredicateStub.StubFirstOrDefault(f.RefreshTokenRepo, [oldToken]);
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
         f.TenantAccessService.GetAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
-            .Returns(status);
+            .Returns(TenantAccessStatus.NotMember);
+        RefreshToken? issued = null;
+        f.RefreshTokenRepo.When(r => r.AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>()))
+            .Do(ci => issued = ci.Arg<RefreshToken>());
+
+        AuthResult result = await f.Service.RefreshTokenAsync("old-token", null, null, CancellationToken.None);
+
+        Assert.Null(result.OrganizationId);
+        Assert.Null(result.OrganizationName);
+        Assert.Empty(result.Permissions);
+        Assert.True(result.IsPersistent);
+        Assert.NotNull(oldToken.RevokedAt);
+        f.RefreshTokenRepo.Received(1).Update(oldToken);
+        Assert.NotNull(issued);
+        Assert.Equal(familyId, issued!.FamilyId);
+        Assert.Null(issued.OrganizationId);
+        Assert.True(issued.IsPersistent);
+        Assert.Equal(loginAt, issued.LoginAt);
+        f.JwtTokenService.Received(1).GenerateAccessToken(account, null, familyId);
+        await f.OrganizationRepo.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default);
+    }
+
+    // AC-183, AC-199: the refresh succeeds without the organization, so the client can say it was suspended.
+    [Fact]
+    public async Task RefreshTokenAsync_SuspendedOrganization_IssuesTokensWithoutOrganization()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid organizationId = Guid.NewGuid();
+        Guid familyId = Guid.NewGuid();
+        DateTime loginAt = DateTime.UtcNow.AddHours(-1);
+        RefreshToken oldToken = CreateOrganizationRefreshToken(account.Id, organizationId, familyId, false, loginAt);
+        RepositoryPredicateStub.StubFirstOrDefault(f.RefreshTokenRepo, [oldToken]);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        f.TenantAccessService.GetAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Suspended);
+        RefreshToken? issued = null;
+        f.RefreshTokenRepo.When(r => r.AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>()))
+            .Do(ci => issued = ci.Arg<RefreshToken>());
+
+        AuthResult result = await f.Service.RefreshTokenAsync("old-token", null, null, CancellationToken.None);
+
+        Assert.Null(result.OrganizationId);
+        Assert.Null(result.OrganizationName);
+        Assert.False(result.IsPersistent);
+        Assert.NotNull(oldToken.RevokedAt);
+        Assert.NotNull(issued);
+        Assert.Equal(familyId, issued!.FamilyId);
+        Assert.Null(issued.OrganizationId);
+        Assert.Equal(loginAt, issued.LoginAt);
+        f.JwtTokenService.Received(1).GenerateAccessToken(account, null, familyId);
+        await f.OrganizationRepo.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_LockedAccount_StillThrows401()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(status: false);
+        Guid organizationId = Guid.NewGuid();
+        RefreshToken oldToken = CreateOrganizationRefreshToken(
+            account.Id, organizationId, Guid.NewGuid(), false, DateTime.UtcNow);
+        RepositoryPredicateStub.StubFirstOrDefault(f.RefreshTokenRepo, [oldToken]);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        f.TenantAccessService.GetAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.NotMember);
 
         await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
             ApplicationMessages.InvalidRefreshToken,
             () => f.Service.RefreshTokenAsync("old-token", null, null, CancellationToken.None));
+
+        Assert.Null(oldToken.RevokedAt);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await f.UnitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+        f.JwtTokenService.DidNotReceiveWithAnyArgs().GenerateAccessToken(default!, default, default);
     }
 
     // SwitchOrganizationAsync
 
+    // AC-320: a non-member learns nothing about the organization, not even that it is suspended.
     [Fact]
-    public async Task SwitchOrganizationAsync_NotAMember_ThrowsForbidden()
+    public async Task SwitchOrganizationAsync_NotMemberOfSuspendedOrganization_ThrowsAccessDeniedWithoutName()
     {
         Fixture f = CreateFixture();
         Guid accountId = Guid.NewGuid();
         f.CurrentUserService.UserId.Returns(accountId.ToString());
-        f.OrganizationMemberRepo.FirstOrDefaultAsync(
-                Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>())
-            .Returns((OrganizationMember?)null);
-
-        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
-            ApplicationMessages.OrganizationAccessDenied,
-            () => f.Service.SwitchOrganizationAsync(Guid.NewGuid(), null, null, CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task SwitchOrganizationAsync_OrganizationInactive_ThrowsForbidden()
-    {
-        Fixture f = CreateFixture();
-        Guid accountId = Guid.NewGuid();
-        f.CurrentUserService.UserId.Returns(accountId.ToString());
-
         Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
         organization.Deactivate(new DeactivationParams(Guid.NewGuid(), false, null, DateTime.UtcNow));
-        OrganizationMember membership = OrganizationMember.Create(
-            new OrganizationMemberParams(organization.Id, accountId));
-        RepositoryPredicateStub.StubFirstOrDefault(f.OrganizationMemberRepo, [membership]);
         f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
+        f.TenantAccessService.GetAccessAsync(accountId, organization.Id, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.NotMember);
 
-        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
-            ApplicationMessages.OrganizationAccessDenied,
+        ForbiddenException exception = await Assert.ThrowsAsync<ForbiddenException>(
             () => f.Service.SwitchOrganizationAsync(organization.Id, null, null, CancellationToken.None));
+
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, exception.Message);
+        Assert.Empty(exception.Extensions);
+        await f.OrganizationRepo.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+    }
+
+    // AC-301 (API-28): a member of a suspended organization is told which one.
+    [Fact]
+    public async Task SwitchOrganizationAsync_SuspendedOrganizationMember_ThrowsSuspendedWithName()
+    {
+        Fixture f = CreateFixture();
+        Guid accountId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(accountId.ToString());
+        Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
+        organization.Deactivate(new DeactivationParams(Guid.NewGuid(), false, null, DateTime.UtcNow));
+        f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
+        f.TenantAccessService.GetAccessAsync(accountId, organization.Id, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Suspended);
+
+        ForbiddenException exception = await Assert.ThrowsAsync<ForbiddenException>(
+            () => f.Service.SwitchOrganizationAsync(organization.Id, null, null, CancellationToken.None));
+
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, exception.Message);
+        Assert.Equal(organization.Name, exception.Extensions[ProblemExtensionKeys.OrganizationName]);
+        Assert.Single(exception.Extensions);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        f.JwtTokenService.DidNotReceiveWithAnyArgs().GenerateAccessToken(default!, default, default);
+    }
+
+    // The organization row vanished after the status was read: no name to give, so the plain denial.
+    [Fact]
+    public async Task SwitchOrganizationAsync_SuspendedOrganizationGone_ThrowsAccessDeniedWithoutName()
+    {
+        Fixture f = CreateFixture();
+        Guid accountId = Guid.NewGuid();
+        Guid organizationId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(accountId.ToString());
+        f.OrganizationRepo.GetByIdAsync(organizationId, Arg.Any<CancellationToken>()).Returns((Organization?)null);
+        f.TenantAccessService.GetAccessAsync(accountId, organizationId, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Suspended);
+
+        ForbiddenException exception = await Assert.ThrowsAsync<ForbiddenException>(
+            () => f.Service.SwitchOrganizationAsync(organizationId, null, null, CancellationToken.None));
+
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, exception.Message);
+        Assert.Empty(exception.Extensions);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
     }
 
     [Fact]
@@ -1173,9 +1294,6 @@ public class AuthServiceTests
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
 
         Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
-        OrganizationMember membership = OrganizationMember.Create(
-            new OrganizationMemberParams(organization.Id, account.Id));
-        RepositoryPredicateStub.StubFirstOrDefault(f.OrganizationMemberRepo, [membership]);
         f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
 
         AuthResult result = await f.Service.SwitchOrganizationAsync(
@@ -1184,6 +1302,8 @@ public class AuthServiceTests
         Assert.Equal(organization.Id, result.OrganizationId);
         Assert.Equal(organization.Name, result.OrganizationName);
         f.JwtTokenService.Received(1).GenerateAccessToken(account, organization.Id, Arg.Any<Guid>());
+        await f.TenantAccessService.Received(1)
+            .GetAccessAsync(account.Id, organization.Id, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1199,8 +1319,7 @@ public class AuthServiceTests
         Assert.Null(result.OrganizationId);
         Assert.Null(result.OrganizationName);
         f.JwtTokenService.Received(1).GenerateAccessToken(account, null, Arg.Any<Guid>());
-        await f.OrganizationMemberRepo.DidNotReceive().FirstOrDefaultAsync(
-            Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>());
+        await f.TenantAccessService.DidNotReceiveWithAnyArgs().GetAccessAsync(default, default, default);
     }
 
     [Fact]
@@ -1214,9 +1333,6 @@ public class AuthServiceTests
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
 
         Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
-        OrganizationMember membership = OrganizationMember.Create(
-            new OrganizationMemberParams(organization.Id, account.Id));
-        RepositoryPredicateStub.StubFirstOrDefault(f.OrganizationMemberRepo, [membership]);
         f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
 
         RefreshToken previous = RefreshToken.Create(new RefreshTokenParams(

@@ -23,8 +23,17 @@ internal sealed class TokenIssuer(
     {
         IReadOnlyList<OrganizationMember> memberships = await unitOfWork.Repository<OrganizationMember, Guid>()
             .ListAsync(m => m.AccountId == accountId && m.IsActive, cancellationToken);
+        if (memberships.Count == 0)
+        {
+            return null;
+        }
 
-        return memberships.Count == 1 ? memberships[0].OrganizationId : null;
+        // A suspended organization is never entered by default, so one active among suspended ones still wins (QĐ-26).
+        List<Guid> organizationIds = memberships.Select(m => m.OrganizationId).ToList();
+        IReadOnlyList<Organization> activeOrganizations = await unitOfWork.Repository<Organization, Guid>()
+            .ListAsync(o => organizationIds.Contains(o.Id) && o.Status, cancellationToken);
+
+        return activeOrganizations.Count == 1 ? activeOrganizations[0].Id : null;
     }
 
     public async Task<AuthResult> IssueTokensAsync(
