@@ -101,7 +101,7 @@ Người dùng thấy bị hỏi quá nhiều: PRD-00 và thiết kế module 00
 - nới quy tắc bảo mật;
 - lựa chọn khó đảo ngược mà không đoán được ý người dùng.
 
-Câu trả lời của SA được ghi nguồn "SA (thay người dùng)", để người dùng soát lại khi duyệt tài liệu. Phương án loại: để `product-manager` tự ghi nhiều mặc định hơn. Cách này không có người chịu trách nhiệm cho câu trả lời, và câu hỏi về thiết kế, kỹ thuật vẫn phải hỏi người dùng.
+Câu trả lời của SA được ghi nguồn "SA (thay người dùng)", để người dùng soát lại khi duyệt tài liệu. SA quyết theo bối cảnh hệ thống trong `docs/process/system-context.md` (quy mô, hạ tầng, giới hạn). Mỗi lần người dùng bác một câu trả lời của SA, phiên chính ghi bài học vào `.claude/sa-calibration.md` trong cùng PR với tài liệu được sửa; SA đọc tệp này trước khi trả lời. Phương án loại: để `product-manager` tự ghi nhiều mặc định hơn. Cách này không có người chịu trách nhiệm cho câu trả lời, và câu hỏi về thiết kế, kỹ thuật vẫn phải hỏi người dùng.
 
 ### 2026-10-22 — Soạn PRD: khoanh phạm vi, chỉ hỏi điều người dùng phải quyết, BA review sớm
 Bản nháp đầu của PRD-00 đi qua 8 phiên bản và 78 câu hỏi; người dùng chấp nhận đề xuất ở 77 câu, PRD phình tới 246 AC vì quyết luôn chi tiết của PRD-03/04/05/07, và lỗi nặng nhất (đường leo quyền có sẵn trong nền tảng) chỉ lộ ra khi BA review ở bản 0.5. Vì vậy:
