@@ -29,8 +29,7 @@ async function reloadProfile() {
 async function confirm() {
   const token = extractToken(route.query.token)
 
-  // The token is single-use and secret: take it out of the address bar (and history) before any
-  // request, so it can't leak through the Referer header, a screenshot or a shared URL.
+  // A secret: drop it from the URL before any request, or it lingers in history, screenshots, shared links.
   await router.replace({ path: route.path, query: {}, hash: route.hash })
 
   if (!token) {
