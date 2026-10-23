@@ -14,4 +14,4 @@ Format:
 ### 2026-10-23: allowed domains for the widget
 - SA answered: PRD01 question 4: accept only `https` and domain names, with localhost as the only exception (tự tin thấp).
 - User decided: accept `http` and `https`, and exact IPv4 addresses; internal names without a dot stay rejected, except localhost.
-- Lesson: where to embed the widget is the user's call about their own products. When strictness only guards against a hypothetical case, don't trade away a real deployment option (internal `http` apps, IP-addressed test servers); allow it and record the caveat.
+- Lesson: where the widget may run is the user's call about their own products, so when strictness only guards against a hypothetical case, allow the real deployment option (internal `http` apps, IP-addressed test servers) and record the caveat.
