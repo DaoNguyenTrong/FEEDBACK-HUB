@@ -493,20 +493,171 @@ public class AuthServiceTests
             () => f.Service.ExternalLoginAsync("github", request, null, null, CancellationToken.None));
     }
 
+    private static ExternalUserInfo Info(string sub, string email, bool verified)
+        => new(sub, email, "Some User", EmailVerified: verified);
+
+    private static void SeedExternalLogin(Fixture f, Account? linked, string provider = GoogleProviderName, string sub = "sub-1")
+    {
+        if (linked is null)
+        {
+            RepositoryPredicateStub.StubFirstOrDefault(f.ExternalLoginRepo, []);
+            return;
+        }
+
+        ExternalLogin link = ExternalLogin.Create(new ExternalLoginParams(linked.Id, provider, sub, linked.Email));
+        RepositoryPredicateStub.StubFirstOrDefault(f.ExternalLoginRepo, [link]);
+        f.AccountRepo.GetByIdAsync(linked.Id, Arg.Any<CancellationToken>()).Returns(linked);
+    }
+
     [Fact]
-    public async Task ExternalLoginAsync_ProviderEmailNotVerified_ThrowsUnauthorized()
+    public async Task ExternalLoginAsync_LinkedBySub_UnverifiedToken_SignsIn()
     {
         Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        SeedExternalLogin(f, account);
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new ExternalUserInfo("google-sub-unverified", "attacker@example.com", "Attacker", EmailVerified: false));
-        ExternalLoginRequest request = new("some-credential");
+            .Returns(Info("sub-1", account.Email, false));
+
+        AuthResult result = await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.Equal("fake-access-token", result.AccessToken);
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_LinkedAccountUnconfirmed_VerifiedTokenSameEmail_ConfirmsEmail()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(email: "nva@example.com", emailConfirmed: false);
+        SeedExternalLogin(f, account);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-1", "  NVA@Example.com ", true));
+
+        await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.True(account.EmailConfirmed);
+    }
+
+    [Theory]
+    [InlineData("other@example.com", true)]
+    [InlineData("nva@example.com", false)]
+    public async Task ExternalLoginAsync_LinkedAccountUnconfirmed_DifferentEmailOrUnverified_StaysUnconfirmed(string tokenEmail, bool verified)
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(email: "nva@example.com", emailConfirmed: false);
+        SeedExternalLogin(f, account);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-1", tokenEmail, verified));
+
+        AuthResult result = await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.False(account.EmailConfirmed);
+        Assert.Equal("fake-access-token", result.AccessToken);
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_EmailMatch_UnverifiedToken_ThrowsNotVerifiedByProviderAndNoLink()
+    {
+        Fixture f = CreateFixture();
+        Account existing = CreateAccount(email: "victim@example.com");
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [existing]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-x", "victim@example.com", false));
 
         await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
             ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
-            () => f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None));
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
 
-        await f.ExternalLoginRepo.DidNotReceive().FirstOrDefaultAsync(
-            Arg.Any<Expression<Func<ExternalLogin, bool>>>(), Arg.Any<CancellationToken>());
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_EmailMatch_AccountUnconfirmed_ThrowsEmailNotConfirmedAndNoLink()
+    {
+        Fixture f = CreateFixture();
+        Account existing = CreateAccount(email: "pending@example.com", emailConfirmed: false);
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [existing]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-x", "pending@example.com", true));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.ExternalLoginEmailNotConfirmed,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_EmailMatch_LockedAccount_Throws401AndNoLink()
+    {
+        Fixture f = CreateFixture();
+        Account existing = CreateAccount(email: "locked@example.com", status: false);
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [existing]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-x", "locked@example.com", true));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.InvalidUsernameOrPassword,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_NewAccount_UnverifiedToken_ThrowsAndCreatesNothing()
+    {
+        Fixture f = CreateFixture();
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, []);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-new", "new@example.com", false));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+    }
+
+    // Review Focus 4: matching is on Account.Email only, never PendingEmail.
+    [Fact]
+    public async Task ExternalLoginAsync_TokenEmailEqualsSomeonesPendingEmail_DoesNotMatchThatAccount()
+    {
+        Fixture f = CreateFixture();
+        Account other = CreateAccount(username: "other", email: "other@example.com");
+        other.RequestEmailChange("target@example.com");
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [other]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-t", "target@example.com", true));
+
+        await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(
+            Arg.Is<ExternalLogin>(l => l != null && l.AccountId == other.Id), Arg.Any<CancellationToken>());
+        await f.AccountRepo.Received(1).AddAsync(
+            Arg.Is<Account>(a => a != null && a.Email == "target@example.com"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_Google_KeepsEmailVerifiedRuleOnBothBranches()
+    {
+        Fixture f = CreateFixture();
+        Account existing = CreateAccount(email: "g@example.com");
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [existing]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("g-1", "g@example.com", false), Info("g-2", "fresh@example.com", false));
+
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
     }
 

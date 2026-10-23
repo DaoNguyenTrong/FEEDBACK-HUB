@@ -10,6 +10,11 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-23 — Microsoft external login trusts an email only from the personal tenant or `xms_edov`, and the issuer tenant must equal `tid`
+
+The default claim mapping silently read `preferred_username` (user-editable) as the email, so any Entra tenant could assert someone else's address (nOAuth). Rejected: keeping regex-only issuer validation, which lets one tenant's token carry another's issuer. Trade-off: unverified work-tenant users must register by email.
+Supersedes: 2026-07-25 — Microsoft external login: multi-tenant issuer validated by regex, no email_verified check
+
 ### 2026-10-22 — git and gh run without prompts; a command-parsing guard catches accidental never-rule breaks
 
 Confirming every push and merge interrupted agent work, so the prompts were removed. Prefix deny rules miss other spellings, so a PreToolUse guard parses each command: pushes go only to work branches and tags, and unparseable git/gh is denied. It stops accidents, not deliberate obfuscation: variables, interpreters, wrappers, script files, aliases, `gh api`, `gh pr merge` into `main`, and hook or global-config edits pass, and it fails open if `bun` is missing or times out. Rejected: `ask` prompts; prefix rules alone.

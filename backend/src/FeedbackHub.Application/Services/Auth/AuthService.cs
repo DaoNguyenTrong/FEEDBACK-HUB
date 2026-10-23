@@ -212,11 +212,6 @@ public sealed class AuthService(
 
         ExternalUserInfo userInfo = await authProvider.ValidateAsync(request.Credential, cancellationToken);
 
-        if (!userInfo.EmailVerified)
-        {
-            throw new UnauthorizedException(ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider);
-        }
-
         IRepository<ExternalLogin, Guid> externalLoginRepository = unitOfWork.Repository<ExternalLogin, Guid>();
         IRepository<Account, Guid> accountRepository = unitOfWork.Repository<Account, Guid>();
 
@@ -230,6 +225,16 @@ public sealed class AuthService(
         {
             account = await accountRepository.GetByIdAsync(existingLogin.AccountId, cancellationToken)
                 ?? throw new UnauthorizedException(ApplicationMessages.InvalidUsernameOrPassword);
+
+            // A linked sign-in needs no provider verification, but it is the only way an account whose
+            // email was never proven (left unconfirmed by the M8 migration) can be re-verified.
+            if (!account.EmailConfirmed
+                && userInfo.EmailVerified
+                && Account.NormalizeEmail(userInfo.Email) == account.Email)
+            {
+                account.ConfirmEmail();
+                accountRepository.Update(account);
+            }
         }
         else
         {
@@ -237,11 +242,22 @@ public sealed class AuthService(
             Account? matchedAccount = await accountRepository.FirstOrDefaultAsync(
                 a => a.Email == email, cancellationToken);
 
+            if (!userInfo.EmailVerified)
+            {
+                throw new UnauthorizedException(ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider);
+            }
+
             if (matchedAccount is not null)
             {
                 if (!matchedAccount.EmailConfirmed)
                 {
                     throw new ConflictException(ApplicationMessages.ExternalLoginEmailNotConfirmed);
+                }
+
+                // The link is added before TokenIssuer runs, so a locked account must be refused here.
+                if (!matchedAccount.Status)
+                {
+                    throw new UnauthorizedException(ApplicationMessages.InvalidUsernameOrPassword);
                 }
 
                 account = matchedAccount;
