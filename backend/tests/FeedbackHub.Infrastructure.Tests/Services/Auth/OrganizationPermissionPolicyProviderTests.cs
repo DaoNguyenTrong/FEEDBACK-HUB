@@ -33,7 +33,7 @@ public class OrganizationPermissionPolicyProviderTests
 
     [Theory]
     [MemberData(nameof(ActiveOrganizationScopedCodes))]
-    public async Task GetPolicyAsync_ActiveOrganizationScopedCode_BuildsActiveOrganizationRequirement(string code)
+    public async Task GetPolicyAsync_ActiveOrganizationScopedCode_BuildsOrganizationContextRequirement(string code)
     {
         Fixture f = CreateFixture();
 
@@ -41,8 +41,9 @@ public class OrganizationPermissionPolicyProviderTests
 
         Assert.NotNull(policy);
         IAuthorizationRequirement requirement = Assert.Single(policy.Requirements);
-        ActiveOrganizationPermissionRequirement typed = Assert.IsType<ActiveOrganizationPermissionRequirement>(requirement);
+        OrganizationContextRequirement typed = Assert.IsType<OrganizationContextRequirement>(requirement);
         Assert.Equal(code, typed.PermissionCode);
+        Assert.Equal(DenyMode.Forbidden, typed.DenyMode);
         Assert.Empty(policy.AuthenticationSchemes);
     }
 
@@ -99,12 +100,12 @@ public class OrganizationPermissionPolicyProviderTests
     {
         Fixture f = CreateFixture(options => options.AddPolicy(
             AuthorizationPolicies.ActiveOrganizationMember,
-            policy => policy.AddRequirements(new ActiveOrganizationMembershipRequirement())));
+            policy => policy.AddRequirements(new OrganizationContextRequirement(null, DenyMode.Forbidden))));
 
         AuthorizationPolicy? policy = await f.Provider.GetPolicyAsync(AuthorizationPolicies.ActiveOrganizationMember);
 
         Assert.NotNull(policy);
-        Assert.IsType<ActiveOrganizationMembershipRequirement>(Assert.Single(policy.Requirements));
+        Assert.IsType<OrganizationContextRequirement>(Assert.Single(policy.Requirements));
     }
 
     [Theory]

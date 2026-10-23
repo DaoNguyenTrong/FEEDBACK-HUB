@@ -168,6 +168,9 @@
   <data name="OrganizationSuspended" xml:space="preserve">
     <value>This organization is suspended.</value>
   </data>
+  <data name="ResourceNotFound" xml:space="preserve">
+    <value>Not found.</value>
+  </data>
   <data name="OrganizationMemberAlreadyExists" xml:space="preserve">
     <value>This account is already a member of the organization.</value>
   </data>

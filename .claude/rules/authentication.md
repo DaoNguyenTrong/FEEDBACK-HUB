@@ -44,10 +44,18 @@ personal, org-less context).
 Each organization has its own roles (`Role`, system kinds `Owner`/`Admin`/`Member` in
 `SystemRoleKind`, plus custom ones); a role bundles permissions from the fixed, code-defined catalog
 `Permissions`. Endpoints gate with `[Authorize(Policy = Permissions.X)]` (resolved by
-`OrganizationPermissionPolicyProvider`) or `AuthorizationPolicies.OrganizationMember` /
-`ActiveOrganizationMember` / `SignedInUser`. Effective permissions resolve per request through a
-short-TTL cache, not the JWT. The frontend's `meta.permission` route gate is UI-only
-(`frontend-conventions.md`).
+`OrganizationPermissionPolicyProvider`) or one of the `AuthorizationPolicies`:
+
+- `OrganizationMember` — active member of the organization in the `{id}` route segment.
+- `ActiveOrganizationMember` — active member of the JWT's organization; outside it → 403 `OrganizationAccessDenied`.
+- `ActiveOrganizationMemberOrNotFound` — the same, but outside it → 404 `ResourceNotFound` (BR-45).
+- `SignedInUser` — a signed-in person's JWT; never an API key.
+
+The organization gate (`OrganizationContextAuthorizationHandler`, TECH00 §5.1) checks in this order and answers
+the first failure: not signed in (401), not a member (403 or 404), organization suspended (403
+`OrganizationSuspended` with `organizationName`), missing permission (403 `OrganizationAccessDenied`).
+Effective permissions resolve per request through a short-TTL cache, not the JWT. The frontend's
+`meta.permission` route gate is UI-only (`frontend-conventions.md`).
 
 ## Headers
 

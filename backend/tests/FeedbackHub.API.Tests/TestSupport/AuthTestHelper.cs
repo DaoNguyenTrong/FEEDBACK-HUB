@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using NSubstitute;
@@ -17,6 +18,8 @@ namespace FeedbackHub.API.Tests.TestSupport;
 
 public static class AuthTestHelper
 {
+    public const string GateOrganizationName = "Gate Co";
+
     // Set by ApiFactoryFixture after the host boots, from the host's own IOptions<JwtSettings>, so minted tokens
     // match whatever SecretKey is configured — a hardcoded literal would drift from local appsettings.json into 401s.
     private static JwtSettings? configuredJwtSettings;
@@ -70,6 +73,38 @@ public static class AuthTestHelper
         await context.SaveChangesAsync();
 
         return organization;
+    }
+
+    /// <summary>A signed-in caller in a fresh <see cref="GateOrganizationName"/> organization, for gate tests.</summary>
+    /// <param name="personalContext">Mint the token without <c>org_id</c>.</param>
+    public static async Task<HttpClient> CreateOrganizationCallerClientAsync(
+        ApiFactoryFixture fixture,
+        SystemRoleKind role,
+        bool member = true,
+        bool organizationSuspended = false,
+        bool personalContext = false)
+    {
+        using IServiceScope scope = fixture.Services.CreateScope();
+        AppDbContext context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Account caller = await SeedConfirmedAccountAsync(
+            context, username: $"gate-{Guid.NewGuid():N}", email: $"gate-{Guid.NewGuid():N}@example.com");
+        Organization organization = await SeedOrganizationAsync(context, name: GateOrganizationName);
+        if (member)
+        {
+            await SeedOrganizationMemberAsync(context, organization.Id, caller.Id, role);
+        }
+
+        if (organizationSuspended)
+        {
+            organization.Deactivate(new DeactivationParams(caller.Id, false, null, DateTime.UtcNow));
+            context.Organizations.Update(organization);
+            await context.SaveChangesAsync();
+        }
+
+        HttpClient client = fixture.CreateTestClient();
+        client.DefaultRequestHeaders.Authorization =
+            new("Bearer", MintAccessToken(caller, personalContext ? null : organization.Id));
+        return client;
     }
 
     public static async Task<OrganizationMember> SeedOrganizationMemberAsync(

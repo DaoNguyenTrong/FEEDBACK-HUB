@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
 using FeedbackHub.Application.Common.Models;
+using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.ApiKeys;
 using FeedbackHub.Application.Services.AuditLogs;
 using FeedbackHub.Domain.Entities;
@@ -116,5 +118,30 @@ public sealed class AuditLogsControllerTests(ApiFactoryFixture fixture) : IAsync
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         AuditLogDto? dto = await response.Content.ReadJsonAsync<AuditLogDto>();
         Assert.Equal(targetId, dto!.Id);
+    }
+
+    // Organization gate
+
+    [Fact]
+    public async Task GetById_Unauthenticated_ReturnsUnauthorized()
+    {
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.GetAsync("/api/admin/audit-logs/1");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetAll_MemberWithoutAuditLogsView_Returns403AccessDenied()
+    {
+        HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
+            fixture, SystemRoleKind.Member);
+
+        HttpResponseMessage response = await client.GetAsync("/api/admin/audit-logs");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
     }
 }

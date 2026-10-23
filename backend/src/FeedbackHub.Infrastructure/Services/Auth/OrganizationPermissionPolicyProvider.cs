@@ -6,8 +6,8 @@ namespace FeedbackHub.Infrastructure.Services.Auth;
 
 /// <summary>
 /// Turns any <see cref="Permissions"/> code used as a policy name into a policy (no per-permission <c>AddPolicy</c>):
-/// <see cref="Permissions.ActiveOrganizationScoped"/> codes get <see cref="ActiveOrganizationPermissionRequirement"/>,
-/// the rest <see cref="OrganizationPermissionRequirement"/> (<c>{id}</c> route); other names use the default provider.
+/// <see cref="Permissions.ActiveOrganizationScoped"/> codes get <see cref="OrganizationContextRequirement"/>, the rest
+/// <see cref="OrganizationPermissionRequirement"/> (<c>{id}</c> route); other names use the default provider.
 /// </summary>
 internal sealed class OrganizationPermissionPolicyProvider(IOptions<AuthorizationOptions> options)
     : IAuthorizationPolicyProvider
@@ -23,7 +23,7 @@ internal sealed class OrganizationPermissionPolicyProvider(IOptions<Authorizatio
         if (Permissions.ActiveOrganizationScoped.Contains(policyName))
         {
             AuthorizationPolicy activeOrgPolicy = new AuthorizationPolicyBuilder()
-                .AddRequirements(new ActiveOrganizationPermissionRequirement(policyName))
+                .AddRequirements(new OrganizationContextRequirement(policyName, DenyMode.Forbidden))
                 .Build();
 
             return Task.FromResult<AuthorizationPolicy?>(activeOrgPolicy);
