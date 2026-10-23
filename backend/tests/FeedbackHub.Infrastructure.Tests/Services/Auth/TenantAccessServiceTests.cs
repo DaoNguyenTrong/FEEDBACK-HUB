@@ -94,7 +94,7 @@ public class TenantAccessServiceTests
                 new OrganizationMemberParams(organizationId, accountId)));
 
         Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
-        organization.Deactivate();
+        organization.Deactivate(new DeactivationParams(Guid.NewGuid(), false, null, DateTime.UtcNow));
         f.OrganizationRepo.GetByIdAsync(organizationId, Arg.Any<CancellationToken>()).Returns(organization);
 
         bool result = await f.Service.HasActiveAccessAsync(accountId, organizationId);

@@ -150,6 +150,9 @@
   <data name="OrganizationSlugRequired" xml:space="preserve">
     <value>Slug tổ chức là bắt buộc.</value>
   </data>
+  <data name="OrganizationSlugInvalid" xml:space="preserve">
+    <value>Định danh chỉ gồm chữ thường không dấu, chữ số và dấu gạch ngang nằm giữa, dài 3–50 ký tự.</value>
+  </data>
   <data name="RoleNameRequired" xml:space="preserve">
     <value>Tên vai trò là bắt buộc.</value>
   </data>

@@ -150,6 +150,9 @@
   <data name="OrganizationSlugRequired" xml:space="preserve">
     <value>Organization slug is required.</value>
   </data>
+  <data name="OrganizationSlugInvalid" xml:space="preserve">
+    <value>The identifier may use only lowercase letters a–z, digits and single hyphens between them, and must be 3–50 characters long.</value>
+  </data>
   <data name="RoleNameRequired" xml:space="preserve">
     <value>Role name is required.</value>
   </data>

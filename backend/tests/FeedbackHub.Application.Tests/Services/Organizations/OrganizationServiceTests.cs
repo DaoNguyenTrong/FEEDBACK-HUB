@@ -48,7 +48,7 @@ public class OrganizationServiceTests
 
         IRoleService roleService = Substitute.For<IRoleService>();
 
-        OrganizationService service = new(unitOfWork, currentUserService, tenantAccessService, permissionResolver, roleService);
+        OrganizationService service = new(unitOfWork, currentUserService, tenantAccessService, permissionResolver, roleService, Substitute.For<IDateTimeProvider>());
 
         return new Fixture(
             service,
