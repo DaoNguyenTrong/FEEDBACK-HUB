@@ -51,14 +51,20 @@ internal sealed class RoleGrantReader(AppDbContext dbContext) : IRoleGrantReader
     }
 
     public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrantRole>>> LoadRolesOfMembersAsync(
-        IReadOnlyCollection<Guid> organizationMemberIds, CancellationToken cancellationToken)
+        Guid organizationId, IReadOnlyCollection<Guid> organizationMemberIds, CancellationToken cancellationToken)
     {
         if (organizationMemberIds.Count == 0)
         {
             return new Dictionary<Guid, IReadOnlyList<RoleGrantRole>>();
         }
 
-        Guid[] memberIds = organizationMemberIds.Distinct().ToArray();
+        Guid[] requestedIds = organizationMemberIds.Distinct().ToArray();
+
+        // No foreign key ties a member-role link to the member's organization: both sides are scoped here.
+        List<Guid> memberIds = await dbContext.OrganizationMembers
+            .Where(member => member.OrganizationId == organizationId && requestedIds.Contains(member.Id))
+            .Select(member => member.Id)
+            .ToListAsync(cancellationToken);
 
         List<MemberRoleLink> links = await dbContext.OrganizationMemberRoles
             .Where(memberRole => memberIds.Contains(memberRole.OrganizationMemberId))
@@ -67,7 +73,8 @@ internal sealed class RoleGrantReader(AppDbContext dbContext) : IRoleGrantReader
 
         Guid[] roleIds = links.Select(link => link.RoleId).Distinct().ToArray();
         IReadOnlyList<RoleGrantRole> roles = await LoadOrderedAsync(
-            dbContext.Roles.Where(role => roleIds.Contains(role.Id)), cancellationToken);
+            dbContext.Roles.Where(role => role.OrganizationId == organizationId && roleIds.Contains(role.Id)),
+            cancellationToken);
 
         // Filtering the SQL-ordered list keeps the display order; nothing is re-sorted in memory.
         ILookup<Guid, Guid> roleIdsByMember = links.ToLookup(link => link.OrganizationMemberId, link => link.RoleId);
