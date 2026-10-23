@@ -571,7 +571,7 @@ describe('ProfileDialog', () => {
       ['FieldRequired', 400, { detail: 'Required' }, en.profile.currentPasswordRequired],
       [
         'EmailChangeTemporarilyLocked',
-        429,
+        401,
         { detail: 'Locked' },
         en.profile.emailChangeTemporarilyLocked,
       ],

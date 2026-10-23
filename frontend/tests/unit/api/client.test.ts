@@ -235,16 +235,22 @@ describe('apiClient interceptors', () => {
     expect(refreshCalls).toBe(0)
   })
 
-  it('does not refresh on an InvalidCurrentPassword 401 from the profile update', async () => {
+  it.each([
+    ['InvalidCurrentPassword', '/api/profile'],
+    ['EmailChangeTemporarilyLocked', '/api/profile'],
+    ['PasswordChangeTemporarilyLocked', '/api/profile/password'],
+  ] as const)('keeps the session and surfaces the error on a %s 401', async (code, url) => {
     let refreshCalls = 0
+    let calls = 0
 
     server.use(
-      http.put('*/api/profile', () =>
-        HttpResponse.json(
-          { status: 401, title: 'Unauthorized', code: 'InvalidCurrentPassword' },
+      http.put(`*${url}`, () => {
+        calls++
+        return HttpResponse.json(
+          { status: 401, title: 'Unauthorized', code },
           { status: 401, headers: { 'Content-Type': 'application/problem+json' } },
-        ),
-      ),
+        )
+      }),
       http.post('*/api/auth/refresh', () => {
         refreshCalls++
         return HttpResponse.json(makeAuthResponse())
@@ -252,9 +258,16 @@ describe('apiClient interceptors', () => {
     )
 
     const apiClient = await loadApiClient()
+    const auth = useAuthStore()
 
-    await expect(apiClient.put('/api/profile', { email: 'a@b.c' })).rejects.toBeDefined()
+    await expect(apiClient.put(url, { email: 'a@b.c' })).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 401,
+      problem: { code },
+    })
     expect(refreshCalls).toBe(0)
+    expect(calls).toBe(1)
+    expect(auth.clearAuth).not.toHaveBeenCalled()
   })
 
   it('maps 429 responses to ApiError', async () => {

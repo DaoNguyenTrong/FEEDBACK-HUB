@@ -110,10 +110,18 @@ function isPasswordChangeRequest(url?: string) {
   return url === '/api/profile/password'
 }
 
-// A wrong current password (email change on PUT /api/profile) is a 401 about the form, not an
-// expired session: refreshing and replaying the request would spend another attempt.
-function isCurrentPasswordRejection(data: unknown) {
-  return (data as { code?: unknown } | undefined)?.code === 'InvalidCurrentPassword'
+// Form-level 401s from EnsureCurrentPasswordAsync (wrong current password, or its attempt lock):
+// they are about the form, not an expired session. Refreshing and replaying would spend another
+// attempt, and the replayed 401 would then sign the user out.
+const FORM_LEVEL_401_CODES = new Set([
+  'InvalidCurrentPassword',
+  'EmailChangeTemporarilyLocked',
+  'PasswordChangeTemporarilyLocked',
+])
+
+function isFormLevelRejection(data: unknown) {
+  const code = (data as { code?: unknown } | undefined)?.code
+  return typeof code === 'string' && FORM_LEVEL_401_CODES.has(code)
 }
 
 /**
@@ -170,7 +178,7 @@ apiClient.interceptors.response.use(
       originalRequest &&
       !isAuthFlowRequest(originalRequest.url) &&
       !isPasswordChangeRequest(originalRequest.url) &&
-      !isCurrentPasswordRejection(error.response.data)
+      !isFormLevelRejection(error.response.data)
     ) {
       if (originalRequest._retry) {
         auth.clearAuth()
