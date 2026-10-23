@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using FeedbackHub.API.Common;
@@ -11,14 +12,16 @@ using YamlDotNet.Serialization;
 
 namespace FeedbackHub.API.Tests.Common;
 
-public class ProductionTopologyValidatorTests
+public partial class ProductionTopologyValidatorTests
 {
     private static Dictionary<string, string?> Complete() => new()
     {
         ["CacheSettings:Provider"] = "Redis",
         ["RealtimeSettings:Backplane"] = "Redis",
         ["ConnectionStrings:Redis"] = "redis:6379,password=secret",
-        ["StorageSettings:Provider"] = "SeaweedFS",
+        ["StorageSettings:Provider"] = "MinIO",
+        ["MinioSettings:AccessKey"] = "feedbackhub",
+        ["MinioSettings:SecretKey"] = "minio-password",
         ["RateLimiterSettings:Store"] = "Redis",
         ["DatabaseSettings:MigrateOnStartup"] = "false",
         ["ForwardedHeadersSettings:KnownProxies:0"] = "10.0.0.1",
@@ -42,6 +45,10 @@ public class ProductionTopologyValidatorTests
     [InlineData("RealtimeSettings:Backplane", "None", "RealtimeSettings:Backplane")]
     [InlineData("ConnectionStrings:Redis", "", "ConnectionStrings:Redis")]
     [InlineData("StorageSettings:Provider", "Local", "StorageSettings:Provider")]
+    [InlineData("StorageSettings:Provider", "SeaweedFS", "StorageSettings:Provider")]
+    [InlineData("StorageSettings:Provider", "S3", "StorageSettings:Provider")]
+    [InlineData("MinioSettings:AccessKey", "", "MinioSettings:AccessKey")]
+    [InlineData("MinioSettings:SecretKey", " ", "MinioSettings:SecretKey")]
     [InlineData("RateLimiterSettings:Store", "Memory", "RateLimiterSettings:Store")]
     [InlineData("DatabaseSettings:MigrateOnStartup", "true", "DatabaseSettings:MigrateOnStartup")]
     [InlineData("ForwardedHeadersSettings:KnownProxies:0", " ", "ForwardedHeadersSettings")]
@@ -57,6 +64,7 @@ public class ProductionTopologyValidatorTests
         string error = Assert.Single(errors);
         Assert.Contains(expectedKey, error);
         Assert.DoesNotContain("secret", error);
+        Assert.DoesNotContain("minio-password", error);
     }
 
     [Fact]
@@ -91,6 +99,7 @@ public class ProductionTopologyValidatorTests
     [InlineData("CacheSettings:Provider")]
     [InlineData("RealtimeSettings:Backplane")]
     [InlineData("RateLimiterSettings:Store")]
+    [InlineData("StorageSettings:Provider")]
     [InlineData("EmailSettings:SecureSocket")]
     public void Validate_PaddedValue_IsNotTrimmed(string key)
     {
@@ -119,7 +128,7 @@ public class ProductionTopologyValidatorTests
         Assert.Equal(RateLimiterStore.Redis, ProductionTopologyValidator.Redis);
         Assert.Equal(EmailSecureSocket.SslOnConnect, ProductionTopologyValidator.SslOnConnect);
         Assert.Equal(EmailSecureSocket.StartTls, ProductionTopologyValidator.StartTls);
-        Assert.Equal(new StorageSettings().Provider, ProductionTopologyValidator.LocalStorage);
+        Assert.Equal(StorageExtensions.MinioProvider, ProductionTopologyValidator.MinioStorage);
     }
 
     [Fact]
@@ -137,7 +146,7 @@ public class ProductionTopologyValidatorTests
         Dictionary<string, string?> values = Complete();
         values["CacheSettings:Provider"] = "redis";
         values["RealtimeSettings:Backplane"] = "REDIS";
-        values["StorageSettings:Provider"] = "seaweedfs";
+        values["StorageSettings:Provider"] = "minio";
         values["RateLimiterSettings:Store"] = "redis";
         values["EmailSettings:SecureSocket"] = "starttls";
         values["AuthCookieSettings:Secure"] = "True";
@@ -151,6 +160,18 @@ public class ProductionTopologyValidatorTests
     {
         Dictionary<string, string?> values = Complete();
         values["StorageSettings:Provider"] = "local";
+
+        Assert.Contains("StorageSettings:Provider", Assert.Single(Run(values)));
+    }
+
+    // The MinIO keys matter only once MinIO is chosen; a wrong provider is reported alone.
+    [Fact]
+    public void Validate_StorageNotMinioWithoutMinioKeys_ReportsOnlyTheProvider()
+    {
+        Dictionary<string, string?> values = Complete();
+        values["StorageSettings:Provider"] = "Local";
+        values.Remove("MinioSettings:AccessKey");
+        values.Remove("MinioSettings:SecretKey");
 
         Assert.Contains("StorageSettings:Provider", Assert.Single(Run(values)));
     }
@@ -175,8 +196,12 @@ public class ProductionTopologyValidatorTests
             .AddInMemoryCollection(ComposeEnvironment("api"))
             .Build();
 
-        string error = Assert.Single(ProductionTopologyValidator.Validate(configuration));
-        Assert.Contains("EmailSettings:SecureSocket", error);
+        // Without .env.prod the MinIO keys are empty, exactly as compose would pass them.
+        Assert.Collection(
+            ProductionTopologyValidator.Validate(configuration),
+            error => Assert.Contains("MinioSettings:AccessKey", error),
+            error => Assert.Contains("MinioSettings:SecretKey", error),
+            error => Assert.Contains("EmailSettings:SecureSocket", error));
     }
 
     // `migrate` builds the same host as `api`; a key set on one only would make the two disagree about the database,
@@ -194,7 +219,10 @@ public class ProductionTopologyValidatorTests
         Assert.Equal(shared.OrderBy(pair => pair.Key), migrate.OrderBy(pair => pair.Key));
     }
 
-    /// <summary>A service's environment from docker-compose.prod.yml, YAML merge keys (<c>&lt;&lt;:</c>) applied.</summary>
+    /// <summary>
+    /// A service's environment from docker-compose.prod.yml, YAML merge keys (<c>&lt;&lt;:</c>) applied and each
+    /// <c>${VAR}</c> / <c>${VAR:-default}</c> replaced as compose does when the variable is unset.
+    /// </summary>
     private static Dictionary<string, string?> ComposeEnvironment(string service)
     {
         string? directory = AppContext.BaseDirectory;
@@ -214,7 +242,7 @@ public class ProductionTopologyValidatorTests
 
         return environment.ToDictionary(
             pair => ((string)pair.Key).Replace("__", ":"),
-            pair => (string?)pair.Value);
+            pair => (string?)UnsetVariable().Replace((string)pair.Value, match => match.Groups["default"].Value));
     }
 
     [Theory]
@@ -229,6 +257,9 @@ public class ProductionTopologyValidatorTests
 
         Assert.Equal(expected, ProductionTopologyValidator.ShouldValidate(isOpenApiExport, isCliCommand, env));
     }
+
+    [GeneratedRegex(@"\$\{[A-Za-z_][A-Za-z0-9_]*(?::-(?<default>[^}]*))?\}")]
+    private static partial Regex UnsetVariable();
 
     private sealed class TestEnv(string name) : IHostEnvironment
     {

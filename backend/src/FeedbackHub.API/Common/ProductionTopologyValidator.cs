@@ -12,7 +12,7 @@ public static class ProductionTopologyValidator
     public const string ErrorTitle = "Production configuration is not ready for multiple API instances:";
 
     internal const string Redis = "Redis";
-    internal const string LocalStorage = "Local";
+    internal const string MinioStorage = "MinIO";
     internal const string SslOnConnect = "SslOnConnect";
     internal const string StartTls = "StartTls";
 
@@ -41,11 +41,20 @@ public static class ProductionTopologyValidator
             errors.Add("ConnectionStrings:Redis must be set.");
         }
 
-        // A missing or blank key falls back to the class default, Local.
-        string? storageProvider = configuration["StorageSettings:Provider"];
-        if (string.IsNullOrWhiteSpace(storageProvider) || Is(storageProvider, LocalStorage))
+        // An allow-list: a missing or blank key falls back to Local, which instances cannot share.
+        if (!Is(configuration["StorageSettings:Provider"], MinioStorage))
         {
-            errors.Add("StorageSettings:Provider must be set and must not be Local: instances do not share a local disk.");
+            errors.Add("StorageSettings:Provider must be MinIO so every instance reads and writes the same files.");
+        }
+        else
+        {
+            foreach (string key in new[] { "MinioSettings:AccessKey", "MinioSettings:SecretKey" })
+            {
+                if (string.IsNullOrWhiteSpace(configuration[key]))
+                {
+                    errors.Add($"{key} must be set.");
+                }
+            }
         }
 
         if (!Is(configuration["RateLimiterSettings:Store"], Redis))
