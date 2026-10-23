@@ -39,10 +39,10 @@ For layer/rule details for each part, see `AGENTS.md` and `.claude/rules/`. Work
 | Backend         | .NET 10, ASP.NET Core, Clean Architecture, EF Core                         |
 | Database        | PostgreSQL                                                                  |
 | Frontend        | Vue 3 + Vite, Pinia, naive-ui, vue-i18n, Tailwind                          |
-| Storage         | Local disk currently; pluggable via `IStorageProvider`                     |
+| Storage         | Local disk in dev; SeaweedFS in production (`IStorageProvider`)            |
 | Email           | SMTP (MailKit) — required, even in dev                                     |
 | Background jobs | Hangfire (PostgreSQL storage, dashboard at `/hangfire`)                    |
-| Realtime        | SignalR (`/hubs/notifications`, in-memory — no Redis backplane)            |
+| Realtime        | SignalR (`/hubs/notifications`; in-memory in dev, Redis backplane in production) |
 | Push            | Firebase Cloud Messaging (`FirebaseAdmin` SDK) — optional, no-op if unconfigured |
 | Logging         | Serilog (structured, console + rolling file) + correlation ID middleware   |
 | Monitoring      | Prometheus metrics (`/metrics`) + Grafana, see `monitoring/`               |
@@ -84,7 +84,7 @@ dotnet run --project backend/src/FeedbackHub.API
 backend/scripts/test.sh
 ```
 
-Production: migrations are applied automatically on startup via `Database.MigrateAsync`. Running several API instances? Set `DatabaseSettings__MigrateOnStartup=false` on them and run `dotnet FeedbackHub.API.dll migrate` once before starting them, so they don't race on the same migration.
+Production: migrations never run on API startup. The one-shot `migrate` service (`dotnet FeedbackHub.API.dll migrate`) applies them before any `api` replica starts, and `DatabaseSettings:MigrateOnStartup` must be `false` — the API refuses to start in Production otherwise. Outside Development and Production (e.g. Staging), the API still migrates on startup unless that key is `false`.
 
 ### 3. Frontend (`frontend/`)
 
@@ -145,7 +145,9 @@ For full details, see `.claude/reference/ci-and-git-hooks.md`.
 `docker-compose.prod.yml` builds and runs the API and frontend as containers, with Redis, SeaweedFS and a
 one-shot `migrate` service. Production is multi-instance ready: Redis and shared file storage are required, and
 `appsettings.json` must set `EmailSettings:SecureSocket` and the SeaweedFS access keys. Scale with
-`up -d --scale api=N`, then restart `web` so nginx resolves the new replicas.
+`up -d --scale api=N`. Restart `web` after scaling or redeploying `api`: nginx resolves the replicas once at start
+and keeps those addresses. Compose environment values override `appsettings.json`, so change the Redis or storage
+endpoints in `docker-compose.prod.yml` or `.env.prod`.
 Uploads now live in SeaweedFS, and the old `feedbackhub-api-uploads` volume is gone from the compose file but is not deleted automatically. If you are upgrading a deployment that already has uploads, copy the old volume's contents (`/app/uploads`) into the SeaweedFS bucket before switching, or old file links return 404.
 An nginx container serves the built frontend and reverse-proxies `/api/` and `/hubs/` to the API;
 `/hangfire` and `/metrics` are deliberately not exposed through it, same "network-layer only"

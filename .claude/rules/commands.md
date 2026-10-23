@@ -30,7 +30,7 @@ dotnet ef database update --project backend/src/FeedbackHub.Infrastructure --sta
 dotnet ef migrations add <MigrationName> --project backend/src/FeedbackHub.Infrastructure --startup-project backend/src/FeedbackHub.API
 ```
 
-In production, migrations are applied automatically on startup via `Database.MigrateAsync` unless `DatabaseSettings:MigrateOnStartup` is `false` — set it on every instance of a multi-instance deploy, and run the `migrate` command below once first, so instances starting together don't each run the same migration.
+In production, migrations never run on API startup: `DatabaseSettings:MigrateOnStartup` must be `false` (the production validator refuses to start otherwise), and the one-shot `migrate` service in `docker-compose.prod.yml` runs the `migrate` command below once before any API instance starts. Outside Development, an API with that key `true` still applies migrations on startup via `Database.MigrateAsync`.
 
 ### One-shot CLI commands
 

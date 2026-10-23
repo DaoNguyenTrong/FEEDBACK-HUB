@@ -6,6 +6,7 @@ using FeedbackHub.Infrastructure;
 using FeedbackHub.Infrastructure.Services.Email;
 using FeedbackHub.Infrastructure.Services.Notifications;
 using FeedbackHub.Infrastructure.Services.RateLimiting;
+using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 
 namespace FeedbackHub.API.Tests.Common;
@@ -169,6 +170,33 @@ public class ProductionTopologyValidatorTests
     [Fact]
     public void Validate_DockerComposeProdEnvironment_OnlyMissesOperatorSecrets()
     {
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.Example.json"), optional: false)
+            .AddInMemoryCollection(ComposeEnvironment("api"))
+            .Build();
+
+        string error = Assert.Single(ProductionTopologyValidator.Validate(configuration));
+        Assert.Contains("EmailSettings:SecureSocket", error);
+    }
+
+    // `migrate` builds the same host as `api`; a key set on one only would make the two disagree about the database,
+    // Redis or storage. Only the proxy settings belong to `api` alone.
+    [Fact]
+    public void DockerComposeProd_MigrateEnvironment_MatchesApiExceptProxySettings()
+    {
+        Dictionary<string, string?> api = ComposeEnvironment("api");
+        Dictionary<string, string?> migrate = ComposeEnvironment("migrate");
+
+        Dictionary<string, string?> shared = api
+            .Where(pair => !pair.Key.StartsWith("ForwardedHeadersSettings:", StringComparison.Ordinal))
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
+
+        Assert.Equal(shared.OrderBy(pair => pair.Key), migrate.OrderBy(pair => pair.Key));
+    }
+
+    /// <summary>A service's environment from docker-compose.prod.yml, YAML merge keys (<c>&lt;&lt;:</c>) applied.</summary>
+    private static Dictionary<string, string?> ComposeEnvironment(string service)
+    {
         string? directory = AppContext.BaseDirectory;
         while (directory is not null && !File.Exists(Path.Combine(directory, "docker-compose.prod.yml")))
         {
@@ -177,23 +205,16 @@ public class ProductionTopologyValidatorTests
 
         Assert.NotNull(directory);
 
+        using StreamReader reader = new(Path.Combine(directory, "docker-compose.prod.yml"));
         Dictionary<string, object> compose = new DeserializerBuilder().Build()
-            .Deserialize<Dictionary<string, object>>(File.ReadAllText(Path.Combine(directory, "docker-compose.prod.yml")));
+            .Deserialize<Dictionary<string, object>>(new MergingParser(new Parser(reader)));
         Dictionary<object, object> services = (Dictionary<object, object>)compose["services"];
-        Dictionary<object, object> api = (Dictionary<object, object>)services["api"];
-        Dictionary<object, object> environment = (Dictionary<object, object>)api["environment"];
+        Dictionary<object, object> definition = (Dictionary<object, object>)services[service];
+        Dictionary<object, object> environment = (Dictionary<object, object>)definition["environment"];
 
-        Dictionary<string, string?> fromCompose = environment.ToDictionary(
+        return environment.ToDictionary(
             pair => ((string)pair.Key).Replace("__", ":"),
             pair => (string?)pair.Value);
-
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.Example.json"), optional: false)
-            .AddInMemoryCollection(fromCompose)
-            .Build();
-
-        string error = Assert.Single(ProductionTopologyValidator.Validate(configuration));
-        Assert.Contains("EmailSettings:SecureSocket", error);
     }
 
     [Theory]
