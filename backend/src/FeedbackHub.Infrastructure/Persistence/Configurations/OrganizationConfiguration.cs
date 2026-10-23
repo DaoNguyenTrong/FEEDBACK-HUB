@@ -24,6 +24,14 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
             .IsRequired()
             .HasDefaultValue(true);
 
+        // No foreign key: the deactivating account may later be removed; the id is only a historical pointer.
+        builder.Property(organization => organization.DeactivatedBySystemAdministrator)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(organization => organization.DeactivationReason)
+            .HasMaxLength(500);
+
         builder.HasIndex(organization => organization.Slug)
             .IsUnique();
     }

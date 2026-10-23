@@ -13,7 +13,8 @@ public sealed class OrganizationService(
     ICurrentUserService currentUserService,
     ITenantAccessService tenantAccessService,
     IPermissionResolver permissionResolver,
-    IRoleService roleService) : IOrganizationService
+    IRoleService roleService,
+    IDateTimeProvider dateTimeProvider) : IOrganizationService
 {
     public async Task<OrganizationDto> CreateAsync(CreateOrganizationRequest request, CancellationToken cancellationToken)
     {
@@ -126,7 +127,8 @@ public sealed class OrganizationService(
         Organization organization = await organizationRepository.GetByIdAsync(organizationId, cancellationToken)
             ?? throw new NotFoundException(nameof(Organization), organizationId);
 
-        organization.Deactivate();
+        // Temporary: Task 10 replaces this method with the audited deactivation flow.
+        organization.Deactivate(new DeactivationParams(GetCurrentAccountId(), false, null, dateTimeProvider.UtcNow));
         organizationRepository.Update(organization);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

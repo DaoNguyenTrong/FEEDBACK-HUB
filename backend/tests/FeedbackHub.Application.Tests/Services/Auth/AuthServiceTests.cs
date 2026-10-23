@@ -1150,7 +1150,7 @@ public class AuthServiceTests
         f.CurrentUserService.UserId.Returns(accountId.ToString());
 
         Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
-        organization.Deactivate();
+        organization.Deactivate(new DeactivationParams(Guid.NewGuid(), false, null, DateTime.UtcNow));
         OrganizationMember membership = OrganizationMember.Create(
             new OrganizationMemberParams(organization.Id, accountId));
         RepositoryPredicateStub.StubFirstOrDefault(f.OrganizationMemberRepo, [membership]);
