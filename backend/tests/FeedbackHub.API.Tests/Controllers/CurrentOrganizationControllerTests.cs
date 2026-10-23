@@ -144,6 +144,29 @@ public sealed class CurrentOrganizationControllerTests(ApiFactoryFixture fixture
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Theory]
+    [MemberData(nameof(Endpoints))]
+    public async Task CurrentOrganization_ApiKey_Returns403AccessDeniedAndOrganizationUntouched(
+        string method, string path)
+    {
+        Organization organization = await SeedOrganizationAsync();
+        string rawKey;
+        await using (AppDbContext context = CreateDbContext())
+        {
+            (_, rawKey) = await AuthTestHelper.SeedActiveApiKeyAsync(context, organization.Id, "org-api-key");
+        }
+
+        HttpClient client = fixture.CreateTestClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", rawKey);
+
+        HttpResponseMessage response = await client.SendAsync(Request(method, path));
+
+        await AssertCodeAsync(response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationAccessDenied);
+        Organization stored = await LoadOrganizationAsync(organization.Id);
+        Assert.Equal("Bảo Minh", stored.Name);
+        Assert.True(stored.Status);
+    }
+
     // AC-299
     [Theory]
     [MemberData(nameof(Endpoints))]

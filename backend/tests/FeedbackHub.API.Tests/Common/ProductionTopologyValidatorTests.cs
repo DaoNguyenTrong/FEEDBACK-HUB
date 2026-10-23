@@ -129,7 +129,7 @@ public partial class ProductionTopologyValidatorTests
         Assert.Equal(EmailSecureSocket.SslOnConnect, ProductionTopologyValidator.SslOnConnect);
         Assert.Equal(EmailSecureSocket.StartTls, ProductionTopologyValidator.StartTls);
         Assert.Equal(StorageExtensions.MinioProvider, ProductionTopologyValidator.MinioStorage);
-        Assert.Equal(new MinioSettings().BucketName, ProductionTopologyValidator.MinioBucket);
+        Assert.Equal(ProductionTopologyValidator.MinioBucket, new MinioSettings().BucketName);
     }
 
     [Fact]

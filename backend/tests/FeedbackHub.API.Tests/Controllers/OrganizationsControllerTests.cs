@@ -70,6 +70,31 @@ public sealed class OrganizationsControllerTests(ApiFactoryFixture fixture) : IA
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    public async Task Organizations_ApiKey_Returns401(string method)
+    {
+        string rawKey;
+        await using (AppDbContext context = CreateDbContext())
+        {
+            Organization organization = await AuthTestHelper.SeedOrganizationAsync(context);
+            (_, rawKey) = await AuthTestHelper.SeedActiveApiKeyAsync(context, organization.Id, "org-api-key");
+        }
+
+        HttpClient client = fixture.CreateTestClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", rawKey);
+        HttpRequestMessage request = new(new HttpMethod(method), "/api/organizations");
+        if (method == "POST")
+        {
+            request.Content = JsonContent.Create(new CreateOrganizationRequest("Acme Inc", "acme-api-key"));
+        }
+
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        await AssertCodeAsync(response, HttpStatusCode.Unauthorized, ApplicationMessages.AuthenticatedUserRequired);
+    }
+
     // AC-351, BR-23
     [Fact]
     public async Task Create_Unconfirmed_Returns403EmailNotConfirmed()
