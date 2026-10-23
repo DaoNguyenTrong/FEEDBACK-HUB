@@ -11,10 +11,10 @@ public static class ProductionTopologyValidator
 {
     public const string ErrorTitle = "Production configuration is not ready for multiple API instances:";
 
-    private const string Redis = "Redis";
-    private const string LocalStorage = "Local";
-    private const string SslOnConnect = "SslOnConnect";
-    private const string StartTls = "StartTls";
+    internal const string Redis = "Redis";
+    internal const string LocalStorage = "Local";
+    internal const string SslOnConnect = "SslOnConnect";
+    internal const string StartTls = "StartTls";
 
     /// <summary>Whether Program.cs must run <see cref="Validate"/>: Production only, never for CLI verbs or the OpenAPI export.</summary>
     public static bool ShouldValidate(bool isOpenApiExport, bool isCliCommand, IHostEnvironment env)
@@ -41,9 +41,11 @@ public static class ProductionTopologyValidator
             errors.Add("ConnectionStrings:Redis must be set.");
         }
 
-        if (Is(configuration["StorageSettings:Provider"], LocalStorage))
+        // A missing or blank key falls back to the class default, Local.
+        string? storageProvider = configuration["StorageSettings:Provider"];
+        if (string.IsNullOrWhiteSpace(storageProvider) || Is(storageProvider, LocalStorage))
         {
-            errors.Add("StorageSettings:Provider must not be Local: instances do not share a local disk.");
+            errors.Add("StorageSettings:Provider must be set and must not be Local: instances do not share a local disk.");
         }
 
         if (!Is(configuration["RateLimiterSettings:Store"], Redis))
@@ -79,7 +81,7 @@ public static class ProductionTopologyValidator
 
     private static bool Is(string? value, string expected)
     {
-        return string.Equals(value?.Trim(), expected, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(value, expected, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasEntries(IConfiguration configuration, string section)

@@ -1,6 +1,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using FeedbackHub.API.Common;
+using FeedbackHub.Application.Common.Settings;
+using FeedbackHub.Infrastructure;
+using FeedbackHub.Infrastructure.Services.Email;
+using FeedbackHub.Infrastructure.Services.Notifications;
+using FeedbackHub.Infrastructure.Services.RateLimiting;
 
 namespace FeedbackHub.API.Tests.Common;
 
@@ -59,6 +64,60 @@ public class ProductionTopologyValidatorTests
         values["EmailSettings:SecureSocket"] = "StartTlsWhenAvailable";
 
         Assert.Single(Run(values));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void Validate_StorageProviderMissingOrBlank_IsError(string? value)
+    {
+        Dictionary<string, string?> values = Complete();
+        if (value is null)
+        {
+            values.Remove("StorageSettings:Provider");
+        }
+        else
+        {
+            values["StorageSettings:Provider"] = value;
+        }
+
+        Assert.Contains("StorageSettings:Provider", Assert.Single(Run(values)));
+    }
+
+    [Theory]
+    [InlineData("CacheSettings:Provider")]
+    [InlineData("RealtimeSettings:Backplane")]
+    [InlineData("RateLimiterSettings:Store")]
+    [InlineData("EmailSettings:SecureSocket")]
+    public void Validate_PaddedValue_IsNotTrimmed(string key)
+    {
+        Dictionary<string, string?> values = Complete();
+        values[key] = " " + values[key] + " ";
+
+        Assert.Contains(key, Assert.Single(Run(values)));
+    }
+
+    [Fact]
+    public void Validate_BothProxyArraysAbsent_IsError()
+    {
+        Dictionary<string, string?> values = Complete();
+        values.Remove("ForwardedHeadersSettings:KnownProxies:0");
+
+        Assert.Contains("ForwardedHeadersSettings", Assert.Single(Run(values)));
+    }
+
+    // The validator cannot reference Infrastructure (architecture rule), so these pin its literals to the
+    // names Infrastructure and Application actually accept; a rename there must fail here, not fail open.
+    [Fact]
+    public void Constants_MatchInfrastructureAndApplicationNames()
+    {
+        Assert.Equal(CachingExtensions.RedisProvider, ProductionTopologyValidator.Redis);
+        Assert.Equal(RealtimeExtensions.RedisBackplane, ProductionTopologyValidator.Redis);
+        Assert.Equal(RateLimiterStore.Redis, ProductionTopologyValidator.Redis);
+        Assert.Equal(EmailSecureSocket.SslOnConnect, ProductionTopologyValidator.SslOnConnect);
+        Assert.Equal(EmailSecureSocket.StartTls, ProductionTopologyValidator.StartTls);
+        Assert.Equal(new StorageSettings().Provider, ProductionTopologyValidator.LocalStorage);
     }
 
     [Fact]
