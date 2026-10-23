@@ -20,8 +20,11 @@ public sealed class TenantAccessMiddleware(RequestDelegate next)
         "/api/auth",
         // Self-authorizes against the organization in its URL; the caller's own list and create are org-independent.
         "/api/organizations",
+        // Static, organization-independent catalogue.
         "/api/permissions",
+        // Opened and accepted without an organization (TECH00 §5.1).
         "/api/invitations",
+        // System-administrator scope, not organization scope.
         "/api/system"
     ];
 
