@@ -46,6 +46,8 @@ namespace FeedbackHub.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Shrinking action back to 20 fails once Event rows exist (OrganizationDeactivated is 23 characters).
+            // Rollback follows TECH00 section 10.2 step 5 (old image plus backup), not EF Down.
             migrationBuilder.DropIndex(
                 name: "IX_audit_logs_event_keyset",
                 table: "audit_logs");
