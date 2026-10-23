@@ -33,11 +33,8 @@ internal sealed class GoogleAuthProvider(
             throw new UnauthorizedException(ApplicationMessages.InvalidExternalCredential);
         }
 
-        // A token issued without the email scope has no email claim: reject it like MicrosoftAuthProvider
-        // does instead of letting a null reach account matching/normalization.
-        string email = payload.Email
-            ?? throw new UnauthorizedException(ApplicationMessages.InvalidExternalCredential);
-
-        return new ExternalUserInfo(payload.Subject, email, payload.Name, payload.EmailVerified);
+        // A token issued without the email scope has no email claim; AuthService lets a linked user in
+        // and treats the null as unverified everywhere else.
+        return new ExternalUserInfo(payload.Subject, payload.Email, payload.Name, payload.EmailVerified);
     }
 }
