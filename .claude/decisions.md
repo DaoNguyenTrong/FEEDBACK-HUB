@@ -10,6 +10,22 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-23 — Refreshing into an organization the account can no longer enter issues a token with no organization
+
+A refresh that failed would log the person out although their identity is still valid, and a silent success would keep a stale organization claim. Issuing `org_id = null` keeps the session and lets the client choose another organization or the personal context. Rejected: rejecting the refresh, and trusting the old claim until it expires.
+
+### 2026-10-23 — System administrators live in their own table, written only from the server CLI, and checked by a cached lookup
+
+Platform authority must not be grantable through the API it guards, and must not ride in a JWT that outlives a revocation. A separate table that only a server-side command writes removes the API escalation path; a short-lived cache with explicit invalidation bounds how long a revoked administrator keeps access. Rejected: a role or claim on the account.
+
+### 2026-10-23 — Audit entries are semantic events written through one trail with an explicit organization and actor
+
+The organization of an entry must come from the entity that changed, never from the JWT, query or body, or a caller could write into another tenant's log. Fixed event kinds make the log queryable and let secrets and free text stay out. Rejected: deriving `organization_id` from the request token, and diffing entity changes into an unstructured log.
+
+### 2026-10-23 — One organization gate with a distinct code per refusal reason, evaluated in a fixed order
+
+A client must tell "not a member", "organization suspended" and "missing permission" apart to show the right screen, and the same request must always get the same answer. A single requirement checks the cases in the order BR-77 sets and reports the first failure; access has three states (allowed, denied, suspended). Rejected: one generic 403 and per-endpoint checks.
+
 ### 2026-10-23 — Production file storage moves to MinIO AIStor Free (single node)
 Supersedes: 2026-08-25 — SeaweedFS storage provider: S3 Gateway API, bucket auto-created at startup
 

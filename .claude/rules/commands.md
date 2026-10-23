@@ -39,6 +39,10 @@ In production, migrations never run on API startup: `DatabaseSettings:MigrateOnS
 dotnet run --project backend/src/FeedbackHub.API -- migrate
 # In the production image
 dotnet FeedbackHub.API.dll migrate
+# Make or stop being a system administrator, by verified email. Idempotent (0 = done or nothing to do,
+# 1 = bad usage, 2 = no account has this email, 3 = the account's email is not verified)
+dotnet run --project backend/src/FeedbackHub.API -- grant-system-admin --email <email>
+dotnet run --project backend/src/FeedbackHub.API -- revoke-system-admin --email <email>
 ```
 
 `Program.cs` hands the arguments to `CliCommands.TryRunAsync` right after `Build()`: a first argument naming a registered `ICliCommand` (`backend/src/FeedbackHub.API/Commands/`) runs that command with the API's configuration and DI, in a scope of its own, and the process exits with its code — the web host, Hangfire and storage never start. Anything else (no arguments, host switches like `--urls`) starts the API as usual. New seed/import/admin commands implement `ICliCommand`, call Application services (the Infrastructure-only-in-`Program.cs` architecture rule applies to them too), and are added to `CliCommands.All`; exit code 1 means bad usage and prints the usage line.

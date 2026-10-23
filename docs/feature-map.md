@@ -45,3 +45,30 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
   - Chỉ phiên của chính người dùng được liệt kê và thu hồi (`RevokeSession_NotOwned_ReturnsNotFound`); thử nghiệm cần đúng tài khoản.
   - Đổi mật khẩu có khóa riêng sau số lần sai (`ChangePasswordAsync`), tránh khóa nhầm khi thử nhiều lần.
   - Chuỗi giao diện đang kiểm tra ở locale `en` (fixture đặt `app-locale`); đổi locale làm hỏng selector theo text.
+
+---
+
+## Tổ chức đang làm việc và admin hệ thống
+
+- **PRD:** PRD00-FR-42, FR-44, FR-46, FR-53, FR-63, FR-38. Đối chiếu AC cụ thể (đổi tên API-04 AC-226, tạo tổ chức không ghi nhật ký AC-364) theo test trong mục Test.
+- **Vào bằng:** chưa có màn hình (phần 8 của kế hoạch). Gọi API bằng token của thành viên tổ chức, hoặc của admin hệ thống cho `api/system/*`. Cấp và thu hồi admin hệ thống chỉ qua CLI trên server: `dotnet run --project backend/src/FeedbackHub.API -- grant-system-admin --email <email>` và `revoke-system-admin --email <email>` (mã thoát 0 xong hoặc không có gì để làm, 1 sai cú pháp, 2 không có tài khoản, 3 email chưa xác minh).
+- **Frontend:** phần 3 không thêm màn hình. `OrganizationsView` và `OrganizationMembersDialog` không còn nút ngưng hoạt động (route `DELETE api/organizations/{id}` đã bỏ); phần 8 thay các màn hình này.
+- **Backend:**
+  - `GET /api/organization`, `PATCH /api/organization` (đổi tên, API-04; cùng tên thì 200 không ghi), `POST /api/organization/deactivate` → `CurrentOrganizationController` → `IOrganizationContextService`
+  - `POST /api/organizations`, `GET /api/organizations` (API-01, API-02) → `OrganizationsController`
+  - `GET /api/system/organizations` (phân trang `PageRequest`), `POST /api/system/organizations/{id}/deactivate`, `POST /api/system/organizations/{id}/reactivate` (API-24 đến API-26) → `SystemOrganizationsController` → `ISystemOrganizationService`; 404 là `EntityNotFound`
+  - Cổng tổ chức: `OrganizationContextAuthorizationHandler` (thứ tự BR-77, mã riêng từng lý do); policy admin hệ thống tra qua `ISystemAdministratorResolver` (cache 60 giây)
+  - Đổi trạng thái tổ chức qua `OrganizationStatusChanger` (khóa dòng bằng `IOrganizationLock`), ghi mục nhật ký qua `IAuditTrail`, rồi xóa cache truy cập và quyền
+- **Test đã có:**
+  - API: `CurrentOrganizationControllerTests`, `OrganizationsControllerTests`, `SystemOrganizationsControllerTests`, `AuthControllerTests` (refresh mất quyền vào tổ chức), `Commands/SystemAdminCommandsTests`, `Middleware/TenantAccessMiddlewareTests`, `Authorization/AuthorizationPolicyRegistrationTests`
+  - Application: `OrganizationContextServiceTests`, `OrganizationServiceTests`, `SystemOrganizationServiceTests`, `SystemAdministratorActorTests`, `SystemAdministratorServiceTests`, `AuditEventCatalogTests`
+  - Domain: `OrganizationTests`, `SystemAdministratorTests`, `AuditEventTests`
+  - Infrastructure: `OrganizationContextAuthorizationHandlerTests`, `SystemAdministratorAuthorizationHandlerTests`, `SystemAdministratorResolverTests`, `TenantAccessServiceTests`, `AuditTrailTests`, `OrganizationLockTests`, `SystemOrganizationQueriesTests`
+  - Frontend unit: `frontend/tests/components/OrganizationMembersDialog.test.ts`, `frontend/tests/unit/stores/organizations.test.ts`
+- **Dữ liệu test:** admin hệ thống được cấp bằng lệnh CLI ở trên cho một tài khoản đã xác minh email; không có seed riêng.
+- **Cách kiểm tra "đã chạy đúng":**
+  1. `grant-system-admin --email <email>` in `Granted system administrator to ...`; chạy lại in `... is already a system administrator.` với mã thoát 0.
+  2. Đăng nhập tài khoản đó rồi `GET /api/system/organizations` trả 200; với tài khoản thường trả 403.
+  3. `POST /api/system/organizations/{id}/deactivate` kèm `reason`, rồi gọi API của thành viên tổ chức đó: 403 `OrganizationSuspended`. `reactivate` đưa về 200.
+  4. `PATCH /api/organization` với tên mới trả 200 và có đúng một mục `OrganizationRenamed`; gửi lại cùng tên không thêm mục.
+- **Rủi ro hay gặp:** thân `PATCH /api/organization` chỉ có `slug` trả 400 `OrganizationNameRequired`; lý do vô hiệu không bao giờ nằm trong nhật ký hay log.
