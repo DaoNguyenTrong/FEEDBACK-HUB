@@ -18,5 +18,5 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 if command -v docker >/dev/null 2>&1; then
-  docker compose stop postgres mailpit seaweedfs
+  docker compose stop postgres mailpit
 fi

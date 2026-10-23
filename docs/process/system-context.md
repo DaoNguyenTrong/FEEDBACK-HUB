@@ -33,7 +33,7 @@ Hệ quả cho thiết kế:
 - **Hạ tầng: bắt buộc chạy song song nhiều máy chủ API** sau một bộ cân bằng tải. **[Người dùng]** Mọi trạng thái vì vậy phải dùng chung giữa các máy, không nằm trong bộ nhớ hay trên ổ của riêng một máy:
   - **PostgreSQL** dùng chung. Hangfire lưu job trên PostgreSQL, và khoá Data Protection lưu trong cơ sở dữ liệu; cả hai đã sẵn sàng.
   - **Redis bắt buộc**, không còn là tuỳ chọn: cache (`CacheSettings:Provider`) và SignalR backplane (`RealtimeSettings:Backplane`) chạy qua Redis, chế độ `noeviction` (`.claude/decisions.md` 2026-08-25, 2026-10-16).
-  - **File lưu ở kho dùng chung kiểu S3** (provider SeaweedFS hoặc S3), không dùng provider Local trên production.
+  - **File lưu ở kho dùng chung kiểu S3** (MinIO), không dùng provider Local trên production.
   - **Giới hạn tần suất request** (`AddRateLimiter`) hiện đếm riêng từng máy. Cần đếm chung qua Redis, hoặc chấp nhận và ghi rõ là giới hạn nhân theo số máy; `tech-lead` quyết ở tài liệu kỹ thuật.
   - Mỗi máy API không giữ trạng thái phiên; frontend vẫn do nginx phục vụ.
 - **Theo dõi:** Prometheus và Grafana (`monitoring/`), log của API. **[Người dùng: đã có trong repo]**
@@ -72,5 +72,6 @@ Hệ quả cho thiết kế:
 
 | Ngày | Thay đổi | Nguồn |
 |---|---|---|
+| 2026-10-23 | Kho file dùng chung trên production là MinIO (AIStor Free, một node), thay SeaweedFS | Quyết định của người dùng |
 | 2026-10-23 | Người dùng quyết: tối ưu cho điện thoại, máy tính bảng và máy tính; bắt buộc chạy song song nhiều máy chủ API (kéo theo Redis bắt buộc, kho file dùng chung, giới hạn tần suất dùng chung); mọi mục còn lại đồng ý theo đề xuất | Quyết định của người dùng |
 | 2026-10-23 | Bản đầu, soạn từ spec lõi, `docker-compose.prod.yml`, `.claude/decisions.md`; các mục [Đề xuất] chờ người dùng xác nhận | Phiên chính |

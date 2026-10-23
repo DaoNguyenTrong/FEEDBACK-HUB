@@ -10,6 +10,11 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-23 — Production file storage moves to MinIO AIStor Free (single node)
+Supersedes: 2026-08-25 — SeaweedFS storage provider: S3 Gateway API, bucket auto-created at startup
+
+The user chose MinIO. Community MinIO was rejected: it ships no images, its repository is archived and it gets no security patches. AIStor Free's limits are accepted: a single node, no at-rest encryption (use host disk encryption when needed), and the operator must supply the licence. The bucket and its public-prefix read policy are still set at startup, so a fresh deployment needs no manual step.
+
 ### 2026-10-23 — Production refuses to start unless the multi-instance security conditions hold
 
 Each instance trusts only its own configuration, so one forgotten setting (local file storage, a Memory cache, an unlisted proxy, an insecure auth cookie, plaintext SMTP) silently breaks or weakens the whole fleet. A pure startup validator lists every unmet condition and fails fast, in Production only. Rejected: documentation alone, and warnings that scroll past in logs.

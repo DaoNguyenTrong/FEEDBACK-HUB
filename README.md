@@ -39,7 +39,7 @@ For layer/rule details for each part, see `AGENTS.md` and `.claude/rules/`. Work
 | Backend         | .NET 10, ASP.NET Core, Clean Architecture, EF Core                         |
 | Database        | PostgreSQL                                                                  |
 | Frontend        | Vue 3 + Vite, Pinia, naive-ui, vue-i18n, Tailwind                          |
-| Storage         | Local disk in dev; SeaweedFS in production (`IStorageProvider`)            |
+| Storage         | Local disk in dev; MinIO in production (`IStorageProvider`)                |
 | Email           | SMTP (MailKit) — required, even in dev                                     |
 | Background jobs | Hangfire (PostgreSQL storage, dashboard at `/hangfire`)                    |
 | Realtime        | SignalR (`/hubs/notifications`; in-memory in dev, Redis backplane in production) |
@@ -142,14 +142,18 @@ For full details, see `.claude/reference/ci-and-git-hooks.md`.
 
 ## Production (Docker)
 
-`docker-compose.prod.yml` builds and runs the API and frontend as containers, with Redis, SeaweedFS and a
+`docker-compose.prod.yml` builds and runs the API and frontend as containers, with Redis, MinIO and a
 one-shot `migrate` service. Production is multi-instance ready: Redis and shared file storage are required, and
-`appsettings.json` must set `EmailSettings:SecureSocket` and the SeaweedFS access keys. Scale with
+`appsettings.json` must set `EmailSettings:SecureSocket`. Scale with
 `up -d --scale api=N`. Restart `web` after scaling or redeploying `api`: nginx resolves the replicas once at start
 and keeps those addresses. Compose environment values override `appsettings.json`, so change the Redis or storage
 endpoints in `docker-compose.prod.yml` or `.env.prod`.
-Uploads now live in SeaweedFS, and the old `feedbackhub-api-uploads` volume is gone from the compose file but is not deleted automatically. If you are upgrading a deployment that already has uploads, copy the old volume's contents (`/app/uploads`) into the SeaweedFS bucket before switching, or old file links return 404.
-An nginx container serves the built frontend and reverse-proxies `/api/` and `/hubs/` to the API;
+File storage is MinIO AIStor Free, a single node. The operator supplies its licence file (`MINIO_LICENSE_FILE` in
+`.env.prod`, default `./minio.license`, never committed) and its root user and password (`MINIO_ROOT_USER` /
+`MINIO_ROOT_PASSWORD`), which the API also uses as its MinIO keys. The free tier has no at-rest encryption; use host
+disk encryption if you need it. MinIO publishes no port: the API reaches it on the compose network.
+An nginx container serves the built frontend and reverse-proxies `/api/` and `/hubs/` to the API, and
+`/storage/public/` (read-only) to the MinIO bucket's `public/` prefix;
 `/hangfire` and `/metrics` are deliberately not exposed through it, same "network-layer only"
 restriction the API already applies (see `Program.cs`).
 
@@ -158,7 +162,7 @@ restriction the API already applies (see `Program.cs`).
 #    baked into the image. Fill in real ConnectionStrings/JwtSettings/CorsSettings/EmailSettings/...
 cp backend/src/FeedbackHub.API/appsettings.Example.json backend/src/FeedbackHub.API/appsettings.json
 
-# 2. Compose-level vars (Postgres credentials, frontend build arg)
+# 2. Compose-level vars (Postgres and MinIO credentials, MinIO licence path, frontend build arg)
 cp .env.prod.example .env.prod
 
 # 3. Build and start
@@ -167,7 +171,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 Each release tag also publishes both images, versioned from the tag: `ghcr.io/<owner>/<repo>/{backend,frontend}:X.Y.Z` (`:latest` follows the newest stable tag; on GitLab, `$CI_REGISTRY_IMAGE/...`). Build them yourself as above, or point the `api`/`web` services at those images to deploy without building on the server.
 
-Migrations run once in the `migrate` service before `api` starts (`DatabaseSettings:MigrateOnStartup=false`). Uploaded files persist in `feedbackhub-seaweedfs-data`, API logs in `feedbackhub-api-logs`, Redis in `feedbackhub-redis-data`; Postgres data in `feedbackhub-postgres-data`.
+Migrations run once in the `migrate` service before `api` starts (`DatabaseSettings:MigrateOnStartup=false`). Uploaded files persist in `feedbackhub-minio-data`, API logs in `feedbackhub-api-logs`, Redis in `feedbackhub-redis-data`; Postgres data in `feedbackhub-postgres-data`. The daily backup covers `feedbackhub-postgres-data` and `feedbackhub-minio-data`.
 
 Deploy notes:
 
