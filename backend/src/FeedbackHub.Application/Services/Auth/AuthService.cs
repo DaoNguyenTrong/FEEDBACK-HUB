@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Accounts;
@@ -127,10 +128,13 @@ public sealed class AuthService(
             throw new UnauthorizedException(ApplicationMessages.InvalidRefreshToken);
         }
 
-        if (rotatingToken.OrganizationId is { } organizationId &&
-            await tenantAccessService.GetAccessAsync(account.Id, organizationId, cancellationToken) != TenantAccessStatus.Active)
+        // Losing the organization (removed, or suspended) ends only the organization context, not the session: a 401
+        // would sign the person out and hide why the organization is gone (QĐ-31).
+        Guid? organizationId = rotatingToken.OrganizationId;
+        if (organizationId is { } tokenOrganizationId &&
+            await tenantAccessService.GetAccessAsync(account.Id, tokenOrganizationId, cancellationToken) != TenantAccessStatus.Active)
         {
-            throw new UnauthorizedException(ApplicationMessages.InvalidRefreshToken);
+            organizationId = null;
         }
 
         rotatingToken.Revoke();
@@ -138,7 +142,7 @@ public sealed class AuthService(
 
         return await tokenIssuer.IssueTokensAsync(
             account,
-            rotatingToken.OrganizationId,
+            organizationId,
             deviceInfo,
             ipAddress,
             rotatingToken.IsPersistent,
@@ -323,19 +327,7 @@ public sealed class AuthService(
 
         if (organizationId is { } targetOrganizationId)
         {
-            OrganizationMember? member = await unitOfWork.Repository<OrganizationMember, Guid>()
-                .FirstOrDefaultAsync(
-                    m => m.OrganizationId == targetOrganizationId && m.AccountId == accountId && m.IsActive,
-                    cancellationToken);
-
-            Organization? organization = member is null
-                ? null
-                : await unitOfWork.Repository<Organization, Guid>().GetByIdAsync(targetOrganizationId, cancellationToken);
-
-            if (member is null || organization is null || !organization.Status)
-            {
-                throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
-            }
+            await EnsureCanEnterOrganizationAsync(accountId, targetOrganizationId, cancellationToken);
         }
 
         Account account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken)
@@ -359,6 +351,27 @@ public sealed class AuthService(
         }
 
         return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, true, DateTime.UtcNow, familyId: sessionId, cancellationToken);
+    }
+
+    // The organization gate's order (TECH00 §5.1): membership first, so only a member ever learns the name.
+    private async Task EnsureCanEnterOrganizationAsync(
+        Guid accountId, Guid organizationId, CancellationToken cancellationToken)
+    {
+        TenantAccessStatus access = await tenantAccessService.GetAccessAsync(accountId, organizationId, cancellationToken);
+        if (access == TenantAccessStatus.Active)
+        {
+            return;
+        }
+
+        Organization? organization = access == TenantAccessStatus.Suspended
+            ? await unitOfWork.Repository<Organization, Guid>().GetByIdAsync(organizationId, cancellationToken)
+            : null;
+
+        throw organization is null
+            ? new ForbiddenException(ApplicationMessages.OrganizationAccessDenied)
+            : new ForbiddenException(
+                ApplicationMessages.OrganizationSuspended,
+                new Dictionary<string, string> { [ProblemExtensionKeys.OrganizationName] = organization.Name });
     }
 
     private Guid GetCurrentAccountId()
