@@ -11,4 +11,7 @@ public interface IRegistrationService
         CancellationToken cancellationToken);
 
     Task ResendVerificationEmailAsync(ResendVerificationRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Applies a pending profile email change from its mailed link. Opens no session.</summary>
+    Task ConfirmEmailChangeAsync(ConfirmEmailChangeRequest request, CancellationToken cancellationToken);
 }

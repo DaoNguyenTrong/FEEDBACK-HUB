@@ -102,6 +102,23 @@ public sealed class AuthController(
         return NoContent();
     }
 
+    /// <summary>Confirms a pending profile email change with the token from the mailed link. Opens no session and sets no cookie.</summary>
+    /// <remarks>Fails with 409 if the link is unknown, used, expired, replaced, or the address was taken meanwhile.</remarks>
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("confirm-email-change")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ConfirmEmailChange(
+        ConfirmEmailChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        await registrationService.ConfirmEmailChangeAsync(request, cancellationToken);
+
+        return NoContent();
+    }
+
     /// <summary>Authenticates (or registers, on first use) with a credential issued by an external provider (currently: google). Returns an access token and refresh token.</summary>
     /// <remarks>Tokens are also set as HttpOnly cookies (`access_token` and `refresh_token`) for browser client support.</remarks>
     [AllowAnonymous]

@@ -293,6 +293,69 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    // ConfirmEmailChange
+
+    [Fact]
+    public async Task ConfirmEmailChange_Valid_Returns204WithoutSetCookieOrBody()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        const string rawToken = "raw-confirm-email-change-token";
+        await using (AppDbContext context = CreateDbContext())
+        {
+            Account account = Account.Create(new AccountParams("Changer", "email-changer", "old-address@example.com"));
+            account.SetPasswordHash("hash");
+            account.ConfirmEmail();
+            account.RequestEmailChange("new-address@example.com");
+            context.Accounts.Add(account);
+            context.EmailVerificationTokens.Add(EmailVerificationToken.Create(new EmailVerificationTokenParams(
+                account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddHours(1),
+                EmailVerificationPurpose.ChangeEmail, "new-address@example.com")));
+            await context.SaveChangesAsync();
+        }
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/confirm-email-change", new ConfirmEmailChangeRequest(rawToken));
+
+        Assert.True(response.StatusCode == HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync());
+        Assert.False(response.Headers.Contains("Set-Cookie"));
+        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
+        await using AppDbContext verify = CreateDbContext();
+        Account stored = await verify.Accounts.SingleAsync(a => a.Username == "email-changer");
+        Assert.Equal("new-address@example.com", stored.Email);
+        Assert.Null(stored.PendingEmail);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChange_UnknownToken_Returns409()
+    {
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/confirm-email-change", new ConfirmEmailChangeRequest("unknown-token"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    // Anonymous surface of AuthController: adding a public action must be a deliberate edit of this list
+    // (and of the list in .claude/rules/authentication.md).
+    [Fact]
+    public void ConfirmEmailChange_IsTheOnlyNewAnonymousAction()
+    {
+        string[] anonymous = typeof(FeedbackHub.API.Controllers.AuthController)
+            .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.DeclaredOnly)
+            .Where(m => m.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).Length > 0)
+            .Select(m => m.Name)
+            .Order()
+            .ToArray();
+
+        string[] expected =
+        [
+            "ConfirmEmailChange", "ExternalLogin", "Login", "Refresh", "Register", "ResendVerification", "VerifyEmail"
+        ];
+        Assert.Equal(expected, anonymous);
+    }
+
     // ResendVerification
 
     [Fact]

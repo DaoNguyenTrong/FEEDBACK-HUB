@@ -7,6 +7,7 @@ using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
+using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.Auth;
 using FeedbackHub.Application.Tests.TestSupport;
 using FeedbackHub.Domain.Entities;
@@ -24,7 +25,8 @@ public class RegistrationServiceTests
         IRepository<EmailVerificationToken, Guid> EmailVerificationTokenRepo,
         IUnitOfWork UnitOfWork,
         IPasswordHasher PasswordHasher,
-        IEmailSender EmailSender);
+        IEmailSender EmailSender,
+        IDateTimeProvider Clock);
 
     private static Fixture CreateFixture()
     {
@@ -73,12 +75,19 @@ public class RegistrationServiceTests
         // token-issuing assertions unchanged.
         ITokenIssuer tokenIssuer = new TokenIssuer(unitOfWork, jwtTokenService, permissionResolver, jwtOptions, Options.Create(new StorageSettings()));
 
+        IDateTimeProvider clock = Substitute.For<IDateTimeProvider>();
+        clock.UtcNow.Returns(_ => DateTime.UtcNow);
+        EmailChangeLink emailChangeLink = new(
+            unitOfWork, emailSender, emailOptions, clock, NullLogger<EmailChangeLink>.Instance);
+
         RegistrationService service = new(
             unitOfWork,
             passwordHasher,
             emailSender,
             emailOptions,
             tokenIssuer,
+            emailChangeLink,
+            clock,
             NullLogger<RegistrationService>.Instance);
 
         return new Fixture(
@@ -88,7 +97,8 @@ public class RegistrationServiceTests
             emailVerificationTokenRepo,
             unitOfWork,
             passwordHasher,
-            emailSender);
+            emailSender,
+            clock);
     }
 
     private static Account CreateAccount(
@@ -133,6 +143,14 @@ public class RegistrationServiceTests
             EmailVerificationPurpose.VerifyEmail,
             "nva@example.com"));
     }
+
+    private static EmailVerificationToken CreateToken(
+        Guid accountId,
+        string rawToken,
+        EmailVerificationPurpose purpose,
+        string email) =>
+        EmailVerificationToken.Create(new EmailVerificationTokenParams(
+            accountId, TokenHash.Compute(rawToken), DateTime.UtcNow.AddHours(1), purpose, email));
 
     private static RegisterRequest CreateRegisterRequest(
         string username = "nva",
@@ -293,6 +311,228 @@ public class RegistrationServiceTests
         await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
             ApplicationMessages.EmailVerificationTokenInvalidOrExpired,
             () => f.Service.VerifyEmailAsync(request, null, null, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task VerifyEmailAsync_ChangeEmailToken_Throws401NoSession()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(emailConfirmed: false);
+        EmailVerificationToken token = CreateToken(
+            account.Id, "change-token", EmailVerificationPurpose.ChangeEmail, account.Email);
+        RepositoryPredicateStub.StubFirstOrDefault(f.EmailVerificationTokenRepo, [token]);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.EmailVerificationTokenInvalidOrExpired,
+            () => f.Service.VerifyEmailAsync(new VerifyEmailRequest("change-token"), null, null, CancellationToken.None));
+
+        Assert.False(account.EmailConfirmed);
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task VerifyEmailAsync_TokenEmailDiffersFromAccountEmail_Throws401()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(emailConfirmed: false);
+        EmailVerificationToken token = CreateToken(
+            account.Id, "other-address-token", EmailVerificationPurpose.VerifyEmail, "someone-else@example.com");
+        RepositoryPredicateStub.StubFirstOrDefault(f.EmailVerificationTokenRepo, [token]);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.EmailVerificationTokenInvalidOrExpired,
+            () => f.Service.VerifyEmailAsync(new VerifyEmailRequest("other-address-token"), null, null, CancellationToken.None));
+
+        Assert.False(account.EmailConfirmed);
+    }
+
+    [Fact]
+    public async Task VerifyEmailAsync_LegacyTokenWithoutEmail_Throws401()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(emailConfirmed: false);
+        EmailVerificationToken token = CreateToken(
+            account.Id, "legacy-token", EmailVerificationPurpose.VerifyEmail, account.Email);
+        // Rows from before the column existed have neither a purpose nor an address.
+        typeof(EmailVerificationToken).GetProperty(nameof(EmailVerificationToken.Email))!.SetValue(token, null);
+        typeof(EmailVerificationToken).GetProperty(nameof(EmailVerificationToken.Purpose))!.SetValue(token, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.EmailVerificationTokenRepo, [token]);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.EmailVerificationTokenInvalidOrExpired,
+            () => f.Service.VerifyEmailAsync(new VerifyEmailRequest("legacy-token"), null, null, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ResendVerificationEmailAsync_AccountWithoutPassword_SendsNothing()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(emailConfirmed: false, passwordHash: null);
+        f.AccountRepo.FirstOrDefaultAsync(Arg.Any<Expression<Func<Account, bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(account);
+
+        await f.Service.ResendVerificationEmailAsync(new ResendVerificationRequest(account.Email), CancellationToken.None);
+
+        await f.EmailVerificationTokenRepo.DidNotReceive().AddAsync(
+            Arg.Any<EmailVerificationToken>(), Arg.Any<CancellationToken>());
+        await f.EmailSender.DidNotReceive().SendAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ResendVerificationEmailAsync_NotYetConfirmed_StoresTokenBoundToPurposeAndAddress()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(emailConfirmed: false);
+        f.AccountRepo.FirstOrDefaultAsync(Arg.Any<Expression<Func<Account, bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(account);
+
+        await f.Service.ResendVerificationEmailAsync(new ResendVerificationRequest(account.Email), CancellationToken.None);
+
+        await f.EmailVerificationTokenRepo.Received(1).AddAsync(
+            Arg.Is<EmailVerificationToken>(t =>
+                t.Purpose == EmailVerificationPurpose.VerifyEmail && t.Email == account.Email),
+            Arg.Any<CancellationToken>());
+    }
+
+    // ConfirmEmailChangeAsync
+
+    private sealed record ChangeSetup(
+        Fixture F, Account Account, EmailVerificationToken Token, List<EmailVerificationToken> Tokens);
+
+    private static ChangeSetup CreateChangeSetup(string rawToken = "change-link")
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        account.RequestEmailChange("new@example.com");
+        EmailVerificationToken token = CreateToken(
+            account.Id, rawToken, EmailVerificationPurpose.ChangeEmail, "new@example.com");
+        EmailVerificationToken verifyToken = CreateToken(
+            account.Id, "other-verify", EmailVerificationPurpose.VerifyEmail, account.Email);
+        List<EmailVerificationToken> tokens = [token, verifyToken];
+        RepositoryPredicateStub.StubFirstOrDefault(f.EmailVerificationTokenRepo, tokens);
+        RepositoryPredicateStub.StubListAsync(f.EmailVerificationTokenRepo, tokens);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        f.AccountRepo.FirstOrDefaultAsync(Arg.Any<Expression<Func<Account, bool>>>(), Arg.Any<CancellationToken>())
+            .Returns((Account?)null);
+        return new ChangeSetup(f, account, token, tokens);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChangeAsync_ValidLink_AppliesChangeAndConsumesAllTokens()
+    {
+        ChangeSetup s = CreateChangeSetup();
+
+        await s.F.Service.ConfirmEmailChangeAsync(new ConfirmEmailChangeRequest("change-link"), CancellationToken.None);
+
+        Assert.Equal("new@example.com", s.Account.Email);
+        Assert.True(s.Account.EmailConfirmed);
+        Assert.Null(s.Account.PendingEmail);
+        Assert.All(s.Tokens, t => Assert.NotNull(t.ConsumedAt));
+        await s.F.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await s.F.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChangeAsync_UnknownUsedExpiredOrVerifyEmailToken_Throws409NoLongerValid()
+    {
+        // Unknown
+        ChangeSetup unknown = CreateChangeSetup();
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.EmailChangeLinkNoLongerValid,
+            () => unknown.F.Service.ConfirmEmailChangeAsync(
+                new ConfirmEmailChangeRequest("no-such-link"), CancellationToken.None));
+
+        // Already used
+        ChangeSetup used = CreateChangeSetup();
+        used.Token.Consume();
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.EmailChangeLinkNoLongerValid,
+            () => used.F.Service.ConfirmEmailChangeAsync(
+                new ConfirmEmailChangeRequest("change-link"), CancellationToken.None));
+
+        // Expired: the clock moves a minute past ExpiresAt
+        ChangeSetup expired = CreateChangeSetup();
+        expired.F.Clock.UtcNow.Returns(expired.Token.ExpiresAt.AddMinutes(1));
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.EmailChangeLinkNoLongerValid,
+            () => expired.F.Service.ConfirmEmailChangeAsync(
+                new ConfirmEmailChangeRequest("change-link"), CancellationToken.None));
+
+        // A VerifyEmail token
+        ChangeSetup wrongPurpose = CreateChangeSetup();
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.EmailChangeLinkNoLongerValid,
+            () => wrongPurpose.F.Service.ConfirmEmailChangeAsync(
+                new ConfirmEmailChangeRequest("other-verify"), CancellationToken.None));
+
+        foreach (ChangeSetup setup in new[] { unknown, used, expired, wrongPurpose })
+        {
+            Assert.Equal("nva@example.com", setup.Account.Email);
+            await setup.F.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChangeAsync_PendingChangedSinceLink_Throws409NoLongerValid()
+    {
+        ChangeSetup s = CreateChangeSetup();
+        s.Account.RequestEmailChange("newer@example.com");
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.EmailChangeLinkNoLongerValid,
+            () => s.F.Service.ConfirmEmailChangeAsync(new ConfirmEmailChangeRequest("change-link"), CancellationToken.None));
+
+        Assert.Equal("nva@example.com", s.Account.Email);
+        Assert.Equal("newer@example.com", s.Account.PendingEmail);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChangeAsync_TokenWithoutEmail_Throws409NoLongerValid()
+    {
+        ChangeSetup s = CreateChangeSetup();
+        typeof(EmailVerificationToken).GetProperty(nameof(EmailVerificationToken.Email))!.SetValue(s.Token, null);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.EmailChangeLinkNoLongerValid,
+            () => s.F.Service.ConfirmEmailChangeAsync(new ConfirmEmailChangeRequest("change-link"), CancellationToken.None));
+
+        Assert.Equal("nva@example.com", s.Account.Email);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChangeAsync_AddressTakenMeanwhile_Throws409AccountEmailAlreadyExists_OtherAccountUntouched()
+    {
+        ChangeSetup s = CreateChangeSetup();
+        Account other = CreateAccount(username: "other", email: "new@example.com");
+        s.F.AccountRepo.FirstOrDefaultAsync(Arg.Any<Expression<Func<Account, bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(other);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.AccountEmailAlreadyExists,
+            () => s.F.Service.ConfirmEmailChangeAsync(new ConfirmEmailChangeRequest("change-link"), CancellationToken.None));
+
+        Assert.Equal("nva@example.com", s.Account.Email);
+        Assert.Equal("new@example.com", s.Account.PendingEmail);
+        Assert.Null(s.Token.ConsumedAt);
+        s.F.AccountRepo.DidNotReceive().Update(Arg.Any<Account>());
+        await s.F.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChangeAsync_SecondOpenOfSameLink_Throws409()
+    {
+        ChangeSetup s = CreateChangeSetup();
+        await s.F.Service.ConfirmEmailChangeAsync(new ConfirmEmailChangeRequest("change-link"), CancellationToken.None);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.EmailChangeLinkNoLongerValid,
+            () => s.F.Service.ConfirmEmailChangeAsync(new ConfirmEmailChangeRequest("change-link"), CancellationToken.None));
+
+        Assert.Equal("new@example.com", s.Account.Email);
     }
 
     // ResendVerificationEmailAsync

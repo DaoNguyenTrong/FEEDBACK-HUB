@@ -6,6 +6,7 @@ using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
+using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
 using FeedbackHub.Domain.Interfaces;
@@ -18,6 +19,8 @@ public sealed class RegistrationService(
     IEmailSender emailSender,
     IOptions<EmailSettings> emailOptions,
     ITokenIssuer tokenIssuer,
+    EmailChangeLink emailChangeLink,
+    IDateTimeProvider clock,
     ILogger<RegistrationService> logger) : IRegistrationService
 {
     private readonly EmailSettings emailSettings = emailOptions.Value;
@@ -58,7 +61,10 @@ public sealed class RegistrationService(
         EmailVerificationToken? token = await tokenRepository
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
-        if (token is null || !token.IsActiveAt(DateTime.UtcNow))
+        // A null purpose is a row from before purposes existed; it is still a verification token.
+        if (token is null
+            || !token.IsActiveAt(clock.UtcNow)
+            || token.Purpose is not (null or EmailVerificationPurpose.VerifyEmail))
         {
             throw new UnauthorizedException(ApplicationMessages.EmailVerificationTokenInvalidOrExpired);
         }
@@ -66,6 +72,13 @@ public sealed class RegistrationService(
         Account account = await unitOfWork.Repository<Account, Guid>()
             .GetByIdAsync(token.AccountId, cancellationToken)
             ?? throw new UnauthorizedException(ApplicationMessages.EmailVerificationTokenInvalidOrExpired);
+
+        // The token proves control of the address it was mailed to; it must still be the account's address.
+        // A legacy row without an address cannot prove that, so it is refused.
+        if (token.Email is null || token.Email != account.Email)
+        {
+            throw new UnauthorizedException(ApplicationMessages.EmailVerificationTokenInvalidOrExpired);
+        }
 
         account.ConfirmEmail();
         unitOfWork.Repository<Account, Guid>().Update(account);
@@ -86,7 +99,8 @@ public sealed class RegistrationService(
         Account? account = await unitOfWork.Repository<Account, Guid>()
             .FirstOrDefaultAsync(a => a.Email == email, cancellationToken);
 
-        if (account is null)
+        // An account without a password was made through a provider or an invitation and has nothing to verify here.
+        if (account is null || account.PasswordHash is null)
         {
             return;
         }
@@ -97,6 +111,55 @@ public sealed class RegistrationService(
         }
 
         await IssueVerificationTokenAsync(account, cancellationToken);
+    }
+
+    public async Task ConfirmEmailChangeAsync(
+        ConfirmEmailChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        string tokenHash = TokenHash.Compute(request.Token);
+
+        IRepository<EmailVerificationToken, Guid> tokenRepository =
+            unitOfWork.Repository<EmailVerificationToken, Guid>();
+        IRepository<Account, Guid> accountRepository = unitOfWork.Repository<Account, Guid>();
+
+        EmailVerificationToken? token = await tokenRepository
+            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
+
+        if (token is null
+            || !token.IsActiveAt(clock.UtcNow)
+            || token.Purpose != EmailVerificationPurpose.ChangeEmail
+            || token.Email is null)
+        {
+            throw new ConflictException(ApplicationMessages.EmailChangeLinkNoLongerValid);
+        }
+
+        Account account = await accountRepository.GetByIdAsync(token.AccountId, cancellationToken)
+            ?? throw new ConflictException(ApplicationMessages.EmailChangeLinkNoLongerValid);
+
+        if (account.PendingEmail != token.Email)
+        {
+            throw new ConflictException(ApplicationMessages.EmailChangeLinkNoLongerValid);
+        }
+
+        string newEmail = account.PendingEmail;
+        Guid accountId = account.Id;
+
+        // Someone may have registered the address while the change was waiting. The unique index on Email
+        // backstops two confirmations racing past this check (mapped in UnitOfWork.SaveChangesAsync).
+        if (await accountRepository.FirstOrDefaultAsync(
+                a => a.Email == newEmail && a.Id != accountId, cancellationToken) is not null)
+        {
+            throw new ConflictException(ApplicationMessages.AccountEmailAlreadyExists);
+        }
+
+        account.ApplyEmailChange();
+        accountRepository.Update(account);
+
+        // Consumes this link too: it is one of the account's active tokens.
+        await emailChangeLink.ConsumeAllAsync(account.Id, purpose: null, cancellationToken);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private static async Task EnsureUniqueAccountAsync(
@@ -124,7 +187,7 @@ public sealed class RegistrationService(
     {
         string rawToken = GenerateRawToken();
         string tokenHash = TokenHash.Compute(rawToken);
-        DateTime expiresAt = DateTime.UtcNow.AddHours(emailSettings.VerificationTokenExpiryHours);
+        DateTime expiresAt = clock.UtcNow.AddHours(emailSettings.VerificationTokenExpiryHours);
 
         EmailVerificationToken token = EmailVerificationToken.Create(
             new EmailVerificationTokenParams(
