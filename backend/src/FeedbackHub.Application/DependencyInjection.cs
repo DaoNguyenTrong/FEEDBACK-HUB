@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationContextService, OrganizationContextService>();
         services.AddScoped<IPermissionCatalogService, PermissionCatalogService>();
         services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<IMemberService, MemberService>();
         services.AddScoped<OrganizationStatusChanger>();
         services.AddScoped<SystemAdministratorActor>();
         services.AddScoped<ISystemOrganizationService, SystemOrganizationService>();

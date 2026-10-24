@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FeedbackHub.Application.Common.Authorization;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Services.Organizations;
 
 namespace FeedbackHub.API.Controllers;
@@ -9,8 +10,9 @@ namespace FeedbackHub.API.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/organization")]
-public sealed class CurrentOrganizationController(IOrganizationContextService organizationContextService)
-    : ControllerBase
+public sealed class CurrentOrganizationController(
+    IOrganizationContextService organizationContextService,
+    IMemberService memberService) : ControllerBase
 {
     /// <summary>Returns the working organization. Any active member may read it.</summary>
     [HttpGet]
@@ -55,5 +57,25 @@ public sealed class CurrentOrganizationController(IOrganizationContextService or
         await organizationContextService.DeactivateAsync(request, cancellationToken);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Lists the working organization's active members. Emails and per-row actions are shown only to callers who may
+    /// manage members; everyone else sees just their own email. Outsiders get 404.
+    /// </summary>
+    [HttpGet("members")]
+    [Authorize(Policy = AuthorizationPolicies.ActiveOrganizationMemberOrNotFound)]
+    [ProducesResponseType(typeof(PagedResult<OrganizationMemberDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResult<OrganizationMemberDto>>> ListMembers(
+        [FromQuery] PageRequest request,
+        CancellationToken cancellationToken)
+    {
+        PagedResult<OrganizationMemberDto> members = await memberService.ListAsync(request, cancellationToken);
+
+        return Ok(members);
     }
 }
