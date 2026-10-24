@@ -63,6 +63,6 @@ public sealed partial class OrganizationInvitation : BaseEntity<Guid>, IHasOrgan
 
     public bool IsExpiredAt(DateTime utcNow) => ExpiresAt <= utcNow;
 
-    [GeneratedRegex("^[0-9a-f]{64}$")]
+    [GeneratedRegex(@"^[0-9a-f]{64}\z")]
     private static partial Regex TokenHashPattern();
 }
