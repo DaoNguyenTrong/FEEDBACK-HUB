@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Services.Organizations;
+using FeedbackHub.Application.Services.Roles;
 
 namespace FeedbackHub.API.Controllers;
 
@@ -12,7 +13,8 @@ namespace FeedbackHub.API.Controllers;
 [Route("api/organization")]
 public sealed class CurrentOrganizationController(
     IOrganizationContextService organizationContextService,
-    IMemberService memberService) : ControllerBase
+    IMemberService memberService,
+    IRoleService roleService) : ControllerBase
 {
     /// <summary>Returns the working organization. Any active member may read it.</summary>
     [HttpGet]
@@ -129,5 +131,31 @@ public sealed class CurrentOrganizationController(
         await memberService.LeaveAsync(cancellationToken);
 
         return NoContent();
+    }
+
+    /// <summary>Lists the roles the caller may pick when assigning roles, without their permissions.</summary>
+    [HttpGet("role-options")]
+    [Authorize(Policy = Permissions.OrganizationMembersManage)]
+    [ProducesResponseType(typeof(IReadOnlyList<RoleOptionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<RoleOptionDto>>> ListRoleOptions(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<RoleOptionDto> options = await roleService.ListOptionsAsync(cancellationToken);
+
+        return Ok(options);
+    }
+
+    /// <summary>Lists the roles with holder counts and the caller's edit and delete flags.</summary>
+    [HttpGet("roles")]
+    [Authorize(Policy = Permissions.OrganizationRolesManage)]
+    [ProducesResponseType(typeof(IReadOnlyList<RoleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<RoleDto>>> ListRoles(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<RoleDto> roles = await roleService.ListAsync(cancellationToken);
+
+        return Ok(roles);
     }
 }
