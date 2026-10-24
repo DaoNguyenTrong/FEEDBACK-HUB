@@ -15,4 +15,9 @@ public sealed class RateLimiterSettings
     public int RefreshPermitLimit { get; init; } = 60;
 
     public int RefreshWindowMinutes { get; init; } = 1;
+
+    // Opening and accepting an invitation link (TECH00 §4.8); registering through one counts against Auth.
+    public int InvitationPermitLimit { get; init; } = 30;
+
+    public int InvitationWindowMinutes { get; init; } = 1;
 }

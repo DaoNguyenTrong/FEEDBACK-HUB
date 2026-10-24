@@ -135,6 +135,22 @@ public sealed class CurrentOrganizationController(
         return NoContent();
     }
 
+    /// <summary>Lists the working organization's pending and expired invitations, latest expiry first.</summary>
+    [HttpGet("invitations")]
+    [Authorize(Policy = Permissions.OrganizationMembersManage)]
+    [ProducesResponseType(typeof(PagedResult<InvitationDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<PagedResult<InvitationDto>>> ListInvitations(
+        [FromQuery] PageRequest request,
+        CancellationToken cancellationToken)
+    {
+        PagedResult<InvitationDto> invitations = await invitationService.ListAsync(request, cancellationToken);
+
+        return Ok(invitations);
+    }
+
     /// <summary>
     /// Invites an address with a role, replacing its earlier invitation. The caller must be able to grant the new role
     /// and take away the earlier one. The mail is sent before the commit: when it fails, nothing changes (503).
@@ -155,6 +171,42 @@ public sealed class CurrentOrganizationController(
         InvitationDto invitation = await invitationService.SendAsync(request, cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, invitation);
+    }
+
+    /// <summary>
+    /// Replaces the invitation with a new one to the same address and role (new id, fresh expiry) and mails it. The
+    /// caller must be able to grant its role. When the mail fails, nothing changes (503).
+    /// </summary>
+    [HttpPost("invitations/{id:guid}/resend")]
+    [Authorize(Policy = Permissions.OrganizationMembersManage)]
+    [ProducesResponseType(typeof(InvitationDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<InvitationDto>> ResendInvitation(Guid id, CancellationToken cancellationToken)
+    {
+        InvitationDto invitation = await invitationService.ResendAsync(id, cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, invitation);
+    }
+
+    /// <summary>
+    /// Revokes a pending invitation or deletes an expired one; either is recorded in the audit log. The caller must be
+    /// able to grant its role.
+    /// </summary>
+    [HttpDelete("invitations/{id:guid}")]
+    [Authorize(Policy = Permissions.OrganizationMembersManage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RevokeOrDeleteInvitation(Guid id, CancellationToken cancellationToken)
+    {
+        await invitationService.RevokeOrDeleteAsync(id, cancellationToken);
+
+        return NoContent();
     }
 
     /// <summary>Lists the roles the caller may pick when assigning roles, without their permissions.</summary>

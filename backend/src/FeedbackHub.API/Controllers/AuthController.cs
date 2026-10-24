@@ -7,7 +7,9 @@ using FeedbackHub.API.Common;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Settings;
+using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.Auth;
+using FeedbackHub.Application.Services.Invitations;
 using FeedbackHub.Domain.Exceptions;
 
 namespace FeedbackHub.API.Controllers;
@@ -18,6 +20,7 @@ public sealed class AuthController(
     IAuthService authService,
     IRegistrationService registrationService,
     ISessionService sessionService,
+    IInvitationService invitationService,
     IOptions<JwtSettings> jwtOptions,
     IOptions<AuthCookieSettings> authCookieOptions) : ControllerBase
 {
@@ -142,17 +145,35 @@ public sealed class AuthController(
 
         SetAuthCookies(result.Auth);
 
-        AuthResult auth = result.Auth;
-        return Ok(new ExternalLoginResponse(
-            auth.AccessToken,
-            auth.RefreshToken,
-            auth.AccessTokenExpiry,
-            auth.Account,
-            auth.OrganizationId,
-            auth.OrganizationName,
-            auth.Permissions,
-            auth.IsSystemAdministrator,
-            result.AccountCreated));
+        return Ok(ToResponse(result.Auth, (token, refresh, expiry, account, orgId, orgName, permissions, admin) =>
+            new ExternalLoginResponse(
+                token, refresh, expiry, account, orgId, orgName, permissions, admin, result.AccountCreated)));
+    }
+
+    /// <summary>Creates an account with the invitation's email, already verified, joins it to the organization and signs it in. The request has no email: one sent anyway is ignored.</summary>
+    /// <remarks>Tokens are also set as HttpOnly cookies (`access_token` and `refresh_token`); the session is not remembered, so the refresh cookie ends with the browser session. A suspended organization still gets the account created and signed in without an organization (`invitationOutcome` `OrganizationSuspended`) and keeps the invitation. Fails with 409 `InvitationNoLongerValid`, `InvitationExpired`, `AccountUsernameAlreadyExists` or `AccountEmailAlreadyExists`, creating nothing.</remarks>
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("register-with-invitation")]
+    [ProducesResponseType(typeof(RegisterWithInvitationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<RegisterWithInvitationResponse>> RegisterWithInvitation(
+        RegisterWithInvitationRequest request,
+        CancellationToken cancellationToken)
+    {
+        RegisterWithInvitationResult result = await invitationService.RegisterAsync(
+            request,
+            Request.Headers.UserAgent.ToString(),
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            cancellationToken);
+
+        SetAuthCookies(result.Auth);
+
+        return Ok(ToResponse(result.Auth, (token, refresh, expiry, account, orgId, orgName, permissions, admin) =>
+            new RegisterWithInvitationResponse(
+                token, refresh, expiry, account, orgId, orgName, permissions, admin, result.Outcome)));
     }
 
     /// <summary>Refreshes the access token using a refresh token. The refresh token can be sent in the request body or via cookie.</summary>
@@ -293,9 +314,15 @@ public sealed class AuthController(
 
     private void ClearAuthCookies() => AuthCookies.Clear(Response, authCookieSettings);
 
-    private static LoginResponse ToResponse(AuthResult result)
-    {
-        return new LoginResponse(
+    private static LoginResponse ToResponse(AuthResult result) =>
+        ToResponse(result, (token, refresh, expiry, account, orgId, orgName, permissions, admin) =>
+            new LoginResponse(token, refresh, expiry, account, orgId, orgName, permissions, admin));
+
+    // The only place an AuthResult is read into a response: a field added to LoginResponse changes this delegate,
+    // so every response shape built through it stops compiling until it passes the field on.
+    private static TResponse ToResponse<TResponse>(AuthResult result, LoginResponseFactory<TResponse> create)
+        where TResponse : LoginResponse =>
+        create(
             result.AccessToken,
             result.RefreshToken,
             result.AccessTokenExpiry,
@@ -304,5 +331,14 @@ public sealed class AuthController(
             result.OrganizationName,
             result.Permissions,
             result.IsSystemAdministrator);
-    }
+
+    private delegate TResponse LoginResponseFactory<out TResponse>(
+        string accessToken,
+        string refreshToken,
+        DateTime accessTokenExpiry,
+        AccountDto account,
+        Guid? organizationId,
+        string? organizationName,
+        IReadOnlyList<string> permissions,
+        bool isSystemAdministrator);
 }

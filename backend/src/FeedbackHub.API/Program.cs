@@ -147,6 +147,12 @@ builder.Services.AddRateLimiter(options =>
         rateLimiterSettings.RefreshPermitLimit,
         TimeSpan.FromMinutes(rateLimiterSettings.RefreshWindowMinutes),
         rateLimiterStore));
+    options.AddPolicy("invitation", httpContext => RateLimitPartitions.FixedWindow(
+        httpContext,
+        "invitation",
+        rateLimiterSettings.InvitationPermitLimit,
+        TimeSpan.FromMinutes(rateLimiterSettings.InvitationWindowMinutes),
+        rateLimiterStore));
 });
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);

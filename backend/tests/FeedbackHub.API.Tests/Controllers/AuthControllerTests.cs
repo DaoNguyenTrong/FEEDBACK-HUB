@@ -10,6 +10,7 @@ using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Auth;
+using FeedbackHub.Domain.Auditing;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
 
@@ -356,7 +357,8 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
 
         string[] expected =
         [
-            "ConfirmEmailChange", "ExternalLogin", "Login", "Refresh", "Register", "ResendVerification", "VerifyEmail"
+            "ConfirmEmailChange", "ExternalLogin", "Login", "Refresh", "Register", "RegisterWithInvitation",
+            "ResendVerification", "VerifyEmail"
         ];
         Assert.Equal(expected, anonymous);
 
@@ -392,6 +394,151 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
                 Assert.Equal(method.Name == "Refresh" ? "auth-refresh" : "auth", policy);
             }
         }
+    }
+
+    // RegisterWithInvitation
+
+    private const string RegisterWithInvitationPath = "/api/auth/register-with-invitation";
+
+    private async Task<Organization> SeedInvitationAsync(string email, string rawToken, bool suspended = false)
+    {
+        await using AppDbContext context = CreateDbContext();
+        Account owner = await AuthTestHelper.SeedConfirmedAccountAsync(
+            context, username: $"owner-{Guid.NewGuid():N}", email: $"owner-{Guid.NewGuid():N}@example.com");
+        Organization organization = await AuthTestHelper.SeedOrganizationAsync(context, name: "Bảo Minh");
+        await AuthTestHelper.SeedOrganizationMemberAsync(context, organization.Id, owner.Id);
+        IReadOnlyDictionary<SystemRoleKind, Role> roles =
+            await AuthTestHelper.SeedSystemRolesAsync(context, organization.Id);
+        await AuthTestHelper.SeedInvitationAsync(
+            context, organization.Id, email, roles[SystemRoleKind.Member].Id, rawToken);
+        if (suspended)
+        {
+            organization.Deactivate(new DeactivationParams(owner.Id, false, null, DateTime.UtcNow));
+            context.Organizations.Update(organization);
+            await context.SaveChangesAsync();
+        }
+
+        return organization;
+    }
+
+    private static object RegisterWithInvitationBody(string token, string username) =>
+        new { token, name = "Khách mời", username, password = "password123" };
+
+    // AC-57, AC-182; TECH00 §6.3: a session that is not "remembered", in the organization just joined.
+    [Fact]
+    public async Task RegisterWithInvitation_Joined_SetsSessionCookiesNotPersistentAndReturnsOrganization()
+    {
+        Organization organization = await SeedInvitationAsync("joined@example.com", "joined-token");
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            RegisterWithInvitationPath, RegisterWithInvitationBody("joined-token", "invitee-joined"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(organization.Id, body.GetProperty("organizationId").GetGuid());
+        Assert.Equal("Bảo Minh", body.GetProperty("organizationName").GetString());
+        Assert.Equal("Joined", body.GetProperty("invitationOutcome").GetString());
+        Assert.False(body.GetProperty("isSystemAdministrator").GetBoolean());
+        Assert.Equal("joined@example.com", body.GetProperty("account").GetProperty("email").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("accessToken").GetString()));
+
+        string[] cookies = [.. response.Headers.GetValues("Set-Cookie")];
+        Assert.Single(cookies, cookie => cookie.StartsWith("access_token=", StringComparison.Ordinal));
+        string refreshCookie = Assert.Single(cookies, cookie => cookie.StartsWith("refresh_token=", StringComparison.Ordinal));
+        Assert.DoesNotContain("expires=", refreshCookie, StringComparison.OrdinalIgnoreCase);
+
+        await using AppDbContext context = CreateDbContext();
+        Account account = await context.Accounts.SingleAsync(candidate => candidate.Username == "invitee-joined");
+        Assert.True(account.EmailConfirmed);
+        Assert.True(await context.OrganizationMembers.AnyAsync(member =>
+            member.OrganizationId == organization.Id && member.AccountId == account.Id && member.IsActive));
+        AuditLog joined = Assert.Single(await context.AuditLogs
+            .Where(log => log.OrganizationId == organization.Id && log.Kind == AuditLogKind.Event)
+            .ToListAsync());
+        Assert.Equal(nameof(AuditEventType.MemberJoined), joined.Action);
+        Assert.Equal(account.Id.ToString(), joined.UserId);
+        Assert.False(await context.OrganizationInvitations.AnyAsync());
+    }
+
+    // AC-333, BR-81 point 6: the account exists and is signed in outside the organization; the invitation waits.
+    [Fact]
+    public async Task RegisterWithInvitation_Suspended_ReturnsOutcomeAndNullOrganization()
+    {
+        Organization organization =
+            await SeedInvitationAsync("suspended@example.com", "suspended-token", suspended: true);
+
+        HttpResponseMessage response = await fixture.CreateTestClient().PostAsJsonAsync(
+            RegisterWithInvitationPath, RegisterWithInvitationBody("suspended-token", "invitee-suspended"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal("OrganizationSuspended", body.GetProperty("invitationOutcome").GetString());
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("organizationId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("organizationName").ValueKind);
+
+        await using AppDbContext context = CreateDbContext();
+        Account account = await context.Accounts.SingleAsync(candidate => candidate.Username == "invitee-suspended");
+        Assert.False(await context.OrganizationMembers.AnyAsync(member =>
+            member.OrganizationId == organization.Id && member.AccountId == account.Id));
+        Assert.True(await context.OrganizationInvitations.AnyAsync());
+    }
+
+    // Review Focus 4: a refused registration opens no session.
+    [Fact]
+    public async Task RegisterWithInvitation_UsernameTaken_Returns409WithoutSetCookie()
+    {
+        await SeedInvitationAsync("taken@example.com", "taken-token");
+        await using (AppDbContext context = CreateDbContext())
+        {
+            await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "taken-user", email: "first@example.com");
+        }
+
+        HttpResponseMessage response = await fixture.CreateTestClient().PostAsJsonAsync(
+            RegisterWithInvitationPath, RegisterWithInvitationBody("taken-token", "TAKEN-user"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(ApplicationMessages.AccountUsernameAlreadyExists, await ErrorCodeAsync(response));
+        Assert.False(response.Headers.Contains("Set-Cookie"));
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.False(await verifyContext.Accounts.AnyAsync(account => account.Email == "taken@example.com"));
+        Assert.True(await verifyContext.OrganizationInvitations.AnyAsync());
+        Assert.False(await verifyContext.RefreshTokens.AnyAsync());
+    }
+
+    // F14: the request has no email; one sent anyway is ignored, so the link cannot verify another address.
+    [Fact]
+    public async Task RegisterWithInvitation_BodyWithEmail_UsesInvitationEmail()
+    {
+        await SeedInvitationAsync("invited@example.com", "email-token");
+
+        HttpResponseMessage response = await fixture.CreateTestClient().PostAsJsonAsync(RegisterWithInvitationPath, new
+        {
+            token = "email-token",
+            name = "Khách mời",
+            username = "invitee-email",
+            password = "password123",
+            email = "attacker@example.com"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using AppDbContext context = CreateDbContext();
+        Account account = await context.Accounts.SingleAsync(candidate => candidate.Username == "invitee-email");
+        Assert.Equal("invited@example.com", account.Email);
+        Assert.False(await context.Accounts.AnyAsync(candidate => candidate.Email == "attacker@example.com"));
+    }
+
+    // TECH00 §4.8: registration through an invitation counts against the "auth" bucket, not "invitation".
+    [Fact]
+    public void RegisterWithInvitation_UsesAuthRateLimitPolicy()
+    {
+        Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute? attribute =
+            typeof(FeedbackHub.API.Controllers.AuthController).GetMethod("RegisterWithInvitation")?
+                .GetCustomAttributes(typeof(Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute), true)
+                .Cast<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()
+                .SingleOrDefault();
+
+        Assert.Equal("auth", attribute?.PolicyName);
     }
 
     // ResendVerification
@@ -453,6 +600,31 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
     }
 
     // ExternalLogin
+
+    // AC-178: only the sign-in that created the account says so, so the invitation page accepts on its own once.
+    [Fact]
+    public async Task ExternalLogin_ResponseHasAccountCreated()
+    {
+        HttpClient client = fixture
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.AddScoped<IExternalAuthProvider>(_ => new FakeExternalAuthProvider(
+                    new ExternalUserInfo("google-new-user", "external-new@example.com", "Khách", true)))))
+            .CreateClient();
+        client.DefaultRequestHeaders.Add("X-TimeZone", "UTC");
+
+        HttpResponseMessage first = await client.PostAsJsonAsync(
+            "/api/auth/external/google", new ExternalLoginRequest("some-credential"));
+        HttpResponseMessage second = await client.PostAsJsonAsync(
+            "/api/auth/external/google", new ExternalLoginRequest("some-credential"));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        JsonElement created = await first.Content.ReadJsonElementAsync();
+        Assert.True(created.GetProperty("accountCreated").GetBoolean());
+        Assert.Equal("external-new@example.com", created.GetProperty("account").GetProperty("email").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(created.GetProperty("accessToken").GetString()));
+        Assert.False((await second.Content.ReadJsonElementAsync()).GetProperty("accountCreated").GetBoolean());
+    }
 
     [Fact]
     public async Task ExternalLogin_UnsupportedProvider_ReturnsBadRequest()

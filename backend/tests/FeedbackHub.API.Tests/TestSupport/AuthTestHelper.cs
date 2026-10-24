@@ -177,6 +177,21 @@ public static class AuthTestHelper
         return role;
     }
 
+    // The stored hash of an invitation code, computed as TokenHash does (internal to Application).
+    public static string InvitationTokenHash(string rawToken) =>
+        Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
+
+    // Issued now unless issuedAt says otherwise; issue it 168 hours ago or more for an expired one.
+    public static async Task<OrganizationInvitation> SeedInvitationAsync(
+        AppDbContext context, Guid organizationId, string email, Guid roleId, string rawToken, DateTime? issuedAt = null)
+    {
+        OrganizationInvitation invitation = OrganizationInvitation.Create(new OrganizationInvitationParams(
+            organizationId, email, roleId, InvitationTokenHash(rawToken), issuedAt ?? DateTime.UtcNow));
+        context.OrganizationInvitations.Add(invitation);
+        await context.SaveChangesAsync();
+        return invitation;
+    }
+
     public static async Task AssignRoleAsync(AppDbContext context, Guid organizationMemberId, Guid roleId)
     {
         context.OrganizationMemberRoles.Add(
