@@ -254,6 +254,31 @@ public sealed class CurrentOrganizationRolesTests(ApiFactoryFixture fixture) : I
         Assert.Empty(await EventsAsync(caller.Organization.Id));
     }
 
+    // The token and the permission cache still say "manage"; the service re-reads it after the lock.
+    [Fact]
+    public async Task CreateRole_CallerWhoseRolesManageWasRemovedInDatabase_Returns403AndCreatesNothing()
+    {
+        Caller caller = await SeedCallerAsync(owner: false, Permissions.OrganizationRolesManage);
+        Assert.Equal(HttpStatusCode.OK, (await caller.Client.GetAsync(RolesPath)).StatusCode);
+        await using (AppDbContext context = CreateDbContext())
+        {
+            await context.RolePermissions
+                .Where(permission => permission.PermissionCode == Permissions.OrganizationRolesManage
+                    && context.Roles.Any(role => role.Id == permission.RoleId
+                        && role.OrganizationId == caller.Organization.Id))
+                .ExecuteDeleteAsync();
+        }
+
+        HttpResponseMessage response = await CreateRoleAsync(
+            caller.Client, new { name = "Hỗ trợ", permissionCodes = Array.Empty<string>() });
+
+        await AssertCodeAsync(response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationAccessDenied);
+        await using AppDbContext reader = CreateDbContext();
+        Assert.False(await reader.Roles.AnyAsync(role => role.OrganizationId == caller.Organization.Id
+            && role.Name == "Hỗ trợ"));
+        Assert.Empty(await EventsAsync(caller.Organization.Id));
+    }
+
     // An API key never stands in an organization (TECH00 §5.2).
     [Theory]
     [MemberData(nameof(Writes))]

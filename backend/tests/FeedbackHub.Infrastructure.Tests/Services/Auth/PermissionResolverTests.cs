@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -141,6 +142,32 @@ public sealed class PermissionResolverTests(PostgresContainerFixture fixture) : 
         IReadOnlySet<string> permissions =
             await resolver.GetEffectivePermissionsAsync(organization.Id, member.AccountId);
 
+        Assert.Empty(permissions);
+    }
+
+    // No foreign key ties a member-role link to the member's organization; raw SQL inserts the crossing link.
+    [Fact]
+    public async Task GetEffectivePermissionsAsync_RoleLinkCrossingOrganizations_GrantsNothing()
+    {
+        (Organization organization, OrganizationMember member) = await SeedMemberAsync(SystemRoleKind.Member);
+        (Organization other, _) = await SeedMemberAsync(SystemRoleKind.Member);
+        List<Guid> foreignRoleIds = await context.Roles
+            .Where(role => role.OrganizationId == other.Id
+                && (role.SystemRoleKind == SystemRoleKind.Owner || role.SystemRoleKind == SystemRoleKind.Admin))
+            .Select(role => role.Id)
+            .ToListAsync();
+        foreach (Guid roleId in foreignRoleIds)
+        {
+            await context.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO organization_member_roles ("Id", "OrganizationMemberId", "RoleId", "CreatedAt")
+                VALUES ({Guid.NewGuid()}, {member.Id}, {roleId}, now())
+                """);
+        }
+
+        IReadOnlySet<string> permissions =
+            await resolver.GetEffectivePermissionsAsync(organization.Id, member.AccountId);
+
+        Assert.Equal(2, foreignRoleIds.Count);
         Assert.Empty(permissions);
     }
 

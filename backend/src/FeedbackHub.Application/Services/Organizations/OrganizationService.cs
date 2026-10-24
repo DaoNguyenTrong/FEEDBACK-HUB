@@ -52,7 +52,8 @@ public sealed class OrganizationService(
 
         return new OrganizationDto(
             organization.Id, organization.Name, organization.Slug, organization.Status,
-            [ownerRole.Name], [RoleRefDto.From(ownerRole)], Permissions.All);
+            [ownerRole.Name], [RoleRefDto.From(ownerRole)],
+            SystemRoleDefaults.EffectivePermissionCodes(SystemRoleKind.Owner, []));
     }
 
     public async Task<IReadOnlyList<OrganizationDto>> ListMineAsync(CancellationToken cancellationToken)
@@ -67,8 +68,8 @@ public sealed class OrganizationService(
             return [];
         }
 
-        Dictionary<Guid, List<Role>> rolesByMembershipId = await LoadRolesByMembershipIdAsync(
-            memberships.Select(m => m.Id).ToList(), cancellationToken);
+        Dictionary<Guid, List<Role>> rolesByMembershipId =
+            await LoadRolesByMembershipIdAsync(memberships, cancellationToken);
 
         ILookup<Guid, string> permissionCodesByRoleId = await LoadPermissionCodesByRoleIdAsync(
             rolesByMembershipId.Values.SelectMany(roles => roles), cancellationToken);
@@ -90,7 +91,7 @@ public sealed class OrganizationService(
             List<Role> roles = rolesByMembershipId.GetValueOrDefault(membership.Id, []);
             bool isOwner = roles.Any(role => role.SystemRoleKind == SystemRoleKind.Owner);
             HashSet<string> permissionCodes = isOwner
-                ? [.. Permissions.All]
+                ? [.. SystemRoleDefaults.EffectivePermissionCodes(SystemRoleKind.Owner, [])]
                 : roles.SelectMany(role => permissionCodesByRoleId[role.Id]).ToHashSet();
 
             result.Add(new OrganizationDto(
@@ -107,9 +108,12 @@ public sealed class OrganizationService(
     }
 
     private async Task<Dictionary<Guid, List<Role>>> LoadRolesByMembershipIdAsync(
-        IReadOnlyList<Guid> membershipIds, CancellationToken cancellationToken)
+        IReadOnlyList<OrganizationMember> memberships, CancellationToken cancellationToken)
     {
-        Dictionary<Guid, List<Role>> result = membershipIds.ToDictionary(id => id, _ => new List<Role>());
+        Dictionary<Guid, List<Role>> result = memberships.ToDictionary(m => m.Id, _ => new List<Role>());
+        Dictionary<Guid, Guid> organizationIdByMembershipId =
+            memberships.ToDictionary(m => m.Id, m => m.OrganizationId);
+        List<Guid> membershipIds = [.. result.Keys];
 
         if (membershipIds.Count == 0)
         {
@@ -129,7 +133,9 @@ public sealed class OrganizationService(
 
         foreach (OrganizationMemberRole memberRole in memberRoles)
         {
-            if (roleById.TryGetValue(memberRole.RoleId, out Role? role))
+            // No foreign key ties a member-role link to the member's organization, so a crossing link grants nothing.
+            if (roleById.TryGetValue(memberRole.RoleId, out Role? role)
+                && role.OrganizationId == organizationIdByMembershipId[memberRole.OrganizationMemberId])
             {
                 result[memberRole.OrganizationMemberId].Add(role);
             }

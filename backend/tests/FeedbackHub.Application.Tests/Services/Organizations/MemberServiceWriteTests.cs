@@ -343,6 +343,26 @@ public class MemberServiceWriteTests
         await f.AssertNothingWrittenAsync();
     }
 
+    // members.manage lost after the gate (stale cache, or removed while waiting for the lock); BR-58 alone would pass.
+    [Theory]
+    [InlineData(Operation.ChangeRoles)]
+    [InlineData(Operation.Remove)]
+    public async Task Write_CallerLostMembersManageAfterGate_Throws403AccessDenied(Operation operation)
+    {
+        Fixture f = CreateFixture();
+        f.AddCaller("Tâm", TesterRole);
+        Account target = f.AddMember("Bình", MemberRole);
+        f.AddMember("Cơ", OwnerRole);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
+            ApplicationMessages.OrganizationAccessDenied,
+            () => f.RunAsync(operation, target.Id, [MemberRole.Id, TesterRole.Id]));
+
+        await f.AssertNothingWrittenAsync();
+        Assert.True(f.IsActive(target));
+        Assert.Equal([MemberRole.Id], f.RoleIdsOf(target));
+    }
+
     // ChangeRolesAsync: input
 
     [Theory]
@@ -530,7 +550,7 @@ public class MemberServiceWriteTests
     public async Task ChangeRolesAsync_StaleCacheGrantsButDatabaseDenies_Throws403()
     {
         Fixture f = CreateFixture();
-        f.AddCaller("Cũ", MemberRole);
+        f.AddCaller("Cũ", PeopleRole);
         Account member = f.AddMember("Minh", MemberRole);
         f.PermissionResolver.GetEffectivePermissionsAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Permissions.All.ToHashSet());
@@ -751,7 +771,8 @@ public class MemberServiceWriteTests
     {
         Fixture f = CreateFixture();
         Account caller = f.AddCaller("Nhân", AdminRole);
-        f.CallerOverride = new RoleGrantCaller(caller.Id, false, new HashSet<string>());
+        f.CallerOverride =
+            new RoleGrantCaller(caller.Id, false, new HashSet<string> { Permissions.OrganizationMembersManage });
 
         await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
             ApplicationMessages.InsufficientRolePermissions,
