@@ -15,7 +15,7 @@ Bảng dưới giải thích các từ bạn gặp trong ứng dụng. Cột ti�
 | Vai trò             | Role               | Một nhóm quyền giao cho thành viên, ví dụ **Owner** hay một vai trò do tổ chức tự tạo                               |
 | Vai trò hệ thống    | System role        | Vai trò có sẵn trong mọi tổ chức (**Owner**, **Admin**, **Member**), mang nhãn **Hệ thống**, không sửa hay xoá được |
 | Chủ tổ chức (Owner) | Owner              | Vai trò hệ thống có mọi quyền; người tạo tổ chức là Owner. Tổ chức luôn có ít nhất một Owner                        |
-| Admin               | Admin              | Vai trò hệ thống có quyền **Quản lý thành viên**                                                                    |
+| Admin               | Admin              | Vai trò hệ thống có quyền **Quản lý thành viên** và **Quản trị FeedbackHub**                                        |
 | Member              | Member             | Vai trò hệ thống không có quyền quản lý                                                                             |
 | Quyền               | Permission         | Một việc được phép làm trong tổ chức, ví dụ **Quản lý thành viên**                                                  |
 | Định danh           | Slug               | Tên ngắn, duy nhất của tổ chức, chỉ gồm chữ thường, số và dấu gạch ngang                                            |
