@@ -27,6 +27,8 @@ public sealed class InvitationService(
     IEmailSender emailSender,
     IDateTimeProvider dateTimeProvider,
     IOptions<EmailSettings> emailOptions,
+    ITenantAccessService tenantAccessService,
+    IPermissionResolver permissionResolver,
     ILogger<InvitationService> logger) : IInvitationService
 {
     private readonly EmailSettings emailSettings = emailOptions.Value;
@@ -115,6 +117,166 @@ public sealed class InvitationService(
             unitOfWork.Repository<OrganizationInvitation, Guid>().Delete(invitation);
             await unitOfWork.SaveChangesAsync(ct);
         }, cancellationToken);
+    }
+
+    public async Task<InvitationLookupDto> LookupAsync(
+        InvitationTokenRequest request, CancellationToken cancellationToken)
+    {
+        // Read only: no lock and no write, so opening the link never uses it up (TECH00 §6.3).
+        OrganizationInvitation? invitation = await FindByTokenAsync(request.Token, cancellationToken);
+        if (invitation is null)
+        {
+            return LookupResult(InvitationLookupStatus.NoLongerValid);
+        }
+
+        if (invitation.IsExpiredAt(dateTimeProvider.UtcNow))
+        {
+            return LookupResult(InvitationLookupStatus.Expired, expiresAt: invitation.ExpiresAt);
+        }
+
+        Account? account = TryGetSessionAccountId() is { } accountId
+            ? await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken)
+            : null;
+        if (account is not null && !IsInvitedAccount(invitation, account))
+        {
+            return LookupResult(InvitationLookupStatus.WrongAccount);
+        }
+
+        if (account is { EmailConfirmed: false })
+        {
+            return LookupResult(InvitationLookupStatus.EmailNotConfirmed);
+        }
+
+        Organization? organization = await unitOfWork.Repository<Organization, Guid>()
+            .GetByIdAsync(invitation.OrganizationId, cancellationToken);
+        IReadOnlyList<RoleGrantRole> roles = await roleGrantReader.LoadRolesAsync(
+            invitation.OrganizationId, [invitation.RoleId], cancellationToken);
+
+        // Deleting the organization or the role since the first read took the invitation with it (ON DELETE CASCADE).
+        if (organization is null || roles.Count != 1)
+        {
+            return LookupResult(InvitationLookupStatus.NoLongerValid);
+        }
+
+        // Anonymous visitors see a suspended organization's invitation as valid (BR-81 point 6, AC-332).
+        if (account is not null && !organization.Status)
+        {
+            return LookupResult(
+                InvitationLookupStatus.OrganizationSuspended, organization.Name, expiresAt: invitation.ExpiresAt);
+        }
+
+        return LookupResult(
+            InvitationLookupStatus.Valid,
+            organization.Name,
+            new RoleRefDto(roles[0].Id, roles[0].Name, roles[0].SystemKind),
+            invitation.ExpiresAt,
+            invitation.Email);
+    }
+
+    public async Task<AcceptInvitationResult> AcceptAsync(
+        InvitationTokenRequest request, CancellationToken cancellationToken)
+    {
+        Guid accountId = TryGetSessionAccountId()
+            ?? throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
+        AcceptInvitationResult? accepted = null;
+        bool joined = false;
+
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            // The invitee is not a member, so no write gate: this read only names the organization to lock (F9).
+            OrganizationInvitation found = await FindByTokenAsync(request.Token, ct)
+                ?? throw new ConflictException(ApplicationMessages.InvitationNoLongerValid);
+            Guid organizationId = found.OrganizationId;
+            await organizationLock.AcquireAsync(organizationId, ct);
+
+            OrganizationInvitation? invitation = await FindByTokenAsync(request.Token, ct);
+            OrganizationMember? member = await unitOfWork.Repository<OrganizationMember, Guid>().FirstOrDefaultAsync(
+                candidate => candidate.OrganizationId == organizationId && candidate.AccountId == accountId, ct);
+
+            // A second tab joined while this one waited for the lock (TECH00 §6.3).
+            if (invitation is null)
+            {
+                accepted = member is { IsActive: true }
+                    ? await AcceptedAsync(organizationId, ct)
+                    : throw new ConflictException(ApplicationMessages.InvitationNoLongerValid);
+                return;
+            }
+
+            Account account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, ct)
+                ?? throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
+            Organization organization = await CheckCanJoinAsync(invitation, account, ct);
+
+            if (member is { IsActive: true })
+            {
+                unitOfWork.Repository<OrganizationInvitation, Guid>().Delete(invitation);
+            }
+            else
+            {
+                await JoinAsync(invitation, account, ct);
+                joined = true;
+            }
+
+            await unitOfWork.SaveChangesAsync(ct);
+            accepted = new AcceptInvitationResult(organization.Id, organization.Name);
+        }, cancellationToken);
+
+        if (joined && accepted is not null)
+        {
+            await InvalidateMemberCachesAsync(accepted.OrganizationId, accountId, cancellationToken);
+        }
+
+        return accepted ?? throw new InvalidOperationException("The invitation transaction completed without a result.");
+    }
+
+    // Reactivates or creates the member row with exactly the invitation's role, records it and uses the invitation up;
+    // the caller saves. Leftover roles of a former member go (BR-30, QĐ-16).
+    internal async Task JoinAsync(OrganizationInvitation invitation, Account account, CancellationToken ct)
+    {
+        RoleGrantRole role = await LoadRoleOfAsync(invitation.OrganizationId, invitation, ct);
+        IRepository<OrganizationMember, Guid> members = unitOfWork.Repository<OrganizationMember, Guid>();
+        OrganizationMember? member = await members.FirstOrDefaultAsync(
+            candidate => candidate.OrganizationId == invitation.OrganizationId && candidate.AccountId == account.Id, ct);
+
+        if (member is null)
+        {
+            member = OrganizationMember.Create(new OrganizationMemberParams(invitation.OrganizationId, account.Id));
+            await members.AddAsync(member, ct);
+        }
+        else
+        {
+            member.Reactivate();
+            members.Update(member);
+        }
+
+        IRepository<OrganizationMemberRole, Guid> memberRoles = unitOfWork.Repository<OrganizationMemberRole, Guid>();
+        Guid memberId = member.Id;
+        IReadOnlyList<OrganizationMemberRole> links =
+            await memberRoles.ListAsync(link => link.OrganizationMemberId == memberId, ct);
+        foreach (OrganizationMemberRole link in links.Where(link => link.RoleId != role.Id))
+        {
+            memberRoles.Delete(link);
+        }
+
+        if (links.All(link => link.RoleId != role.Id))
+        {
+            await memberRoles.AddAsync(
+                OrganizationMemberRole.Create(new OrganizationMemberRoleParams(member.Id, role.Id)), ct);
+        }
+
+        await auditTrail.RecordAsync(
+            AuditEvent.For(
+                member,
+                AuditEventType.MemberJoined,
+                ActorKind.Account,
+                account.Id,
+                new Dictionary<string, object>
+                {
+                    ["accountName"] = account.Name,
+                    ["email"] = account.Email,
+                    ["role"] = new AuditRoleRef(role.Id, role.Name, role.SystemKind)
+                }),
+            ct);
+        unitOfWork.Repository<OrganizationInvitation, Guid>().Delete(invitation);
     }
 
     internal static InvitationDto ToDto(
@@ -273,6 +435,73 @@ public sealed class InvitationService(
             throw new ServiceUnavailableException(ApplicationMessages.InvitationEmailDeliveryFailed);
         }
     }
+
+    // BR-81 point 3 after the lock, in the order of TECH00 §6.3; the account and organization come from the database.
+    private async Task<Organization> CheckCanJoinAsync(
+        OrganizationInvitation invitation, Account account, CancellationToken ct)
+    {
+        if (invitation.IsExpiredAt(dateTimeProvider.UtcNow))
+        {
+            throw new ConflictException(ApplicationMessages.InvitationExpired);
+        }
+
+        if (!IsInvitedAccount(invitation, account))
+        {
+            throw new ConflictException(ApplicationMessages.InvitationWrongAccount);
+        }
+
+        if (!account.EmailConfirmed)
+        {
+            throw new ForbiddenException(ApplicationMessages.EmailNotConfirmed);
+        }
+
+        Organization organization = await unitOfWork.Repository<Organization, Guid>()
+                .GetByIdAsync(invitation.OrganizationId, ct)
+            ?? throw new ConflictException(ApplicationMessages.InvitationNoLongerValid);
+        return organization.Status
+            ? organization
+            : throw new ConflictException(ApplicationMessages.InvitationOrganizationSuspended);
+    }
+
+    private async Task<AcceptInvitationResult> AcceptedAsync(Guid organizationId, CancellationToken ct)
+    {
+        Organization organization = await unitOfWork.Repository<Organization, Guid>().GetByIdAsync(organizationId, ct)
+            ?? throw new ConflictException(ApplicationMessages.InvitationNoLongerValid);
+        return new AcceptInvitationResult(organization.Id, organization.Name);
+    }
+
+    // The current address only: a pending email change does not count (BR-51, AC-348).
+    private static bool IsInvitedAccount(OrganizationInvitation invitation, Account account) =>
+        Account.NormalizeEmail(account.Email) == invitation.Email;
+
+    // By hash through the unique index; the raw token goes nowhere else (TECH00 §7.3, F17).
+    private Task<OrganizationInvitation?> FindByTokenAsync(string token, CancellationToken ct)
+    {
+        string tokenHash = TokenHash.Compute(token);
+        return unitOfWork.Repository<OrganizationInvitation, Guid>()
+            .FirstOrDefaultAsync(invitation => invitation.TokenHash == tokenHash, ct);
+    }
+
+    private static InvitationLookupDto LookupResult(
+        InvitationLookupStatus status,
+        string? organizationName = null,
+        RoleRefDto? role = null,
+        DateTime? expiresAt = null,
+        string? email = null) =>
+        new(status, organizationName, role, expiresAt, email);
+
+    // Only after the commit: a request between the invalidation and the commit would cache the old state.
+    private async Task InvalidateMemberCachesAsync(Guid organizationId, Guid accountId, CancellationToken ct)
+    {
+        await tenantAccessService.InvalidateMemberAsync(organizationId, accountId, ct);
+        await permissionResolver.InvalidateMemberAsync(organizationId, accountId, ct);
+    }
+
+    // An API key acts for an organization, not a person, so it counts as no session (TECH00 §5.2).
+    private Guid? TryGetSessionAccountId() =>
+        !currentUserService.IsApiKeyCaller && Guid.TryParse(currentUserService.UserId, out Guid accountId)
+            ? accountId
+            : null;
 
     private Task<RoleGrantCaller> LockAndLoadManagerAsync(
         Guid organizationId, Guid callerId, CancellationToken cancellationToken) =>
