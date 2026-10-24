@@ -37,13 +37,11 @@ Bạn có thể thuộc nhiều tổ chức. Mỗi lúc bạn làm việc trong 
 <figcaption>Trang Tổ chức</figcaption>
 </figure>
 
-| #   | Thành phần                                                     |
-| --- | -------------------------------------------------------------- |
-| 1   | Nút **Tạo tổ chức**                                            |
-| 2   | Trạng thái: **Hoạt động** hoặc **Ngưng hoạt động**             |
-| 3   | Nút **Chuyển tổ chức**                                         |
-| 4   | Nút **Thành viên**: xem thành viên của tổ chức                 |
-| 5   | Nút **Vai trò**: chỉ hiện khi bạn có quyền **Quản lý vai trò** |
+| #   | Thành phần                                         |
+| --- | -------------------------------------------------- |
+| 1   | Nút **Tạo tổ chức**                                |
+| 2   | Trạng thái: **Hoạt động** hoặc **Ngưng hoạt động** |
+| 3   | Nút **Chuyển tổ chức**                             |
 
 Dưới tên mỗi tổ chức là định danh của nó và **Vai trò của bạn** trong tổ chức đó.
 

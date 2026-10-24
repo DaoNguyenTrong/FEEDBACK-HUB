@@ -55,8 +55,8 @@ describe('imagePath', () => {
   const base = { siteSrc: '/site/src', tree: 'base' as const, locale: 'vi' as const }
 
   it('writes under the tree, locale and chapter', () => {
-    expect(imagePath({ ...base, chapter: 'organizations', name: 'add-member' })).toBe(
-      '/site/src/base/images/vi/organizations/add-member.jpg',
+    expect(imagePath({ ...base, chapter: 'organizations', name: 'create' })).toBe(
+      '/site/src/base/images/vi/organizations/create.jpg',
     )
   })
 
@@ -80,8 +80,6 @@ describe('imagePath', () => {
 describe('missingPreconditions', () => {
   const ready: PreconditionData = {
     organizations: [{ id: 'o1', myPermissionCodes: ['organizations.manage'] }],
-    membersByOrg: { o1: 2 },
-    customRolesByOrg: { o1: 1 },
     unreadNotifications: 1,
     sessions: 2,
   }
@@ -93,23 +91,14 @@ describe('missingPreconditions', () => {
   it('lists every unmet condition at once', () => {
     const missing = missingPreconditions({
       organizations: [],
-      membersByOrg: {},
-      customRolesByOrg: {},
       unreadNotifications: 0,
       sessions: 1,
     })
 
-    expect(missing).toHaveLength(4)
+    expect(missing).toHaveLength(3)
     expect(missing.join('\n')).toMatch(/owner/i)
     expect(missing.join('\n')).toMatch(/notification/i)
     expect(missing.join('\n')).toMatch(/session/i)
-  })
-
-  it('names only the members when the owned organization has one', () => {
-    const missing = missingPreconditions({ ...ready, membersByOrg: { o1: 1 } })
-
-    expect(missing).toHaveLength(1)
-    expect(missing[0]).toMatch(/member/i)
   })
 
   it('ignores organizations the account does not own', () => {
@@ -119,12 +108,9 @@ describe('missingPreconditions', () => {
         { id: 'o1', myPermissionCodes: [] },
         { id: 'o2', myPermissionCodes: ['organizations.manage'] },
       ],
-      membersByOrg: { o1: 5, o2: 1 },
-      customRolesByOrg: { o1: 3, o2: 0 },
     })
 
-    expect(missing).toHaveLength(1)
-    expect(missing[0]).toMatch(/member/i)
+    expect(missing).toEqual([])
   })
 })
 

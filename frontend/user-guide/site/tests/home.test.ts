@@ -61,8 +61,8 @@ describe.each([
     return [`base${prefix}${file}`, `app${prefix}${file}`].some((f) => existsSync(join(srcDir, f)))
   }
 
-  test('has six feature cards, each with an icon, a link to a page and link text', () => {
-    expect(home.features).toHaveLength(6)
+  test('has five feature cards, each with an icon, a link to a page and link text', () => {
+    expect(home.features).toHaveLength(5)
     for (const feature of home.features ?? []) {
       expect(feature.icon).toContain('<svg')
       expect(feature.link.startsWith(`${prefix}/`)).toBe(true)

@@ -37,9 +37,6 @@ export const baseChapters: Chapter[] = [
     items: [
       { slug: 'switch', text: { vi: 'Chuyển tổ chức', en: 'Switch organization' } },
       { slug: 'create', text: { vi: 'Tạo tổ chức', en: 'Create an organization' } },
-      { slug: 'add-member', text: { vi: 'Thêm thành viên', en: 'Add a member' } },
-      { slug: 'manage-members', text: { vi: 'Quản lý thành viên', en: 'Manage members' } },
-      { slug: 'roles', text: { vi: 'Quản lý vai trò', en: 'Manage roles' } },
     ],
   },
   { slug: 'notifications', text: { vi: 'Thông báo', en: 'Notifications' }, hideable: true },

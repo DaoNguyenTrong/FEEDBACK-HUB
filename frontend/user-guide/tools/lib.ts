@@ -49,10 +49,6 @@ export function imagePath(o: {
 
 export type PreconditionData = {
   organizations: { id: string; myPermissionCodes: string[] }[]
-  /** Organization id → member count. */
-  membersByOrg: Record<string, number>
-  /** Organization id → roles with isSystem = false. */
-  customRolesByOrg: Record<string, number>
   unreadNotifications: number
   sessions: number
 }
@@ -70,17 +66,6 @@ export function missingPreconditions(d: PreconditionData): string[] {
 
   if (owned.length === 0) {
     missing.push('The account must own an organization (Owner role)')
-    missing.push('No owned organization to check for 2+ members and a custom role')
-  } else {
-    const members = (id: string) => d.membersByOrg[id] ?? 0
-    const roles = (id: string) => d.customRolesByOrg[id] ?? 0
-    if (!owned.some((o) => members(o.id) >= 2 && roles(o.id) >= 1)) {
-      const id = owned[0]!.id
-      const parts: string[] = []
-      if (members(id) < 2) parts.push(`2+ members (has ${members(id)})`)
-      if (roles(id) < 1) parts.push(`a custom role (has ${roles(id)})`)
-      missing.push(`The owned organization needs ${parts.join(' and ')}`)
-    }
   }
 
   if (d.unreadNotifications < 1) missing.push('The account needs an unread notification')

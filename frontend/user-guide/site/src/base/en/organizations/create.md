@@ -30,7 +30,7 @@ Create an organization when your team or unit needs a shared workspace. Anyone s
 
 ## Result
 
-The app shows **Organization created** and opens the new organization's members dialog right away, so you can [add members](./add-member). The organization comes with three system roles: **Owner**, **Admin** and **Member**. To work in it, [switch to it](./switch).
+The app shows **Organization created**. The organization comes with three system roles: **Owner**, **Admin** and **Member**. To work in it, [switch to it](./switch).
 
 ## Troubleshooting
 

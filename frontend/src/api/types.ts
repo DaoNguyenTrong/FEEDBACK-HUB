@@ -48,7 +48,6 @@ export type { ChangePasswordRequest } from './generated/model/changePasswordRequ
 export type { OrganizationDto } from './generated/model/organizationDto'
 export type { OrganizationMemberDto } from './generated/model/organizationMemberDto'
 export type { CreateOrganizationRequest } from './generated/model/createOrganizationRequest'
-export type { AddMemberRequest } from './generated/model/addMemberRequest'
 export type { UpdateMemberRolesRequest } from './generated/model/updateMemberRolesRequest'
 export type { SwitchOrganizationRequest } from './generated/model/switchOrganizationRequest'
 export type { RoleDto } from './generated/model/roleDto'

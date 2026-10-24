@@ -37,13 +37,11 @@ You can belong to several organizations. At any moment you work in one of them, 
 <figcaption>The Organizations page</figcaption>
 </figure>
 
-| #   | Element                                                               |
-| --- | --------------------------------------------------------------------- |
-| 1   | The **New organization** button                                       |
-| 2   | Status: **Active** or **Inactive**                                    |
-| 3   | The **Switch organization** button                                    |
-| 4   | The **Members** button: see the organization's members                |
-| 5   | The **Roles** button: shown only with the **Manage roles** permission |
+| #   | Element                            |
+| --- | ---------------------------------- |
+| 1   | The **New organization** button    |
+| 2   | Status: **Active** or **Inactive** |
+| 3   | The **Switch organization** button |
 
 Under each name are the organization's slug and **Your role** in it.
 

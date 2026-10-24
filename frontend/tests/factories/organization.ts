@@ -1,4 +1,4 @@
-import type { OrganizationDto, RoleDto } from '@/api/types'
+import type { OrganizationDto } from '@/api/types'
 
 // An organization the signed-in account owns, with every management permission.
 export function makeOrganization(overrides: Partial<OrganizationDto> = {}): OrganizationDto {
@@ -16,8 +16,4 @@ export function makeOrganization(overrides: Partial<OrganizationDto> = {}): Orga
     ],
     ...overrides,
   }
-}
-
-export function makeRole(overrides: Partial<RoleDto> = {}): RoleDto {
-  return { id: 'role-owner', name: 'Owner', isSystem: true, permissionCodes: [], ...overrides }
 }
