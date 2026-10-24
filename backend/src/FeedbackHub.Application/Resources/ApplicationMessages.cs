@@ -47,4 +47,6 @@ public static class ApplicationMessages
     public const string LastOwnerCannotLeave = nameof(LastOwnerCannotLeave);
     public const string RoleHasHolders = nameof(RoleHasHolders);
     public const string RoleNameReservedForSystemRole = nameof(RoleNameReservedForSystemRole);
+    public const string InvitationEmailAlreadyMember = nameof(InvitationEmailAlreadyMember);
+    public const string InvitationEmailDeliveryFailed = nameof(InvitationEmailDeliveryFailed);
 }

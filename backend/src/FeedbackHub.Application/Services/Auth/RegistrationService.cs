@@ -1,5 +1,4 @@
 using System.Net;
-using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FeedbackHub.Application.Common;
@@ -185,7 +184,7 @@ public sealed class RegistrationService(
 
     private async Task IssueVerificationTokenAsync(Account account, CancellationToken cancellationToken)
     {
-        string rawToken = GenerateRawToken();
+        string rawToken = RandomToken.Create();
         string tokenHash = TokenHash.Compute(rawToken);
         DateTime expiresAt = clock.UtcNow.AddHours(emailSettings.VerificationTokenExpiryHours);
 
@@ -220,11 +219,5 @@ public sealed class RegistrationService(
             // 409 "đã tồn tại" không lối thoát. User dùng "Gửi lại email xác thực" để thử lại khi SMTP ổn.
             logger.LogError(exception, "Failed to send verification email to account {AccountId}", account.Id);
         }
-    }
-
-    private static string GenerateRawToken()
-    {
-        byte[] bytes = RandomNumberGenerator.GetBytes(32);
-        return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 }
