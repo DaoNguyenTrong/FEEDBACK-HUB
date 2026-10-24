@@ -244,9 +244,11 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
 
         string sql = Assert.Single(commands);
         Assert.Contains("lower(r.\"Name\" COLLATE \"und-x-icu\")", sql);
+        Assert.Contains("lower(@name COLLATE \"und-x-icu\")", sql);
     }
 
-    // lower() follows the database ctype: under a C-locale database it would keep "Ước" and "ước" apart.
+    // lower() follows the database ctype: under a C-locale database it would keep "Ước" and "ƯỚC" apart. The query
+    // is upper case so that both sides of the comparison must carry the ICU collation.
     [Fact]
     public async Task IsNameTakenAsync_OnCLocaleDatabase_IgnoresNonAsciiCase()
     {
@@ -279,7 +281,7 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
             await using AppDbContext cLocaleContext = new(options);
 
             Assert.True(await new RoleQueries(cLocaleContext)
-                .IsNameTakenAsync(organizationId, "ước", null, CancellationToken.None));
+                .IsNameTakenAsync(organizationId, "ƯỚC", null, CancellationToken.None));
         }
         finally
         {
