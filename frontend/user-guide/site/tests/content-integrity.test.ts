@@ -80,7 +80,7 @@ describe('content integrity', () => {
   })
 
   test('a base permission is named as the app names it', () => {
-    // The app labels Permissions.X with organizations.permissionX (OrganizationRolesDialog, RoleForm).
+    // The app labels Permissions.X with organizations.permissionX.
     const app = { vi: vi.organizations, en: en.organizations } as const
     const mismatches: string[] = []
     for (const [key, code] of Object.entries(Permissions)) {

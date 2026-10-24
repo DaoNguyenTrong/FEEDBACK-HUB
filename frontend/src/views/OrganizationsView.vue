@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { Building, Plus, Settings, Users } from '@vicons/tabler'
+import { Building, Plus } from '@vicons/tabler'
 import type { CreateOrganizationRequest, OrganizationDto } from '@/api/types'
 import OrganizationForm from '@/components/OrganizationForm.vue'
-import OrganizationMembersDialog from '@/components/OrganizationMembersDialog.vue'
-import OrganizationRolesDialog from '@/components/OrganizationRolesDialog.vue'
-import { Permissions } from '@/lib/permissions'
 
 const { t } = useI18n()
 const { open } = useAppDialogNaive()
@@ -13,9 +10,6 @@ const auth = useAuthStore()
 const { switchOrganization } = useOrganizationSwitch()
 
 const loading = ref(true)
-const membersDialogVisible = ref(false)
-const rolesDialogVisible = ref(false)
-const selectedOrganization = ref<OrganizationDto | null>(null)
 
 function openCreateDialog() {
   const state = reactive<CreateOrganizationRequest>({
@@ -27,25 +21,14 @@ function openCreateDialog() {
     data: { state },
     dialogClass: 'w-full! max-w-lg!',
     onConfirm: async (close) => {
-      const organization = await organizationsStore.create({
+      await organizationsStore.create({
         ...state,
         slug: state.slug.trim().toLowerCase(),
       })
       showSuccessMessage(t('organizations.created'))
       close()
-      openMembers(organization)
     },
   })
-}
-
-function openMembers(organization: OrganizationDto) {
-  selectedOrganization.value = organization
-  membersDialogVisible.value = true
-}
-
-function openRoles(organization: OrganizationDto) {
-  selectedOrganization.value = organization
-  rolesDialogVisible.value = true
 }
 
 async function switchToOrganization(organization: OrganizationDto) {
@@ -136,43 +119,9 @@ onMounted(async () => {
             >
               {{ t('organizations.switchOrganization') }}
             </NButton>
-            <NButton
-              text
-              circle
-              class="min-h-11 min-w-11"
-              :aria-label="t('organizations.members')"
-              data-testid="organization-members"
-              @click="openMembers(organization)"
-            >
-              <template #icon
-                ><n-icon><Users /></n-icon
-              ></template>
-            </NButton>
-            <NButton
-              v-if="organization.myPermissionCodes.includes(Permissions.OrganizationRolesManage)"
-              text
-              circle
-              class="min-h-11 min-w-11"
-              :aria-label="t('organizations.roles')"
-              data-testid="organization-roles"
-              @click="openRoles(organization)"
-            >
-              <template #icon
-                ><n-icon><Settings /></n-icon
-              ></template>
-            </NButton>
           </div>
         </div>
       </div>
     </div>
-
-    <OrganizationMembersDialog
-      v-model:visible="membersDialogVisible"
-      :organization="selectedOrganization"
-    />
-    <OrganizationRolesDialog
-      v-model:visible="rolesDialogVisible"
-      :organization="selectedOrganization"
-    />
   </div>
 </template>

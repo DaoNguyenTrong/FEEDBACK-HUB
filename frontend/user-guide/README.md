@@ -89,7 +89,7 @@ bun run --cwd frontend guide:capture -- --grep overview                # một �
 1. App và API đang chạy (mặc định `http://localhost:5175` và `http://localhost:7100`).
 2. Chép `tools/.env.example` thành `tools/.env` và điền tài khoản dùng để chụp.
 3. Tài khoản có sẵn dữ liệu mà ảnh cần. Công cụ không tự tạo dữ liệu; thiếu điều kiện nào thì nó dừng và liệt kê đủ các điều kiện còn thiếu:
-   - là chủ (Owner) một tổ chức có ít nhất 2 thành viên và 1 vai trò tuỳ chỉnh;
+   - là chủ (Owner) một tổ chức;
    - có ít nhất 1 thông báo chưa đọc (ví dụ: một tài khoản khác thêm tài khoản này vào tổ chức của họ);
    - có ít nhất 2 phiên đăng nhập.
 

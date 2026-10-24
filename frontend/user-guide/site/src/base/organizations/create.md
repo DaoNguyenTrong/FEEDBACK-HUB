@@ -30,7 +30,7 @@ Tạo tổ chức khi nhóm hay đơn vị của bạn cần một không gian l
 
 ## Kết quả
 
-Ứng dụng báo **Đã tạo tổ chức** và mở ngay hộp thoại thành viên của tổ chức mới, để bạn [thêm thành viên](./add-member). Tổ chức có sẵn ba vai trò hệ thống: **Owner**, **Admin** và **Member**. Muốn làm việc trong tổ chức mới, [chuyển sang nó](./switch).
+Ứng dụng báo **Đã tạo tổ chức**. Tổ chức có sẵn ba vai trò hệ thống: **Owner**, **Admin** và **Member**. Muốn làm việc trong tổ chức mới, [chuyển sang nó](./switch).
 
 ## Sự cố thường gặp
 
