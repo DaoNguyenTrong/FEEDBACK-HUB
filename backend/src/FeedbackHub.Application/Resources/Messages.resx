@@ -237,4 +237,13 @@
   <data name="EmailDeliveryFailed" xml:space="preserve">
     <value>Không gửi được email. Vui lòng thử lại sau.</value>
   </data>
+  <data name="InvitationOrganizationRequired" xml:space="preserve">
+    <value>Lời mời phải thuộc một tổ chức.</value>
+  </data>
+  <data name="InvitationRoleRequired" xml:space="preserve">
+    <value>Lời mời phải có vai trò.</value>
+  </data>
+  <data name="InvitationTokenHashInvalid" xml:space="preserve">
+    <value>Mã lời mời không hợp lệ.</value>
+  </data>
 </root>
