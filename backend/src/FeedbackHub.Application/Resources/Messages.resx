@@ -201,6 +201,12 @@
   <data name="InsufficientRolePermissions" xml:space="preserve">
     <value>Bạn không có đủ quyền của vai trò này.</value>
   </data>
+  <data name="CannotRemoveSelf" xml:space="preserve">
+    <value>Bạn không thể tự gỡ mình khỏi tổ chức. Hãy dùng Rời tổ chức.</value>
+  </data>
+  <data name="LastOwnerCannotLeave" xml:space="preserve">
+    <value>Tổ chức cần ít nhất một Chủ sở hữu. Hãy gán vai trò Chủ sở hữu cho người khác trước khi rời.</value>
+  </data>
   <data name="ExternalLoginEmailNotConfirmed" xml:space="preserve">
     <value>Đã có tài khoản dùng email này nhưng chưa được xác thực. Vui lòng xác thực email trước khi liên kết đăng nhập.</value>
   </data>
