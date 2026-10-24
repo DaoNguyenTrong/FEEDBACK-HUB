@@ -97,7 +97,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 ## Lời mời
 
 - **PRD:** PRD00-FR-25, FR-61, BR-81.
-- **Vào bằng:** chưa có màn hình (phần 8 của kế hoạch). Gọi API bằng token của thành viên tổ chức đang làm việc có quyền `organizations.members.manage`; ba API công khai (lookup, accept, register-with-invitation) gọi từ trang `#/invite?token=...` khi phần 8 dựng xong.
+- **Vào bằng:** chưa có màn hình (phần 8 của kế hoạch). Gọi API bằng token của thành viên tổ chức đang làm việc có quyền `organizations.members.manage`; hai API công khai (lookup, register-with-invitation) và accept (cần đăng nhập) gọi từ trang `#/invite?token=...` khi phần 8 dựng xong.
 - **Backend:**
   - API-10 đến API-13: `GET/POST /api/organization/invitations`, `POST /api/organization/invitations/{id}/resend`, `DELETE /api/organization/invitations/{id}` → `CurrentOrganizationController` → `IInvitationService`
   - API-20, API-21: `POST /api/invitations/lookup` (ẩn danh), `POST /api/invitations/accept` (cần đăng nhập) → `InvitationsController` → `IInvitationService`
