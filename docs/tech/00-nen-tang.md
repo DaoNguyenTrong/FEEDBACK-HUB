@@ -11,7 +11,7 @@
 | Người duyệt | Người dùng (sau review của `appsec`); duyệt 2026-10-23 cùng PRD-00 v1.4 và thiết kế module 01 |
 | Cập nhật | 2026-10-23 |
 | Phụ thuộc | Không có. TECH01–TECH07 phụ thuộc tài liệu này (cổng tổ chức §5.1, phạm vi theo sản phẩm §5.5, quy tắc file §7.5) |
-| Kế hoạch triển khai | Chưa có |
+| Kế hoạch triển khai | [Phần 1](../superpowers/plans/2026-10-23-module-00-phase-1-security.md), [Phần 2](../superpowers/plans/2026-10-23-module-00-phase-2-multi-instance.md), [Phần 3](../superpowers/plans/2026-10-23-module-00-phase-3-organization-gate.md), [Phần 4](../superpowers/plans/2026-10-23-module-00-phase-4-roles-members.md), [Phần 5](../superpowers/plans/2026-10-23-module-00-phase-5-invitations.md), [Phần 6](../superpowers/plans/2026-10-23-module-00-phase-6-audit-log.md), [Phần 7](../superpowers/plans/2026-10-23-module-00-phase-7-frontend-foundation.md), [Phần 8](../superpowers/plans/2026-10-23-module-00-phase-8-frontend-screens.md) |
 
 ## 1. Phạm vi và truy vết
 
@@ -275,7 +275,6 @@ Mọi route viết thường. Lỗi dùng `CodedProblemDetails` (`code` + `detai
 - `InvitationDto { id, email, role: RoleRefDto, expiresAt, status: "Pending" | "Expired", canRevokeOrDelete, canResend, lockReason }`.
 - `RoleOptionDto { id, name, systemKind, canGrant }` — không có quyền nào (BR-77, AC-311).
 - `RoleDto { id, name, systemKind, isSystem, permissionCodes[], holderCount, pendingInvitationCount: number | null, canEdit, canDelete, deleteBlockedReason: "SystemRole" | "InsufficientRolePermissions" | "HasHolders" | null }`. `holderCount` chỉ đếm thành viên đang hoạt động. `pendingInvitationCount` chỉ trả khi người gọi có thêm `organizations.members.manage` (BR-75: người khác không thấy lời mời nào), ngược lại `null`.
-- Thứ tự vai trò trong một dòng thành viên (cột vai trò, `lockRole`, mục nhật ký): Owner, Admin, Member, rồi vai trò tự tạo theo tên với `COLLATE "und-x-icu"`, rồi `Id`, sắp trong truy vấn.
 - `ProfileDto` thêm `pendingEmail: string | null` (§4.9) và `hasPassword: bool` (để form biết có hỏi mật khẩu hiện tại không, §6.7 bước 0; máy chủ vẫn tự kiểm).
 - `InvitationLookupDto { status, organizationName?, role?: RoleRefDto, expiresAt?, email? }`, `status` thuộc `Valid | Expired | NoLongerValid | WrongAccount | EmailNotConfirmed | OrganizationSuspended`. Trường nào có theo từng trạng thái: §6.3. Phản hồi API-20 kèm `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`.
 
