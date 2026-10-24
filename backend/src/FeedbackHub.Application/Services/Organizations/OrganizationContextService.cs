@@ -1,8 +1,10 @@
+using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditTrail;
 using FeedbackHub.Application.Services.OrganizationLocking;
+using FeedbackHub.Application.Services.Roles;
 using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Domain.Auditing;
 using FeedbackHub.Domain.Entities;
@@ -16,6 +18,7 @@ public sealed class OrganizationContextService(
     ICurrentUserService currentUserService,
     ICurrentTenantProvider currentTenantProvider,
     IOrganizationLock organizationLock,
+    IRoleGrantReader roleGrantReader,
     ISystemAdministratorResolver systemAdministratorResolver,
     IAuditTrail auditTrail,
     OrganizationStatusChanger organizationStatusChanger) : IOrganizationContextService
@@ -46,6 +49,7 @@ public sealed class OrganizationContextService(
         {
             // Removed or deactivated after the gate let the request in: answer as the gate now would.
             await OrganizationWriteGate.LockAndRecheckAsync(organizationLock, unitOfWork, organizationId, callerId, ct);
+            await EnsureCallerManagesAsync(organizationId, callerId, ct);
             Organization organization = await LoadAsync(organizationId, ct);
             renamed = organization;
 
@@ -89,8 +93,22 @@ public sealed class OrganizationContextService(
             organizationId,
             callerId,
             request.Reason,
+            ct => EnsureCallerManagesAsync(organizationId, callerId, ct),
             (_, _) => Task.FromResult(ActorKind.Account),
             cancellationToken);
+    }
+
+    /// <summary>
+    /// The endpoint's permission <c>organizations.manage</c> read from the database after the lock: the permission
+    /// cache may still grant it after it was taken away, or while the caller waited for the lock.
+    /// </summary>
+    private async Task EnsureCallerManagesAsync(Guid organizationId, Guid callerId, CancellationToken cancellationToken)
+    {
+        RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, cancellationToken);
+        if (!caller.Permissions.Contains(Permissions.OrganizationManage))
+        {
+            throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
+        }
     }
 
     private async Task<Organization> LoadAsync(Guid organizationId, CancellationToken cancellationToken) =>

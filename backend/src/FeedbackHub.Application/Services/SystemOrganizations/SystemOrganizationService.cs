@@ -29,6 +29,8 @@ public sealed class SystemOrganizationService(
             organizationId,
             callerId,
             request.Reason,
+            // Authorized by the SystemAdministrator policy, not by a permission of the organization.
+            recheckCaller: null,
             (organization, ct) => systemAdministratorActor.ResolveAsync(organization.Id, callerId, ct),
             cancellationToken);
     }

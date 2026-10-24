@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
+using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Domain.Auditing;
@@ -69,6 +70,37 @@ public sealed class CurrentOrganizationControllerTests(ApiFactoryFixture fixture
         Organization organization = await SeedOrganizationAsync(organizationName);
         await SeedMemberAsync(organization.Id, caller.Id, role);
         return (ClientFor(caller, organization.Id), caller, organization);
+    }
+
+    /// <summary>
+    /// A Member who holds <c>organizations.manage</c> through a custom role, with the permission cache warmed by a
+    /// no-op rename, then the code removed from the role in the database only: the cache still grants it.
+    /// </summary>
+    private async Task<(HttpClient Client, Organization Organization)> CreateCallerWithStaleManageAsync()
+    {
+        Account caller = await SeedAccountAsync("caller");
+        Organization organization = await SeedOrganizationAsync();
+        await using (AppDbContext context = CreateDbContext())
+        {
+            OrganizationMember member = await AuthTestHelper.SeedOrganizationMemberAsync(
+                context, organization.Id, caller.Id, SystemRoleKind.Member);
+            Role manager = await AuthTestHelper.SeedCustomRoleAsync(
+                context, organization.Id, "Quản lý tổ chức", [Permissions.OrganizationManage]);
+            await AuthTestHelper.AssignRoleAsync(context, member.Id, manager.Id);
+        }
+
+        HttpClient client = ClientFor(caller, organization.Id);
+        Assert.Equal(HttpStatusCode.OK, (await RenameAsync(client, new { name = "Bảo Minh" })).StatusCode);
+        await using (AppDbContext context = CreateDbContext())
+        {
+            await context.RolePermissions
+                .Where(permission => permission.PermissionCode == Permissions.OrganizationManage
+                    && context.Roles.Any(role => role.Id == permission.RoleId
+                        && role.OrganizationId == organization.Id))
+                .ExecuteDeleteAsync();
+        }
+
+        return (client, organization);
     }
 
     private HttpClient ClientFor(Account account, Guid? organizationId)
@@ -334,7 +366,38 @@ public sealed class CurrentOrganizationControllerTests(ApiFactoryFixture fixture
         Assert.Equal(organization.Slug, stored.Slug);
     }
 
+    // The token and the permission cache still say "manage"; the service re-reads it after the lock.
+    [Fact]
+    public async Task Rename_CallerWhoseOrganizationsManageWasRemovedInDatabase_Returns403AndNameUnchanged()
+    {
+        (HttpClient client, Organization organization) = await CreateCallerWithStaleManageAsync();
+
+        HttpResponseMessage response = await RenameAsync(client, new { name = "Tên mới" });
+
+        await AssertCodeAsync(response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationAccessDenied);
+        Assert.Equal("Bảo Minh", (await LoadOrganizationAsync(organization.Id)).Name);
+        Assert.Empty(await LoadEventsAsync());
+        Assert.Equal(0, await CountOrganizationChangeRowsAsync(organization.Id));
+    }
+
     // Deactivate
+
+    // The token and the permission cache still say "manage"; the service re-reads it after the lock.
+    [Fact]
+    public async Task Deactivate_CallerWhoseOrganizationsManageWasRemovedInDatabase_Returns403AndStillActive()
+    {
+        (HttpClient client, Organization organization) = await CreateCallerWithStaleManageAsync();
+
+        HttpResponseMessage response = await DeactivateAsync(client, new { reason = Reason });
+
+        await AssertCodeAsync(response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationAccessDenied);
+        Organization stored = await LoadOrganizationAsync(organization.Id);
+        Assert.True(stored.Status);
+        Assert.Null(stored.DeactivatedAt);
+        Assert.Null(stored.DeactivationReason);
+        Assert.Empty(await LoadEventsAsync());
+        Assert.Equal(0, await CountOrganizationChangeRowsAsync(organization.Id));
+    }
 
     [Fact]
     public async Task Deactivate_WithoutOrganizationsManage_Returns403AndStillActive()
