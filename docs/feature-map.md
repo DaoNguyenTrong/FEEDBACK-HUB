@@ -93,3 +93,26 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
   3. `POST /api/organization/leave` khi là Owner cuối cùng trả 409 `LastOwnerCannotLeave`.
   4. Tạo vai trò tên trùng (không phân biệt hoa thường) trả 409; xoá vai trò còn người giữ trả 409 `RoleHasHolders`.
 - **Rủi ro hay gặp:** route `api/organizations/{id}/...` không còn (404); `roleIds` hoặc `permissionCodes` thiếu trong thân trả 400.
+
+## Lời mời
+
+- **PRD:** PRD00-FR-25, FR-61, BR-81.
+- **Vào bằng:** chưa có màn hình (phần 8 của kế hoạch). Gọi API bằng token của thành viên tổ chức đang làm việc có quyền `organizations.members.manage`; ba API công khai (lookup, accept, register-with-invitation) gọi từ trang `#/invite?token=...` khi phần 8 dựng xong.
+- **Backend:**
+  - API-10 đến API-13: `GET/POST /api/organization/invitations`, `POST /api/organization/invitations/{id}/resend`, `DELETE /api/organization/invitations/{id}` → `CurrentOrganizationController` → `IInvitationService`
+  - API-20, API-21: `POST /api/invitations/lookup` (ẩn danh), `POST /api/invitations/accept` (cần đăng nhập) → `InvitationsController` → `IInvitationService`
+  - API-22: `POST /api/auth/register-with-invitation` → `AuthController` → `IInvitationService`
+  - Ba API ngoài tổ chức dùng giới hạn tốc độ `invitation` (429). Danh sách đọc qua `IInvitationQueries` (kèm `pendingInvitationCount` ở `GET /api/organization/roles`). Gửi và gửi lại khoá tổ chức, kiểm BR-58, rồi gửi email; email lỗi trả 503 `InvitationEmailDeliveryFailed` và không giữ lời mời. Gửi lại tới email đã là thành viên trả 409 `InvitationEmailAlreadyMember`.
+  - Link trong thư: `{FrontendBaseUrl}/#/invite?token=...`, hạn 7×24 giờ; hạn ghi trong thư theo giờ Việt Nam (UTC+7).
+- **Test đã có:**
+  - API: `CurrentOrganizationInvitationsTests`, `InvitationsControllerTests`, `Architecture/ArchitectureTests`
+  - Application: `InvitationServiceSendTests`, `InvitationServiceManageTests`, `InvitationServiceAcceptTests`, `InvitationServiceRegisterTests`, `InvitationEmailTests`, `OrganizationInvitationTests`
+  - Infrastructure: `InvitationQueriesTests`, `OrganizationInvitationPersistenceTests`, `InvitationConcurrencyTests`
+- **Dữ liệu test:** dùng tổ chức `Dev` và hai tài khoản của `seed-dev` như mục *Thành viên và vai trò của tổ chức*; token `e2e-admin` (Owner) gửi lời mời. Không có seed riêng cho lời mời; email thật cần cấu hình `EmailSettings`.
+- **Cách kiểm tra "đã chạy đúng":**
+  1. `POST /api/organization/invitations` với `email` và `roleId` trả 201; thư chứa link `/#/invite?token=...`. Mời lại cùng email thay lời mời cũ.
+  2. `POST /api/invitations/lookup` với token trả 200 `status = Valid`; sau khi thu hồi trả `NoLongerValid`.
+  3. `POST /api/auth/register-with-invitation` với token hợp lệ trả 200 `invitationOutcome = Joined` và tài khoản vào tổ chức với vai trò đã mời; token đã dùng trả 409.
+  4. `POST /api/invitations/accept` bằng tài khoản đã đăng nhập có email khớp trả 200; email lệch trả 403.
+- **Rủi ro hay gặp:** thiếu `EmailSettings:FrontendBaseUrl` làm ứng dụng không khởi động; vượt giới hạn tốc độ trả 429; mã lỗi lời mời mới mới chỉ có chữ trong resx, chữ `vi`/`en` ở frontend thuộc phần 8.
+- **Frontend:** chưa có; phần 8 dựng màn hình *Lời mời* và *InviteAccept*.
