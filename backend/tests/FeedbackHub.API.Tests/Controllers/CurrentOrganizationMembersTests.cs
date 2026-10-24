@@ -382,6 +382,37 @@ public sealed class CurrentOrganizationMembersTests(ApiFactoryFixture fixture) :
         Assert.Equal(0, await CountEventsAsync(organization.Id));
     }
 
+    // BR-45: an account outside the active members (never joined, or left) answers like one that never existed.
+    [Theory]
+    [InlineData("change-roles", false)]
+    [InlineData("change-roles", true)]
+    [InlineData("remove", false)]
+    [InlineData("remove", true)]
+    public async Task ChangeRolesOrRemove_UnknownOrInactiveAccount_Returns404EntityNotFound(string write, bool inactive)
+    {
+        (Organization organization, Account owner, _, Account plain, OrganizationMember plainMember) =
+            await SeedOwnerAndPlainAsync();
+        Guid target = Guid.NewGuid();
+        if (inactive)
+        {
+            await using AppDbContext context = CreateDbContext();
+            OrganizationMember stored = await context.OrganizationMembers.SingleAsync(m => m.Id == plainMember.Id);
+            stored.Deactivate();
+            context.OrganizationMembers.Update(stored);
+            await context.SaveChangesAsync();
+            target = plain.Id;
+        }
+
+        Role admin = (await SystemRolesAsync(organization.Id))[SystemRoleKind.Admin];
+        HttpClient client = ClientFor(owner, organization.Id);
+        HttpResponseMessage response = write == "remove"
+            ? await client.DeleteAsync($"{Path}/{target}")
+            : await ChangeRolesAsync(client, target, new { roleIds = new[] { admin.Id } });
+
+        await AssertCodeAsync(response, HttpStatusCode.NotFound, EntityNotFoundCode);
+        Assert.Equal(0, await CountEventsAsync(organization.Id));
+    }
+
     [Fact]
     public async Task ChangeRoles_SameRoleSet_Returns204AndAuditLogHasNoNewRow()
     {
@@ -484,7 +515,8 @@ public sealed class CurrentOrganizationMembersTests(ApiFactoryFixture fixture) :
         Assert.Empty(await RoleIdsOfAsync(plainMember.Id));
         Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
         LoginResponse? body = await refreshed.Content.ReadJsonAsync<LoginResponse>();
-        Assert.Null(body!.OrganizationId);
+        Assert.NotNull(body);
+        Assert.Null(body.OrganizationId);
     }
 
     // Leave
