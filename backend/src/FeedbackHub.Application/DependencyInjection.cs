@@ -7,6 +7,7 @@ using FeedbackHub.Application.Services.AuditLogs;
 using FeedbackHub.Application.Services.Auth;
 using FeedbackHub.Application.Services.DevData;
 using FeedbackHub.Application.Services.Files;
+using FeedbackHub.Application.Services.Invitations;
 using FeedbackHub.Application.Services.Notifications;
 using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Application.Services.PermissionCatalog;
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<IPermissionCatalogService, PermissionCatalogService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IMemberService, MemberService>();
+        services.AddScoped<IInvitationService, InvitationService>();
         services.AddScoped<OrganizationStatusChanger>();
         services.AddScoped<SystemAdministratorActor>();
         services.AddScoped<ISystemOrganizationService, SystemOrganizationService>();

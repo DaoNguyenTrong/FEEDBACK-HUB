@@ -246,4 +246,10 @@
   <data name="InvitationTokenHashInvalid" xml:space="preserve">
     <value>Mã lời mời không hợp lệ.</value>
   </data>
+  <data name="InvitationEmailAlreadyMember" xml:space="preserve">
+    <value>Người này đã là thành viên của tổ chức.</value>
+  </data>
+  <data name="InvitationEmailDeliveryFailed" xml:space="preserve">
+    <value>Không gửi được email mời. Chưa có gì thay đổi, hãy thử lại sau.</value>
+  </data>
 </root>

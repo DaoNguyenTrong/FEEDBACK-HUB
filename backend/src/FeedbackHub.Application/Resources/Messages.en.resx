@@ -246,4 +246,10 @@
   <data name="InvitationTokenHashInvalid" xml:space="preserve">
     <value>The invitation code is invalid.</value>
   </data>
+  <data name="InvitationEmailAlreadyMember" xml:space="preserve">
+    <value>This person is already a member of the organization.</value>
+  </data>
+  <data name="InvitationEmailDeliveryFailed" xml:space="preserve">
+    <value>The invitation email could not be sent. Nothing was changed; try again later.</value>
+  </data>
 </root>

@@ -242,22 +242,16 @@ public sealed class MemberService(
         OrganizationWriteGate.LockAndRecheckAsync(
             organizationLock, unitOfWork, organizationId, callerId, cancellationToken);
 
-    /// <summary>
-    /// The gate re-check, then the endpoint's permission <c>organizations.members.manage</c> read from the database:
-    /// the permission cache may still grant it after it was taken away, or while the caller waited for the lock.
-    /// </summary>
-    private async Task<RoleGrantCaller> LockAndLoadManagerAsync(
-        Guid organizationId, Guid callerId, CancellationToken cancellationToken)
-    {
-        await LockAndRecheckGateAsync(organizationId, callerId, cancellationToken);
-        RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, cancellationToken);
-        if (!caller.Permissions.Contains(Permissions.OrganizationMembersManage))
-        {
-            throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
-        }
-
-        return caller;
-    }
+    private Task<RoleGrantCaller> LockAndLoadManagerAsync(
+        Guid organizationId, Guid callerId, CancellationToken cancellationToken) =>
+        RoleWriteGate.LockAndLoadCallerAsync(
+            organizationLock,
+            unitOfWork,
+            roleGrantReader,
+            organizationId,
+            callerId,
+            Permissions.OrganizationMembersManage,
+            cancellationToken);
 
     private Task<OrganizationMember?> FindActiveMemberAsync(
         Guid organizationId, Guid accountId, CancellationToken cancellationToken) =>

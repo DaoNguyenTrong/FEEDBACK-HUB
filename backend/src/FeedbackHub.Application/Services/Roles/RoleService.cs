@@ -199,23 +199,16 @@ public sealed class RoleService(
         return (role, caller, current);
     }
 
-    /// <summary>
-    /// The gate re-check, then the endpoint's permission <c>organizations.roles.manage</c> read from the database:
-    /// the permission cache may still grant it after it was taken away, or while the caller waited for the lock.
-    /// </summary>
-    private async Task<RoleGrantCaller> LockAndLoadManagerAsync(
-        Guid organizationId, Guid callerId, CancellationToken cancellationToken)
-    {
-        await OrganizationWriteGate.LockAndRecheckAsync(
-            organizationLock, unitOfWork, organizationId, callerId, cancellationToken);
-        RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, cancellationToken);
-        if (!caller.Permissions.Contains(Permissions.OrganizationRolesManage))
-        {
-            throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
-        }
-
-        return caller;
-    }
+    private Task<RoleGrantCaller> LockAndLoadManagerAsync(
+        Guid organizationId, Guid callerId, CancellationToken cancellationToken) =>
+        RoleWriteGate.LockAndLoadCallerAsync(
+            organizationLock,
+            unitOfWork,
+            roleGrantReader,
+            organizationId,
+            callerId,
+            Permissions.OrganizationRolesManage,
+            cancellationToken);
 
     private async Task ApplyChangesAsync(
         Role role, bool renamed, IReadOnlyList<string> added, IReadOnlyList<string> removed, CancellationToken ct)

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FeedbackHub.Application.Common;
@@ -36,7 +35,7 @@ public sealed class EmailChangeLink(
 
         await ConsumeAllAsync(account.Id, EmailVerificationPurpose.ChangeEmail, cancellationToken);
 
-        string rawToken = GenerateRawToken();
+        string rawToken = RandomToken.Create();
         EmailVerificationToken token = EmailVerificationToken.Create(new EmailVerificationTokenParams(
             account.Id,
             TokenHash.Compute(rawToken),
@@ -89,7 +88,4 @@ public sealed class EmailChangeLink(
             repository.Update(token);
         }
     }
-
-    private static string GenerateRawToken() =>
-        Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Models;
+using FeedbackHub.Application.Services.Invitations;
 using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Application.Services.Roles;
 
@@ -14,7 +15,8 @@ namespace FeedbackHub.API.Controllers;
 public sealed class CurrentOrganizationController(
     IOrganizationContextService organizationContextService,
     IMemberService memberService,
-    IRoleService roleService) : ControllerBase
+    IRoleService roleService,
+    IInvitationService invitationService) : ControllerBase
 {
     /// <summary>Returns the working organization. Any active member may read it.</summary>
     [HttpGet]
@@ -131,6 +133,28 @@ public sealed class CurrentOrganizationController(
         await memberService.LeaveAsync(cancellationToken);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Invites an address with a role, replacing its earlier invitation. The caller must be able to grant the new role
+    /// and take away the earlier one. The mail is sent before the commit: when it fails, nothing changes (503).
+    /// </summary>
+    [HttpPost("invitations")]
+    [Authorize(Policy = Permissions.OrganizationMembersManage)]
+    [ProducesResponseType(typeof(InvitationDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<InvitationDto>> SendInvitation(
+        SendInvitationRequest request,
+        CancellationToken cancellationToken)
+    {
+        InvitationDto invitation = await invitationService.SendAsync(request, cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, invitation);
     }
 
     /// <summary>Lists the roles the caller may pick when assigning roles, without their permissions.</summary>
