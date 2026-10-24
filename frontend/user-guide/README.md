@@ -40,7 +40,7 @@ Fork không sửa file của base. Một thay đổi ở đó đi về base trư
 1. Tạo trang cho cả hai ngôn ngữ:
 
    ```bash
-   bun run --cwd frontend/user-guide/site new-page organizations/add-member        # base
+   bun run --cwd frontend/user-guide/site new-page organizations/switch            # base
    bun run --cwd frontend/user-guide/site new-page orders/create --app             # fork
    ```
 

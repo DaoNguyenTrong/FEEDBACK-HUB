@@ -250,36 +250,6 @@ export interface LocaleSchema {
     empty: string
     emptyHint: string
     created: string
-    members: string
-    membersTitle: string
-    membersEmpty: string
-    addMember: string
-    addMemberTitle: string
-    memberEmail: string
-    memberEmailPlaceholder: string
-    memberEmailRequired: string
-    memberEmailInvalid: string
-    memberAdded: string
-    removeMember: string
-    removeMemberConfirm: string
-    memberRemoved: string
-    memberRolesUpdated: string
-    roles: string
-    rolesTitle: string
-    rolesEmpty: string
-    roleNoPermissions: string
-    createRole: string
-    createRoleTitle: string
-    editRoleTitle: string
-    roleName: string
-    roleNamePlaceholder: string
-    roleNameRequired: string
-    rolePermissions: string
-    roleDeleteConfirm: string
-    roleCreated: string
-    roleUpdated: string
-    roleDeleted: string
-    roleSystemBadge: string
     permissionOrganizationManage: string
     permissionOrganizationMembersManage: string
     permissionOrganizationRolesManage: string
@@ -569,37 +539,6 @@ const en: LocaleSchema = {
     empty: 'No organizations yet',
     emptyHint: 'Create an organization to get started.',
     created: 'Organization created',
-    members: 'Members',
-    membersTitle: 'Members of {name}',
-    membersEmpty: 'No members yet.',
-    addMember: 'Add member',
-    addMemberTitle: 'Add member',
-    memberEmail: 'Email',
-    memberEmailPlaceholder: "Enter the member's email address",
-    memberEmailRequired: 'Email is required.',
-    memberEmailInvalid: 'Enter a valid email address.',
-    memberAdded: 'Member added',
-    removeMember: 'Remove member',
-    removeMemberConfirm: 'Remove this member from the organization?',
-    memberRemoved: 'Member removed',
-    memberRolesUpdated: 'Roles updated',
-    roles: 'Roles',
-    rolesTitle: 'Roles of {name}',
-    rolesEmpty: 'No roles yet.',
-    roleNoPermissions: 'No permissions',
-    createRole: 'Create role',
-    createRoleTitle: 'Create role',
-    editRoleTitle: 'Edit role',
-    roleName: 'Name',
-    roleNamePlaceholder: 'Enter the role name',
-    roleNameRequired: 'Role name is required.',
-    rolePermissions: 'Permissions',
-    roleDeleteConfirm:
-      'Delete this role? Members holding only this role will lose its permissions.',
-    roleCreated: 'Role created',
-    roleUpdated: 'Role updated',
-    roleDeleted: 'Role deleted',
-    roleSystemBadge: 'System',
     permissionOrganizationManage: 'Manage organization',
     permissionOrganizationMembersManage: 'Manage members',
     permissionOrganizationRolesManage: 'Manage roles',

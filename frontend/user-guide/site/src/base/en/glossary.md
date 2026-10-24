@@ -15,7 +15,7 @@ The table explains the words you meet in the app. The Vietnamese column is what 
 | Role               | Vai trò             | A set of permissions given to members, such as **Owner** or a role the organization created                                        |
 | System role        | Vai trò hệ thống    | A role every organization has (**Owner**, **Admin**, **Member**), tagged **System**, which can't be edited or deleted              |
 | Owner              | Chủ tổ chức (Owner) | The system role with every permission; whoever creates an organization is its Owner. An organization always has at least one Owner |
-| Admin              | Admin               | The system role with the **Manage members** permission                                                                             |
+| Admin              | Admin               | The system role with the **Manage members** and **FeedbackHub administration** permissions                                         |
 | Member             | Member              | The system role with no management permissions                                                                                     |
 | Permission         | Quyền               | Something you are allowed to do in an organization, such as **Manage members**                                                     |
 | Slug               | Định danh           | An organization's short, unique name: lowercase letters, numbers and hyphens only                                                  |
