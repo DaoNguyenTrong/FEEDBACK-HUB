@@ -62,6 +62,8 @@ public class OrganizationInvitationTests
     [InlineData("")]
     [InlineData("abc")]
     [InlineData("ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789")]
+    [InlineData("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n")]
+    [InlineData("gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg")]
     public void Create_TokenHashNot64LowerHex_Throws(string hash)
     {
         OrganizationInvitationParams p = ValidParams() with { TokenHash = hash };
