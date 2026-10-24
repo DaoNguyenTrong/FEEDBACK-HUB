@@ -252,4 +252,16 @@
   <data name="InvitationEmailDeliveryFailed" xml:space="preserve">
     <value>The invitation email could not be sent. Nothing was changed; try again later.</value>
   </data>
+  <data name="InvitationExpired" xml:space="preserve">
+    <value>This invitation has expired.</value>
+  </data>
+  <data name="InvitationNoLongerValid" xml:space="preserve">
+    <value>This invitation is no longer valid.</value>
+  </data>
+  <data name="InvitationWrongAccount" xml:space="preserve">
+    <value>This invitation is not for the account you are using.</value>
+  </data>
+  <data name="InvitationOrganizationSuspended" xml:space="preserve">
+    <value>The organization is suspended, so you can't join it yet.</value>
+  </data>
 </root>

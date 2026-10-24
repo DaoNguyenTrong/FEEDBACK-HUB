@@ -252,4 +252,16 @@
   <data name="InvitationEmailDeliveryFailed" xml:space="preserve">
     <value>Không gửi được email mời. Chưa có gì thay đổi, hãy thử lại sau.</value>
   </data>
+  <data name="InvitationExpired" xml:space="preserve">
+    <value>Lời mời đã hết hạn.</value>
+  </data>
+  <data name="InvitationNoLongerValid" xml:space="preserve">
+    <value>Lời mời không còn hiệu lực.</value>
+  </data>
+  <data name="InvitationWrongAccount" xml:space="preserve">
+    <value>Lời mời này không dành cho tài khoản bạn đang dùng.</value>
+  </data>
+  <data name="InvitationOrganizationSuspended" xml:space="preserve">
+    <value>Tổ chức đang tạm ngừng hoạt động nên chưa vào được.</value>
+  </data>
 </root>

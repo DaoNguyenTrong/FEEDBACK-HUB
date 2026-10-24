@@ -119,6 +119,8 @@ public partial class InvitationServiceManageTests
                 EmailSender,
                 Clock,
                 Options.Create(new EmailSettings { FrontendBaseUrl = "https://hub.example.com/" }),
+                Substitute.For<ITenantAccessService>(),
+                Substitute.For<IPermissionResolver>(),
                 Substitute.For<ILogger<InvitationService>>());
         }
 

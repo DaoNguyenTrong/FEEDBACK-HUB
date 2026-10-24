@@ -22,4 +22,17 @@ public interface IInvitationService
 
     /// <summary>Revokes a pending invitation or deletes an expired one, recorded either way: 404, 403 BR-58.</summary>
     Task RevokeOrDeleteAsync(Guid invitationId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// What the link shows, without using it up: the first BR-81 check that fails, for the signed-in account if there
+    /// is one. An API key or no session counts as anonymous, which sees <c>Valid</c> even for a suspended organization.
+    /// </summary>
+    Task<InvitationLookupDto> LookupAsync(InvitationTokenRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Joins the signed-in account to the invitation's organization with its role and uses the invitation up.
+    /// An account already an active member gets 200 with no change.
+    /// </summary>
+    /// <remarks>Refuses in the BR-81 order: 409 <c>InvitationNoLongerValid</c>, <c>InvitationExpired</c>, <c>InvitationWrongAccount</c>, 403 <c>EmailNotConfirmed</c>, 409 <c>InvitationOrganizationSuspended</c>.</remarks>
+    Task<AcceptInvitationResult> AcceptAsync(InvitationTokenRequest request, CancellationToken cancellationToken);
 }

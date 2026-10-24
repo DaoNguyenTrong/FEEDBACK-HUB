@@ -49,4 +49,8 @@ public static class ApplicationMessages
     public const string RoleNameReservedForSystemRole = nameof(RoleNameReservedForSystemRole);
     public const string InvitationEmailAlreadyMember = nameof(InvitationEmailAlreadyMember);
     public const string InvitationEmailDeliveryFailed = nameof(InvitationEmailDeliveryFailed);
+    public const string InvitationExpired = nameof(InvitationExpired);
+    public const string InvitationNoLongerValid = nameof(InvitationNoLongerValid);
+    public const string InvitationWrongAccount = nameof(InvitationWrongAccount);
+    public const string InvitationOrganizationSuspended = nameof(InvitationOrganizationSuspended);
 }
