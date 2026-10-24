@@ -50,7 +50,7 @@ public class MemberServiceWriteTests
     }
 
     /// <summary>An in-memory organization behind substitutes, so tests assert both calls and resulting state.</summary>
-    private sealed class Fixture
+    private sealed record Fixture
     {
         private readonly List<OrganizationMember> members = [];
         private readonly List<OrganizationMemberRole> memberRoles = [];

@@ -118,18 +118,57 @@ public sealed class MemberConcurrencyTests(PostgresContainerFixture fixture)
 
         Assert.True(secondWaitedForLock);
         Assert.Equal(ApplicationMessages.OrganizationAccessDenied, refused.Message);
+        Assert.Equal([firstOwnerId], await ActiveOwnersAsync(organizationId));
+        Assert.Equal(1, await CountEventsAsync(organizationId, AuditEventType.MemberRemoved));
+    }
+
+    // AC-277 under a race: of the only two Owners leaving together, the second sees the first gone and must stay.
+    [Fact]
+    public async Task LeaveAsync_TwoOwnersLeaveConcurrently_OneSucceedsOtherConflict()
+    {
+        (Guid organizationId, Guid firstOwnerId, Guid secondOwnerId) = await SeedTwoOwnersAsync();
+        TaskCompletionSource firstEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource releaseFirst = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using AppDbContext firstContext = fixture.CreateDbContext();
+        await using AppDbContext secondContext = fixture.CreateDbContext();
+        MemberService first = CreateService(
+            firstContext, organizationId, firstOwnerId,
+            trail => new PausingAuditTrail(trail, firstEntered, releaseFirst.Task));
+        MemberService second = CreateService(secondContext, organizationId, secondOwnerId);
+
+        Task firstLeave = first.LeaveAsync(CancellationToken.None);
+        await Task.WhenAny(firstEntered.Task, firstLeave).WaitAsync(StepLimit);
+        Assert.False(firstLeave.IsCompleted, firstLeave.Exception?.ToString());
+        Task secondLeave = second.LeaveAsync(CancellationToken.None);
+        await Task.WhenAny(secondLeave, Task.Delay(BlockedWindow));
+        bool secondWaitedForLock = !secondLeave.IsCompleted;
+        releaseFirst.SetResult();
+
+        await firstLeave;
+        ConflictException refused = await Assert.ThrowsAsync<ConflictException>(() => secondLeave);
+
+        Assert.True(secondWaitedForLock);
+        Assert.Equal(ApplicationMessages.LastOwnerCannotLeave, refused.Message);
+        Assert.Equal([secondOwnerId], await ActiveOwnersAsync(organizationId));
+        Assert.Equal(1, await CountEventsAsync(organizationId, AuditEventType.MemberLeft));
+    }
+
+    private async Task<List<Guid>> ActiveOwnersAsync(Guid organizationId)
+    {
         await using AppDbContext reader = fixture.CreateDbContext();
-        List<Guid> activeOwners = await reader.OrganizationMembers
+        return await reader.OrganizationMembers
             .Where(member => member.OrganizationId == organizationId && member.IsActive
                 && reader.OrganizationMemberRoles.Any(link => link.OrganizationMemberId == member.Id
                     && reader.Roles.Any(role => role.Id == link.RoleId && role.SystemRoleKind == SystemRoleKind.Owner)))
             .Select(member => member.AccountId)
             .ToListAsync();
-        Assert.Equal([firstOwnerId], activeOwners);
-        Assert.Equal(
-            1,
-            await reader.AuditLogs.CountAsync(log => log.OrganizationId == organizationId
-                && log.Kind == AuditLogKind.Event
-                && log.Action == nameof(AuditEventType.MemberRemoved)));
+    }
+
+    private async Task<int> CountEventsAsync(Guid organizationId, AuditEventType type)
+    {
+        await using AppDbContext reader = fixture.CreateDbContext();
+        return await reader.AuditLogs.CountAsync(log => log.OrganizationId == organizationId
+            && log.Kind == AuditLogKind.Event
+            && log.Action == type.ToString());
     }
 }
