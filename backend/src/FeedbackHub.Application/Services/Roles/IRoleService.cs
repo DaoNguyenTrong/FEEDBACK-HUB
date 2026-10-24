@@ -11,4 +11,10 @@ public interface IRoleService
     /// </summary>
     Task<IReadOnlyDictionary<SystemRoleKind, Role>> SeedSystemRolesAsync(
         Guid organizationId, CancellationToken cancellationToken);
+
+    /// <summary>Roles the caller may assign, in display order, each with whether BR-58 lets the caller grant it.</summary>
+    Task<IReadOnlyList<RoleOptionDto>> ListOptionsAsync(CancellationToken cancellationToken);
+
+    /// <summary>The Roles section: every role with holder count and the caller's edit and delete flags.</summary>
+    Task<IReadOnlyList<RoleDto>> ListAsync(CancellationToken cancellationToken);
 }
