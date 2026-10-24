@@ -1,5 +1,4 @@
-using System.Security.Cryptography;
-using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,14 +22,14 @@ namespace FeedbackHub.Infrastructure.Tests.Persistence;
 
 // Commits rows on purpose: the organization lock only orders two real transactions.
 [Collection(nameof(PostgresCollection))]
-public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
+public sealed partial class InvitationConcurrencyTests(PostgresContainerFixture fixture)
 {
     // How long the second request is watched while the first one holds the lock.
     private static readonly TimeSpan BlockedWindow = TimeSpan.FromMilliseconds(500);
 
     private static readonly TimeSpan StepLimit = TimeSpan.FromSeconds(10);
 
-    /// <summary>Holds the first request inside its transaction, after its checks and writes, until released.</summary>
+    // Holds the first request inside its transaction, after its checks and writes, until released.
     private sealed class PausingAuditTrail(IAuditTrail inner, TaskCompletionSource entered, Task release) : IAuditTrail
     {
         public async Task RecordAsync(AuditEvent auditEvent, CancellationToken cancellationToken)
@@ -41,9 +40,11 @@ public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
         }
     }
 
-    private sealed record Seeded(Guid OrganizationId, string OrganizationName, Guid AccountId, Guid MemberRoleId);
+    private sealed record Seeded(
+        Guid OrganizationId, string OrganizationName, Guid OwnerId, Guid InviteeId, string InviteeEmail, Guid MemberRoleId);
 
-    private static string HashOf(string token) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+    [GeneratedRegex("#/invite\\?token=([A-Za-z0-9_-]+)")]
+    private static partial Regex InviteLink();
 
     private static ServiceProvider RepositoriesFor(AppDbContext context) =>
         new ServiceCollection()
@@ -52,7 +53,11 @@ public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
             .BuildServiceProvider();
 
     private static InvitationService CreateService(
-        AppDbContext context, Guid organizationId, Guid callerId, Func<IAuditTrail, IAuditTrail>? wrapTrail = null)
+        AppDbContext context,
+        Guid organizationId,
+        Guid callerId,
+        Func<IAuditTrail, IAuditTrail>? wrapTrail = null,
+        IEmailSender? emailSender = null)
     {
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(callerId.ToString());
@@ -68,7 +73,7 @@ public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
             new RoleGrantReader(context),
             new InvitationQueries(context),
             wrapTrail?.Invoke(auditTrail) ?? auditTrail,
-            Substitute.For<IEmailSender>(),
+            emailSender ?? Substitute.For<IEmailSender>(),
             new DateTimeProvider(),
             Options.Create(new EmailSettings { FrontendBaseUrl = "https://hub.example.com/" }),
             Substitute.For<ITenantAccessService>(),
@@ -78,8 +83,8 @@ public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
             NullLogger<InvitationService>.Instance);
     }
 
-    /// <summary>An organization with one confirmed account that is its Owner or not a member at all.</summary>
-    private async Task<Seeded> SeedAsync(bool accountIsOwner)
+    // Two confirmed accounts: the Owner, and the invitee who is not a member.
+    private async Task<Seeded> SeedAsync()
     {
         await using AppDbContext context = fixture.CreateDbContext();
         Organization organization = Organization.Create(
@@ -89,48 +94,61 @@ public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
         Role member = Role.Create(new RoleParams(organization.Id, "Member", SystemRoleKind.Member));
         context.Roles.AddRange(owner, member);
 
-        string handle = $"u{Guid.NewGuid():N}"[..20];
-        Account account = Account.Create(new AccountParams("Trần Bảo", handle, $"{handle}@example.com"));
-        account.ConfirmEmail();
-        context.Accounts.Add(account);
-        if (accountIsOwner)
-        {
-            OrganizationMember ownerRow =
-                OrganizationMember.Create(new OrganizationMemberParams(organization.Id, account.Id));
-            context.OrganizationMembers.Add(ownerRow);
-            context.OrganizationMemberRoles.Add(
-                OrganizationMemberRole.Create(new OrganizationMemberRoleParams(ownerRow.Id, owner.Id)));
-        }
+        Account ownerAccount = AddConfirmedAccount(context, "Chủ sở hữu");
+        Account invitee = AddConfirmedAccount(context, "Trần Bảo");
+        OrganizationMember ownerRow =
+            OrganizationMember.Create(new OrganizationMemberParams(organization.Id, ownerAccount.Id));
+        context.OrganizationMembers.Add(ownerRow);
+        context.OrganizationMemberRoles.Add(
+            OrganizationMemberRole.Create(new OrganizationMemberRoleParams(ownerRow.Id, owner.Id)));
 
         await context.SaveChangesAsync();
-        return new Seeded(organization.Id, organization.Name, account.Id, member.Id);
+        return new Seeded(organization.Id, organization.Name, ownerAccount.Id, invitee.Id, invitee.Email, member.Id);
     }
 
-    private async Task<string> SeedInvitationAsync(Seeded seeded)
+    private static Account AddConfirmedAccount(AppDbContext context, string name)
     {
+        string handle = $"u{Guid.NewGuid():N}"[..20];
+        Account account = Account.Create(new AccountParams(name, handle, $"{handle}@example.com"));
+        account.ConfirmEmail();
+        context.Accounts.Add(account);
+        return account;
+    }
+
+    // Sent through the service and read back from the mail, so only production code ever hashes the token.
+    private async Task<string> SendInvitationAsync(Seeded seeded)
+    {
+        IEmailSender emailSender = Substitute.For<IEmailSender>();
+        string? body = null;
+        emailSender.When(sender => sender.SendAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()))
+            .Do(callInfo => body = callInfo.ArgAt<string>(2));
         await using AppDbContext context = fixture.CreateDbContext();
-        Account account = await context.Accounts.SingleAsync(candidate => candidate.Id == seeded.AccountId);
-        string token = $"tok-{Guid.NewGuid():N}";
-        context.OrganizationInvitations.Add(OrganizationInvitation.Create(new OrganizationInvitationParams(
-            seeded.OrganizationId, account.Email, seeded.MemberRoleId, HashOf(token), DateTime.UtcNow)));
-        await context.SaveChangesAsync();
-        return token;
+        InvitationService owner =
+            CreateService(context, seeded.OrganizationId, seeded.OwnerId, emailSender: emailSender);
+
+        await owner.SendAsync(
+            new SendInvitationRequest(seeded.InviteeEmail, seeded.MemberRoleId), CancellationToken.None);
+
+        Match link = InviteLink().Match(body ?? string.Empty);
+        Assert.True(link.Success);
+        return link.Groups[1].Value;
     }
 
     // Review Focus 3, F12: two tabs accept one link; the second waits for the lock, then finds itself already in.
     [Fact]
     public async Task AcceptAsync_TwoTabsAcceptOneTokenConcurrently_BothJoinOnceAndInvitationIsGone()
     {
-        Seeded seeded = await SeedAsync(accountIsOwner: false);
-        string token = await SeedInvitationAsync(seeded);
+        Seeded seeded = await SeedAsync();
+        string token = await SendInvitationAsync(seeded);
         TaskCompletionSource firstEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource releaseFirst = new(TaskCreationOptions.RunContinuationsAsynchronously);
         await using AppDbContext firstContext = fixture.CreateDbContext();
         await using AppDbContext secondContext = fixture.CreateDbContext();
         InvitationService first = CreateService(
-            firstContext, Guid.Empty, seeded.AccountId,
+            firstContext, Guid.Empty, seeded.InviteeId,
             trail => new PausingAuditTrail(trail, firstEntered, releaseFirst.Task));
-        InvitationService second = CreateService(secondContext, Guid.Empty, seeded.AccountId);
+        InvitationService second = CreateService(secondContext, Guid.Empty, seeded.InviteeId);
 
         Task<AcceptInvitationResult> firstAccept =
             first.AcceptAsync(new InvitationTokenRequest(token), CancellationToken.None);
@@ -150,7 +168,7 @@ public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
 
         await using AppDbContext reader = fixture.CreateDbContext();
         OrganizationMember member = await reader.OrganizationMembers.SingleAsync(
-            candidate => candidate.OrganizationId == seeded.OrganizationId && candidate.AccountId == seeded.AccountId);
+            candidate => candidate.OrganizationId == seeded.OrganizationId && candidate.AccountId == seeded.InviteeId);
         Assert.True(member.IsActive);
         Assert.Equal(
             [seeded.MemberRoleId],
@@ -167,16 +185,16 @@ public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
     [Fact]
     public async Task SendAsync_TwoSendsToOneEmailConcurrently_LeaveOneInvitation()
     {
-        Seeded seeded = await SeedAsync(accountIsOwner: true);
+        Seeded seeded = await SeedAsync();
         SendInvitationRequest request = new($"invitee-{Guid.NewGuid():N}@example.com", seeded.MemberRoleId);
         TaskCompletionSource firstEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource releaseFirst = new(TaskCreationOptions.RunContinuationsAsynchronously);
         await using AppDbContext firstContext = fixture.CreateDbContext();
         await using AppDbContext secondContext = fixture.CreateDbContext();
         InvitationService first = CreateService(
-            firstContext, seeded.OrganizationId, seeded.AccountId,
+            firstContext, seeded.OrganizationId, seeded.OwnerId,
             trail => new PausingAuditTrail(trail, firstEntered, releaseFirst.Task));
-        InvitationService second = CreateService(secondContext, seeded.OrganizationId, seeded.AccountId);
+        InvitationService second = CreateService(secondContext, seeded.OrganizationId, seeded.OwnerId);
 
         Task<InvitationDto> firstSend = first.SendAsync(request, CancellationToken.None);
         await Task.WhenAny(firstEntered.Task, firstSend).WaitAsync(StepLimit);
