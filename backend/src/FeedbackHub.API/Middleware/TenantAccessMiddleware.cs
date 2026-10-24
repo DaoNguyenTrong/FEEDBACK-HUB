@@ -14,12 +14,14 @@ namespace FeedbackHub.API.Middleware;
 /// </summary>
 public sealed class TenantAccessMiddleware(RequestDelegate next)
 {
-    private static readonly PathString[] ExemptPaths =
+    // The caller's own list and create must work whatever organization the token names (how a client recovers).
+    // Exact path only, so a route added under it stays gated.
+    private const string OrganizationsPath = "/api/organizations";
+
+    private static readonly PathString[] ExemptPrefixes =
     [
         // Logout and switch-organization must still work once the active organization is out of reach.
         "/api/auth",
-        // The caller's own organization list and organization creation work whatever organization the token names.
-        "/api/organizations",
         // Static, organization-independent catalogue.
         "/api/permissions",
         // Opened and accepted without an organization (TECH00 §5.1).
@@ -27,6 +29,10 @@ public sealed class TenantAccessMiddleware(RequestDelegate next)
         // System-administrator scope, not organization scope.
         "/api/system"
     ];
+
+    private static bool IsExempt(PathString path) =>
+        ExemptPrefixes.Any(prefix => path.StartsWithSegments(prefix))
+        || string.Equals(path.Value?.TrimEnd('/'), OrganizationsPath, StringComparison.OrdinalIgnoreCase);
 
     public async Task InvokeAsync(
         HttpContext context,
@@ -37,7 +43,7 @@ public sealed class TenantAccessMiddleware(RequestDelegate next)
         IStringLocalizer<Messages> localizer)
     {
         if (context.User.Identity?.IsAuthenticated != true
-            || ExemptPaths.Any(path => context.Request.Path.StartsWithSegments(path))
+            || IsExempt(context.Request.Path)
             || currentTenantProvider.OrganizationId is not { } organizationId)
         {
             await next(context);

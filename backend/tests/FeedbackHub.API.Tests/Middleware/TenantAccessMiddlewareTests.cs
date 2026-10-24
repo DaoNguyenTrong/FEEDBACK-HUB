@@ -1,8 +1,10 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
 using FeedbackHub.Application.Resources;
+using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
 
@@ -193,7 +195,44 @@ public sealed class TenantAccessMiddlewareTests(ApiFactoryFixture fixture) : IAs
         Assert.DoesNotContain(ApplicationMessages.OrganizationSuspended, raw);
     }
 
-    // "/api/organizations" is exempt by segment, so the singular path stays gated.
+    // List and create must work once the token's organization is suspended or the membership is gone: that is how
+    // the client recovers (switches to another organization or creates one).
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task TenantAccess_OrganizationsPath_IsExempt(bool organizationSuspended, bool memberLeft)
+    {
+        (Account account, Organization organization) =
+            await SeedAsync(member: true, memberLeft: memberLeft, organizationSuspended: organizationSuspended);
+        HttpClient client = CreateClientFor(account, organization.Id);
+
+        HttpResponseMessage list = await client.GetAsync("/api/organizations");
+        HttpResponseMessage listWithSlash = await client.GetAsync("/api/organizations/");
+        HttpResponseMessage create = await client.PostAsJsonAsync(
+            "/api/organizations", new CreateOrganizationRequest("Công ty Mới", $"moi-{Guid.NewGuid():N}"));
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, listWithSlash.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+    }
+
+    // Only the list-and-create path itself is exempt; a route added under it is gated like any other.
+    [Theory]
+    [InlineData("/api/organizations/export")]
+    [InlineData("/api/organizations/__probe/__probe")]
+    public async Task TenantAccess_OrganizationsSubroute_IsNotExempt(string path)
+    {
+        (Account account, Organization organization) = await SeedAsync(member: true, organizationSuspended: true);
+        HttpClient client = CreateClientFor(account, organization.Id);
+
+        HttpResponseMessage response = await client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, body.RootElement.GetProperty("code").GetString());
+    }
+
+    // "/api/organizations" is exempt by exact path, so the singular path stays gated.
     [Fact]
     public async Task TenantAccess_SingularOrganizationPath_IsNotExempt()
     {
