@@ -52,7 +52,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 - **PRD:** PRD00-FR-42, FR-44, FR-46, FR-53, FR-63, FR-38. Đối chiếu AC cụ thể (đổi tên API-04 AC-226 (slug không đổi), tạo tổ chức không ghi nhật ký AC-364) theo test trong mục Test.
 - **Vào bằng:** chưa có màn hình (phần 8 của kế hoạch). Gọi API bằng token của thành viên tổ chức, hoặc của admin hệ thống cho `api/system/*`. Cấp và thu hồi admin hệ thống chỉ qua CLI trên server: `dotnet run --project backend/src/FeedbackHub.API -- grant-system-admin --email <email>` và `revoke-system-admin --email <email>` (mã thoát 0 xong hoặc không có gì để làm, 1 sai cú pháp, 2 không có tài khoản, 3 email chưa xác minh).
-- **Frontend:** phần 3 không thêm màn hình. `OrganizationMembersDialog` không còn nút ngưng hoạt động (route `DELETE api/organizations/{id}` đã bỏ); phần 8 thay các màn hình này.
+- **Frontend:** phần 3 không thêm màn hình; phần 8 dựng màn hình tổ chức.
 - **Backend:**
   - `GET /api/organization`, `PATCH /api/organization` (đổi tên, API-04; cùng tên thì 200 không ghi), `POST /api/organization/deactivate` → `CurrentOrganizationController` → `IOrganizationContextService`
   - `POST /api/organizations`, `GET /api/organizations` (API-01, API-02) → `OrganizationsController`
@@ -64,7 +64,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
   - Application: `OrganizationContextServiceTests`, `OrganizationServiceTests`, `SystemOrganizationServiceTests`, `SystemAdministratorActorTests`, `SystemAdministratorServiceTests`, `AuditEventCatalogTests`
   - Domain: `OrganizationTests`, `SystemAdministratorTests`, `AuditEventTests`
   - Infrastructure: `OrganizationContextAuthorizationHandlerTests`, `SystemAdministratorAuthorizationHandlerTests`, `SystemAdministratorResolverTests`, `TenantAccessServiceTests`, `AuditTrailTests`, `OrganizationLockTests`, `SystemOrganizationQueriesTests`
-  - Frontend unit: `frontend/tests/components/OrganizationMembersDialog.test.ts`, `frontend/tests/unit/stores/organizations.test.ts`
+  - Frontend unit: `frontend/tests/unit/stores/organizations.test.ts`
 - **Dữ liệu test:** admin hệ thống được cấp bằng lệnh CLI ở trên cho một tài khoản đã xác minh email; không có seed riêng.
 - **Cách kiểm tra "đã chạy đúng":**
   1. `grant-system-admin --email <email>` in `Granted system administrator to ...`; chạy lại in `... is already a system administrator.` với mã thoát 0.
@@ -72,3 +72,24 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
   3. `POST /api/system/organizations/{id}/deactivate` kèm `reason`, rồi gọi API của thành viên tổ chức đó: 403 `OrganizationSuspended`. `reactivate` đưa về 200.
   4. `PATCH /api/organization` với tên mới trả 200 và có đúng một mục `OrganizationRenamed`; gửi lại cùng tên không thêm mục.
 - **Rủi ro hay gặp:** thân `PATCH /api/organization` chỉ có `slug` trả 400 `OrganizationNameRequired`; lý do vô hiệu không nằm trong mục sự kiện (API-33) hay log ứng dụng; chỉ có trong snapshot `Change` của `audit_logs`.
+
+## Thành viên và vai trò của tổ chức
+
+- **PRD:** PRD00-FR-23, FR-29, FR-52, FR-59, FR-60, FR-62, FR-64, FR-66.
+- **Vào bằng:** chưa có màn hình (phần 8 của kế hoạch). Trang Tổ chức chỉ còn danh sách và nút chuyển tổ chức; hai hộp thoại thành viên, vai trò cũ đã bỏ cùng route `api/organizations/{id}/...`. Gọi API bằng token của thành viên tổ chức đang làm việc.
+- **Backend:**
+  - API-06 đến API-09: `GET /api/organization/members`, `PUT /api/organization/members/{accountId}/roles`, `DELETE /api/organization/members/{accountId}`, `POST /api/organization/leave` → `CurrentOrganizationController` → `IMemberService`
+  - API-14 đến API-18: `GET /api/organization/role-options`, `GET/POST /api/organization/roles`, `PUT/DELETE /api/organization/roles/{id}` → `CurrentOrganizationController` → `IRoleService`
+  - BR-58 chỉ tính trong `RoleGrantPolicy` (đầu vào đọc qua `IRoleGrantReader`); mọi thao tác ghi khoá tổ chức bằng `IOrganizationLock` trước, ghi một mục nhật ký qua `IAuditTrail`, rồi xoá cache quyền và truy cập
+- **Test đã có:**
+  - API: `CurrentOrganizationMembersTests`, `CurrentOrganizationRolesTests`, `Middleware/TenantAccessMiddlewareTests`, `Architecture/ArchitectureTests`
+  - Application: `MemberServiceListTests`, `MemberServiceWriteTests`, `RoleGrantPolicyTests`, `RoleServiceReadTests`, `RoleServiceWriteTests`, `SystemRoleDisplayNamesTests`, `SystemRoleDefaultsTests`
+  - Domain: `OrganizationMemberTests`, `RoleTests`
+  - Infrastructure: `OrganizationMemberQueriesTests`, `RoleQueriesTests`, `RoleGrantReaderTests`, `RoleDisplayOrderTests`, `MemberConcurrencyTests`, `RoleConcurrencyTests`, `Migrations/RoleMigrationsTests`
+- **Dữ liệu test:** tạo tổ chức qua `POST /api/organizations` (người tạo là Owner); vai trò Admin, Member có sẵn.
+- **Cách kiểm tra "đã chạy đúng":**
+  1. `GET /api/organization/members` trả 200 với `canChangeRoles`, `canRemove`, `lockReason` theo từng dòng; dòng của chính mình có `canRemove = false`.
+  2. `PUT .../members/{accountId}/roles` với `roleIds: []` trả 400 `OrganizationMemberRequiresAtLeastOneRole`; thêm Owner bằng token Admin trả 403 `OwnerOnlyOperation`.
+  3. `POST /api/organization/leave` khi là Owner cuối cùng trả 409 `LastOwnerCannotLeave`.
+  4. Tạo vai trò tên trùng (không phân biệt hoa thường) trả 409; xoá vai trò còn người giữ trả 409 `RoleHasHolders`.
+- **Rủi ro hay gặp:** route `api/organizations/{id}/...` không còn (404); `roleIds` hoặc `permissionCodes` thiếu trong thân trả 400.
