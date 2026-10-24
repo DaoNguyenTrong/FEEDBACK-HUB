@@ -18,6 +18,7 @@ public sealed class AppDbContext(
     [
         typeof(RefreshToken),
         typeof(EmailVerificationToken),
+        typeof(OrganizationInvitation),
         typeof(Notification),
         typeof(PushSubscription)
     ];
@@ -54,6 +55,8 @@ public sealed class AppDbContext(
     public DbSet<Organization> Organizations => Set<Organization>();
 
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
+
+    public DbSet<OrganizationInvitation> OrganizationInvitations => Set<OrganizationInvitation>();
 
     public DbSet<OrganizationMemberRole> OrganizationMemberRoles => Set<OrganizationMemberRole>();
 
