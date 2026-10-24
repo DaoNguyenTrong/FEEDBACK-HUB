@@ -79,14 +79,14 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 - **Vào bằng:** chưa có màn hình (phần 8 của kế hoạch). Trang Tổ chức chỉ còn danh sách và nút chuyển tổ chức; hai hộp thoại thành viên, vai trò cũ đã bỏ cùng route `api/organizations/{id}/...`. Gọi API bằng token của thành viên tổ chức đang làm việc.
 - **Backend:**
   - API-06 đến API-09: `GET /api/organization/members`, `PUT /api/organization/members/{accountId}/roles`, `DELETE /api/organization/members/{accountId}`, `POST /api/organization/leave` → `CurrentOrganizationController` → `IMemberService`
-  - API-14 đến API-18: `GET /api/organization/role-options`, `GET/POST /api/organization/roles`, `PUT/DELETE /api/organization/roles/{id}` → `CurrentOrganizationController` → `IRoleService`
-  - BR-58 chỉ tính trong `RoleGrantPolicy` (đầu vào đọc qua `IRoleGrantReader`); mọi thao tác ghi khoá tổ chức bằng `IOrganizationLock` trước, ghi một mục nhật ký qua `IAuditTrail`, rồi xoá cache quyền và truy cập
+  - API-14 đến API-18: `GET /api/organization/role-options`, `GET/POST /api/organization/roles`, `PUT/DELETE /api/organization/roles/{roleId}` → `CurrentOrganizationController` → `IRoleService`
+  - BR-58 chỉ tính trong `RoleGrantPolicy` (đầu vào đọc qua `IRoleGrantReader`); mọi thao tác ghi khoá tổ chức bằng `IOrganizationLock` trước, kiểm lại từ cơ sở dữ liệu tư cách thành viên, trạng thái tổ chức và quyền của endpoint (`organizations.members.manage` hoặc `organizations.roles.manage`; rời tổ chức không cần quyền), ghi một mục nhật ký qua `IAuditTrail`, rồi xoá cache quyền và truy cập
 - **Test đã có:**
   - API: `CurrentOrganizationMembersTests`, `CurrentOrganizationRolesTests`, `Middleware/TenantAccessMiddlewareTests`, `Architecture/ArchitectureTests`
   - Application: `MemberServiceListTests`, `MemberServiceWriteTests`, `RoleGrantPolicyTests`, `RoleServiceReadTests`, `RoleServiceWriteTests`, `SystemRoleDisplayNamesTests`, `SystemRoleDefaultsTests`
   - Domain: `OrganizationMemberTests`, `RoleTests`
   - Infrastructure: `OrganizationMemberQueriesTests`, `RoleQueriesTests`, `RoleGrantReaderTests`, `RoleDisplayOrderTests`, `MemberConcurrencyTests`, `RoleConcurrencyTests`, `Migrations/RoleMigrationsTests`
-- **Dữ liệu test:** tạo tổ chức qua `POST /api/organizations` (người tạo là Owner); vai trò Admin, Member có sẵn.
+- **Dữ liệu test:** `dotnet run --project backend/src/FeedbackHub.API -- seed-dev` (không chạy ở Production, chạy lại không đổi gì) tạo tổ chức `Dev` (slug `dev`) với hai tài khoản đã xác thực email: `e2e-admin` / `E2e-Admin!2026` giữ vai trò **Owner** (tên có chữ "admin" nhưng không phải vai trò Admin) và `e2e-user` / `E2e-User!2026` giữ vai trò **Member**. Đăng nhập rồi `POST /api/auth/switch-organization` với id tổ chức `Dev` để có token của tổ chức. Bước 2 cần token Admin: dùng token Owner cho `e2e-user` vai trò Admin (`PUT .../members/{accountId}/roles`), rồi đăng nhập lại bằng `e2e-user`.
 - **Cách kiểm tra "đã chạy đúng":**
   1. `GET /api/organization/members` trả 200 với `canChangeRoles`, `canRemove`, `lockReason` theo từng dòng; dòng của chính mình có `canRemove = false`.
   2. `PUT .../members/{accountId}/roles` với `roleIds: []` trả 400 `OrganizationMemberRequiresAtLeastOneRole`; thêm Owner bằng token Admin trả 403 `OwnerOnlyOperation`.
