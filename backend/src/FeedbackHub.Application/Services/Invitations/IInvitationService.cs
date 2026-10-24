@@ -35,4 +35,15 @@ public interface IInvitationService
     /// </summary>
     /// <remarks>Refuses in the BR-81 order: 409 <c>InvitationNoLongerValid</c>, <c>InvitationExpired</c>, <c>InvitationWrongAccount</c>, 403 <c>EmailNotConfirmed</c>, 409 <c>InvitationOrganizationSuspended</c>.</remarks>
     Task<AcceptInvitationResult> AcceptAsync(InvitationTokenRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Creates a verified account with the invitation's email, joins it to the organization unless that is suspended
+    /// (then the invitation is kept), and signs it in through <c>TokenIssuer</c> after the commit.
+    /// </summary>
+    /// <remarks>409 <c>InvitationNoLongerValid</c>, <c>InvitationExpired</c>, <c>AccountUsernameAlreadyExists</c>, <c>AccountEmailAlreadyExists</c>; nothing is created then.</remarks>
+    Task<RegisterWithInvitationResult> RegisterAsync(
+        RegisterWithInvitationRequest request,
+        string? deviceInfo,
+        string? ipAddress,
+        CancellationToken cancellationToken);
 }

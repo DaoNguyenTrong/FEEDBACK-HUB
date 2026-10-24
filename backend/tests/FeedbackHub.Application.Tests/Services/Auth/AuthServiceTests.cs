@@ -527,7 +527,7 @@ public class AuthServiceTests
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Info("sub-1", account.Email, false));
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None)).Auth;
 
         Assert.Equal("fake-access-token", result.AccessToken);
     }
@@ -558,7 +558,7 @@ public class AuthServiceTests
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Info("sub-1", tokenEmail, verified));
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None)).Auth;
 
         Assert.False(account.EmailConfirmed);
         Assert.Equal("fake-access-token", result.AccessToken);
@@ -627,7 +627,7 @@ public class AuthServiceTests
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Info("sub-1", null, true));
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None)).Auth;
 
         Assert.Equal("fake-access-token", result.AccessToken);
         Assert.False(account.EmailConfirmed);
@@ -728,7 +728,7 @@ public class AuthServiceTests
             .Returns(new ExternalUserInfo("google-sub-1", account.Email, "Nguyen Van A", EmailVerified: true));
         ExternalLoginRequest request = new("some-credential");
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None)).Auth;
 
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
@@ -749,8 +749,8 @@ public class AuthServiceTests
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new ExternalUserInfo("google-sub-1", account.Email, "Nguyen Van A", EmailVerified: true));
 
-        AuthResult result = await f.Service.ExternalLoginAsync(
-            "google", new ExternalLoginRequest("some-credential"), null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync(
+            "google", new ExternalLoginRequest("some-credential"), null, null, CancellationToken.None)).Auth;
 
         Assert.Equal("fake-access-token", result.AccessToken);
         await f.LoginAttempts.Received(1).ClearAsync(PasswordAttemptPurpose.Login, account.Id, Arg.Any<CancellationToken>());
@@ -767,7 +767,7 @@ public class AuthServiceTests
             .Returns(new ExternalUserInfo("google-sub-2", "newuser@example.com", "New User", EmailVerified: true));
         ExternalLoginRequest request = new("some-credential");
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None)).Auth;
 
         await f.AccountRepo.Received(1).AddAsync(
             Arg.Is<Account>(a => a != null && a.Email == "newuser@example.com" && a.Username == "newuser" && a.EmailConfirmed),
@@ -826,13 +826,57 @@ public class AuthServiceTests
             .Returns(new ExternalUserInfo("google-sub-5", "verified@example.com", "Verified User", EmailVerified: true));
         ExternalLoginRequest request = new("some-credential");
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None)).Auth;
 
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
         await f.ExternalLoginRepo.Received(1).AddAsync(
             Arg.Is<ExternalLogin>(l => l != null && l.AccountId == existing.Id && l.ProviderUserId == "google-sub-5"),
             Arg.Any<CancellationToken>());
         Assert.Equal(existing.Id, result.Account.Id);
+    }
+
+    // AC-178: the invitation page accepts on its own only for an account this sign-in created.
+    [Fact]
+    public async Task ExternalLoginAsync_NewAccount_AccountCreatedTrue()
+    {
+        Fixture f = CreateFixture();
+        RepositoryPredicateStub.StubFirstOrDefault(f.ExternalLoginRepo, []);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, []);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new ExternalUserInfo("google-sub-6", "brandnew@example.com", "Brand New", EmailVerified: true));
+
+        ExternalLoginResult result = await f.Service.ExternalLoginAsync(
+            "google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.True(result.AccountCreated);
+        Assert.Equal("fake-access-token", result.Auth.AccessToken);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExternalLoginAsync_LinkedOrEmailMatched_AccountCreatedFalse(bool linked)
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(email: "known@example.com", emailConfirmed: true);
+        if (linked)
+        {
+            SeedExternalLogin(f, account);
+        }
+        else
+        {
+            RepositoryPredicateStub.StubFirstOrDefault(f.ExternalLoginRepo, []);
+            RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [account]);
+        }
+
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-1", account.Email, true));
+
+        ExternalLoginResult result = await f.Service.ExternalLoginAsync(
+            "google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.False(result.AccountCreated);
+        Assert.Equal(account.Id, result.Auth.Account.Id);
     }
 
     // RefreshTokenAsync

@@ -124,25 +124,35 @@ public sealed class AuthController(
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     [HttpPost("external/{provider}")]
-    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ExternalLoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<LoginResponse>> ExternalLogin(
+    public async Task<ActionResult<ExternalLoginResponse>> ExternalLogin(
         string provider,
         ExternalLoginRequest request,
         CancellationToken cancellationToken)
     {
-        AuthResult result = await authService.ExternalLoginAsync(
+        ExternalLoginResult result = await authService.ExternalLoginAsync(
             provider,
             request,
             Request.Headers.UserAgent.ToString(),
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             cancellationToken);
 
-        SetAuthCookies(result);
+        SetAuthCookies(result.Auth);
 
-        return Ok(ToResponse(result));
+        AuthResult auth = result.Auth;
+        return Ok(new ExternalLoginResponse(
+            auth.AccessToken,
+            auth.RefreshToken,
+            auth.AccessTokenExpiry,
+            auth.Account,
+            auth.OrganizationId,
+            auth.OrganizationName,
+            auth.Permissions,
+            auth.IsSystemAdministrator,
+            result.AccountCreated));
     }
 
     /// <summary>Refreshes the access token using a refresh token. The refresh token can be sent in the request body or via cookie.</summary>

@@ -16,7 +16,7 @@ public interface IAuthService
 
     Task RevokeTokenAsync(string refreshToken, CancellationToken cancellationToken);
 
-    Task<AuthResult> ExternalLoginAsync(
+    Task<ExternalLoginResult> ExternalLoginAsync(
         string provider,
         ExternalLoginRequest request,
         string? deviceInfo,

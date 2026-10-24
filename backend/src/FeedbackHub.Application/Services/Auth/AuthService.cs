@@ -203,7 +203,7 @@ public sealed class AuthService(
         throw new UnauthorizedException(ApplicationMessages.InvalidRefreshToken);
     }
 
-    public async Task<AuthResult> ExternalLoginAsync(
+    public async Task<ExternalLoginResult> ExternalLoginAsync(
         string provider,
         ExternalLoginRequest request,
         string? deviceInfo,
@@ -224,6 +224,7 @@ public sealed class AuthService(
             cancellationToken);
 
         Account account;
+        bool accountCreated = false;
 
         if (existingLogin is not null)
         {
@@ -279,6 +280,7 @@ public sealed class AuthService(
                 account.ConfirmEmail();
 
                 await accountRepository.AddAsync(account, cancellationToken);
+                accountCreated = true;
             }
 
             ExternalLogin login = ExternalLogin.Create(new ExternalLoginParams(
@@ -291,7 +293,8 @@ public sealed class AuthService(
 
         Guid? organizationId = await tokenIssuer.ResolveDefaultOrganizationIdAsync(account.Id, cancellationToken);
 
-        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, false, DateTime.UtcNow, familyId: null, cancellationToken);
+        AuthResult auth = await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, false, DateTime.UtcNow, familyId: null, cancellationToken);
+        return new ExternalLoginResult(auth, accountCreated);
     }
 
     public async Task RevokeTokenAsync(string refreshToken, CancellationToken cancellationToken)
