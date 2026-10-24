@@ -298,7 +298,6 @@ public class InvitationServiceAcceptTests
             return member;
         }
 
-        /// <returns>The raw token of the link; only its hash is stored.</returns>
         public (string Token, OrganizationInvitation Invitation) Invite(
             string email, RoleGrantRole role, DateTime issuedAt)
         {
