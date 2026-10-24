@@ -102,7 +102,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
   - API-10 đến API-13: `GET/POST /api/organization/invitations`, `POST /api/organization/invitations/{id}/resend`, `DELETE /api/organization/invitations/{id}` → `CurrentOrganizationController` → `IInvitationService`
   - API-20, API-21: `POST /api/invitations/lookup` (ẩn danh), `POST /api/invitations/accept` (cần đăng nhập) → `InvitationsController` → `IInvitationService`
   - API-22: `POST /api/auth/register-with-invitation` → `AuthController` → `IInvitationService`
-  - Ba API ngoài tổ chức dùng giới hạn tốc độ `invitation` (429). Danh sách đọc qua `IInvitationQueries` (kèm `pendingInvitationCount` ở `GET /api/organization/roles`). Gửi và gửi lại khoá tổ chức, kiểm BR-58, rồi gửi email; email lỗi trả 503 `InvitationEmailDeliveryFailed` và không giữ lời mời. Gửi lại tới email đã là thành viên trả 409 `InvitationEmailAlreadyMember`.
+  - Lookup và accept dùng giới hạn tốc độ `invitation`, register-with-invitation dùng `auth` (429). Danh sách đọc qua `IInvitationQueries` (kèm `pendingInvitationCount` ở `GET /api/organization/roles`). Gửi và gửi lại khoá tổ chức, kiểm BR-58, rồi gửi email; email lỗi trả 503 `InvitationEmailDeliveryFailed`: lời mời mới không được lưu, lời mời cũ vẫn mở. Gửi lại tới email đã là thành viên trả 409 `InvitationEmailAlreadyMember`.
   - Link trong thư: `{FrontendBaseUrl}/#/invite?token=...`, hạn 7×24 giờ; hạn ghi trong thư theo giờ Việt Nam (UTC+7).
 - **Test đã có:**
   - API: `CurrentOrganizationInvitationsTests`, `InvitationsControllerTests`, `Architecture/ArchitectureTests`
@@ -113,6 +113,6 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
   1. `POST /api/organization/invitations` với `email` và `roleId` trả 201; thư chứa link `/#/invite?token=...`. Mời lại cùng email thay lời mời cũ.
   2. `POST /api/invitations/lookup` với token trả 200 `status = Valid`; sau khi thu hồi trả `NoLongerValid`.
   3. `POST /api/auth/register-with-invitation` với token hợp lệ trả 200 `invitationOutcome = Joined` và tài khoản vào tổ chức với vai trò đã mời; token đã dùng trả 409.
-  4. `POST /api/invitations/accept` bằng tài khoản đã đăng nhập có email khớp trả 200; email lệch trả 403.
+  4. `POST /api/invitations/accept` bằng tài khoản đã đăng nhập có email khớp trả 200; email lệch trả 409 `InvitationWrongAccount`, email chưa xác minh trả 403 `EmailNotConfirmed`.
 - **Rủi ro hay gặp:** thiếu `EmailSettings:FrontendBaseUrl` làm ứng dụng không khởi động; vượt giới hạn tốc độ trả 429; mã lỗi lời mời mới mới chỉ có chữ trong resx, chữ `vi`/`en` ở frontend thuộc phần 8.
 - **Frontend:** chưa có; phần 8 dựng màn hình *Lời mời* và *InviteAccept*.
