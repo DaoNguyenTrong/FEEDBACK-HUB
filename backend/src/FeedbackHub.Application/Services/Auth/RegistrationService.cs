@@ -30,11 +30,8 @@ public sealed class RegistrationService(
     {
         IRepository<Account, Guid> accountRepository = unitOfWork.Repository<Account, Guid>();
 
-        await EnsureUniqueAccountAsync(
-            accountRepository,
-            Account.NormalizeUsername(request.Username),
-            Account.NormalizeEmail(request.Email),
-            cancellationToken);
+        await AccountUniqueness.EnsureAvailableAsync(
+            accountRepository, request.Username, request.Email, cancellationToken);
 
         Account account = Account.Create(request.ToParams());
         account.SetPasswordHash(passwordHasher.Hash(request.Password));
@@ -159,27 +156,6 @@ public sealed class RegistrationService(
         await emailChangeLink.ConsumeAllAsync(account.Id, purpose: null, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-    }
-
-    private static async Task EnsureUniqueAccountAsync(
-        IRepository<Account, Guid> accountRepository,
-        string username,
-        string email,
-        CancellationToken cancellationToken)
-    {
-        if (await accountRepository.FirstOrDefaultAsync(
-                account => account.Username == username,
-                cancellationToken) is not null)
-        {
-            throw new ConflictException(ApplicationMessages.AccountUsernameAlreadyExists);
-        }
-
-        if (await accountRepository.FirstOrDefaultAsync(
-                account => account.Email == email,
-                cancellationToken) is not null)
-        {
-            throw new ConflictException(ApplicationMessages.AccountEmailAlreadyExists);
-        }
     }
 
     private async Task IssueVerificationTokenAsync(Account account, CancellationToken cancellationToken)

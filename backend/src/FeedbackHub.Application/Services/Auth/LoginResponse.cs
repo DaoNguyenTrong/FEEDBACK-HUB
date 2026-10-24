@@ -2,7 +2,7 @@ using FeedbackHub.Application.Services.Accounts;
 
 namespace FeedbackHub.Application.Services.Auth;
 
-public sealed record LoginResponse(
+public record LoginResponse(
     string AccessToken,
     string RefreshToken,
     DateTime AccessTokenExpiry,

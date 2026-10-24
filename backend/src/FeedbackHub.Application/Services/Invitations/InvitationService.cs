@@ -7,6 +7,7 @@ using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditTrail;
+using FeedbackHub.Application.Services.Auth;
 using FeedbackHub.Application.Services.OrganizationLocking;
 using FeedbackHub.Application.Services.Roles;
 using FeedbackHub.Domain.Auditing;
@@ -29,6 +30,8 @@ public sealed class InvitationService(
     IOptions<EmailSettings> emailOptions,
     ITenantAccessService tenantAccessService,
     IPermissionResolver permissionResolver,
+    ITokenIssuer tokenIssuer,
+    IPasswordHasher passwordHasher,
     ILogger<InvitationService> logger) : IInvitationService
 {
     private readonly EmailSettings emailSettings = emailOptions.Value;
@@ -183,13 +186,8 @@ public sealed class InvitationService(
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            // The invitee is not a member, so no write gate: this read only names the organization to lock (F9).
-            OrganizationInvitation found = await FindByTokenAsync(request.Token, ct)
-                ?? throw new ConflictException(ApplicationMessages.InvitationNoLongerValid);
-            Guid organizationId = found.OrganizationId;
-            await organizationLock.AcquireAsync(organizationId, ct);
-
-            OrganizationInvitation? invitation = await FindByTokenAsync(request.Token, ct);
+            (Guid organizationId, OrganizationInvitation? invitation) =
+                await LockInvitationOrganizationAsync(request.Token, ct);
             OrganizationMember? member = await unitOfWork.Repository<OrganizationMember, Guid>().FirstOrDefaultAsync(
                 candidate => candidate.OrganizationId == organizationId && candidate.AccountId == accountId, ct);
 
@@ -226,6 +224,72 @@ public sealed class InvitationService(
         }
 
         return accepted ?? throw new InvalidOperationException("The invitation transaction completed without a result.");
+    }
+
+    public async Task<RegisterWithInvitationResult> RegisterAsync(
+        RegisterWithInvitationRequest request,
+        string? deviceInfo,
+        string? ipAddress,
+        CancellationToken cancellationToken)
+    {
+        Account? registered = null;
+        Guid? joinedOrganizationId = null;
+
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            (_, OrganizationInvitation? invitation) = await LockInvitationOrganizationAsync(request.Token, ct);
+            if (invitation is null)
+            {
+                throw new ConflictException(ApplicationMessages.InvitationNoLongerValid);
+            }
+
+            if (invitation.IsExpiredAt(dateTimeProvider.UtcNow))
+            {
+                throw new ConflictException(ApplicationMessages.InvitationExpired);
+            }
+
+            IRepository<Account, Guid> accounts = unitOfWork.Repository<Account, Guid>();
+            await AccountUniqueness.EnsureAvailableAsync(accounts, request.Username, invitation.Email, ct);
+
+            // The link proves the address (BR-63 point 6): the email is the invitation's and counts as verified.
+            Account account = Account.Create(request.ToParams(invitation.Email));
+            account.SetPasswordHash(passwordHasher.Hash(request.Password));
+            account.ConfirmEmail();
+            await accounts.AddAsync(account, ct);
+
+            Organization organization = await unitOfWork.Repository<Organization, Guid>()
+                    .GetByIdAsync(invitation.OrganizationId, ct)
+                ?? throw new ConflictException(ApplicationMessages.InvitationNoLongerValid);
+            // A suspended organization keeps the invitation, to be accepted once reactivated (BR-81 point 6, AC-333).
+            if (organization.Status)
+            {
+                await JoinAsync(invitation, account, ct);
+                joinedOrganizationId = invitation.OrganizationId;
+            }
+
+            await unitOfWork.SaveChangesAsync(ct);
+            registered = account;
+        }, cancellationToken);
+
+        Account created = registered
+            ?? throw new InvalidOperationException("The registration transaction completed without an account.");
+        if (joinedOrganizationId is { } organizationId)
+        {
+            await InvalidateMemberCachesAsync(organizationId, created.Id, cancellationToken);
+        }
+
+        // After the commit, so the session carries the saved membership and never outlives a rollback (QĐ-11).
+        AuthResult auth = await tokenIssuer.IssueTokensAsync(
+            created,
+            joinedOrganizationId,
+            deviceInfo,
+            ipAddress,
+            isPersistent: false,
+            loginAt: dateTimeProvider.UtcNow,
+            familyId: null,
+            cancellationToken);
+        return new RegisterWithInvitationResult(
+            auth, joinedOrganizationId is null ? InvitationOutcome.OrganizationSuspended : InvitationOutcome.Joined);
     }
 
     // Reactivates or creates the member row with exactly the invitation's role, records it and uses the invitation up;
@@ -473,6 +537,17 @@ public sealed class InvitationService(
     // The current address only: a pending email change does not count (BR-51, AC-348).
     private static bool IsInvitedAccount(OrganizationInvitation invitation, Account account) =>
         Account.NormalizeEmail(account.Email) == invitation.Email;
+
+    // The invitee is not a member, so no write gate: the first read only names the organization to lock, and the
+    // invitation is read again under the lock (F9).
+    private async Task<(Guid OrganizationId, OrganizationInvitation? Invitation)> LockInvitationOrganizationAsync(
+        string token, CancellationToken ct)
+    {
+        OrganizationInvitation found = await FindByTokenAsync(token, ct)
+            ?? throw new ConflictException(ApplicationMessages.InvitationNoLongerValid);
+        await organizationLock.AcquireAsync(found.OrganizationId, ct);
+        return (found.OrganizationId, await FindByTokenAsync(token, ct));
+    }
 
     // By hash through the unique index; the raw token goes nowhere else (TECH00 §7.3, F17).
     private Task<OrganizationInvitation?> FindByTokenAsync(string token, CancellationToken ct)

@@ -8,6 +8,7 @@ using NSubstitute;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Services.AuditTrail;
+using FeedbackHub.Application.Services.Auth;
 using FeedbackHub.Application.Services.Invitations;
 using FeedbackHub.Domain.Auditing;
 using FeedbackHub.Domain.Entities;
@@ -72,6 +73,8 @@ public sealed class InvitationConcurrencyTests(PostgresContainerFixture fixture)
             Options.Create(new EmailSettings { FrontendBaseUrl = "https://hub.example.com/" }),
             Substitute.For<ITenantAccessService>(),
             Substitute.For<IPermissionResolver>(),
+            Substitute.For<ITokenIssuer>(),
+            Substitute.For<IPasswordHasher>(),
             NullLogger<InvitationService>.Instance);
     }
 

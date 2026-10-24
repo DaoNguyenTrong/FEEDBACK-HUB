@@ -9,6 +9,7 @@ using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditTrail;
+using FeedbackHub.Application.Services.Auth;
 using FeedbackHub.Application.Services.Invitations;
 using FeedbackHub.Application.Services.OrganizationLocking;
 using FeedbackHub.Application.Services.Roles;
@@ -121,6 +122,8 @@ public partial class InvitationServiceManageTests
                 Options.Create(new EmailSettings { FrontendBaseUrl = "https://hub.example.com/" }),
                 Substitute.For<ITenantAccessService>(),
                 Substitute.For<IPermissionResolver>(),
+                Substitute.For<ITokenIssuer>(),
+                Substitute.For<IPasswordHasher>(),
                 Substitute.For<ILogger<InvitationService>>());
         }
 
