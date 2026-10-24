@@ -62,8 +62,9 @@ organization — personal context, API key or non-member (403 or 404), organizat
 `OrganizationSuspended` with `organizationName`), missing permission (403 `OrganizationAccessDenied`). The organization
 is always the JWT's `org_id`: no route takes an organization id (QĐ-06) — `api/organizations` serves only the caller's
 own list and create, and the `api/system/organizations/{id}` routes use `SystemAdministrator`, never a permission code.
-`ArchitectureTests` fails CI on a route under `api/organizations/{…}` or a permission-coded route naming an
-organization.
+`ArchitectureTests` fails CI on a route under `api/organizations/{…}` or a route naming an organization whose policy
+is a permission code or an `ActiveOrganizationMember*` policy. `TenantAccessMiddleware` exempts only the exact
+`/api/organizations` path (list and create), so a route added under it is gated.
 Effective permissions resolve per request through a short-TTL cache, not the JWT. The frontend's
 `meta.permission` route gate is UI-only (`frontend-conventions.md`).
 
