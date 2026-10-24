@@ -31,4 +31,7 @@ public static class DomainMessages
     public const string NotificationDedupeKeyTooLong = nameof(NotificationDedupeKeyTooLong);
     public const string PushSubscriptionTokenRequired = nameof(PushSubscriptionTokenRequired);
     public const string PushSubscriptionPlatformRequired = nameof(PushSubscriptionPlatformRequired);
+    public const string InvitationOrganizationRequired = nameof(InvitationOrganizationRequired);
+    public const string InvitationRoleRequired = nameof(InvitationRoleRequired);
+    public const string InvitationTokenHashInvalid = nameof(InvitationTokenHashInvalid);
 }

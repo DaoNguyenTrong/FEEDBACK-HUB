@@ -237,4 +237,13 @@
   <data name="EmailDeliveryFailed" xml:space="preserve">
     <value>The email could not be sent. Please try again later.</value>
   </data>
+  <data name="InvitationOrganizationRequired" xml:space="preserve">
+    <value>An invitation must belong to an organization.</value>
+  </data>
+  <data name="InvitationRoleRequired" xml:space="preserve">
+    <value>An invitation must have a role.</value>
+  </data>
+  <data name="InvitationTokenHashInvalid" xml:space="preserve">
+    <value>The invitation code is invalid.</value>
+  </data>
 </root>
