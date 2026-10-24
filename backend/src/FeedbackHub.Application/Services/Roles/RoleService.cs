@@ -18,14 +18,16 @@ public sealed class RoleService(
     IRoleGrantReader roleGrantReader,
     IOrganizationLock organizationLock,
     IAuditTrail auditTrail,
-    IPermissionResolver permissionResolver) : IRoleService
+    IPermissionResolver permissionResolver,
+    IDateTimeProvider dateTimeProvider) : IRoleService
 {
     public async Task<IReadOnlyList<RoleOptionDto>> ListOptionsAsync(CancellationToken cancellationToken)
     {
         Guid organizationId = RequireOrganizationId();
         RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(
             organizationId, GetCurrentAccountId(), cancellationToken);
-        IReadOnlyList<RoleRow> rows = await roleQueries.ListAsync(organizationId, cancellationToken);
+        IReadOnlyList<RoleRow> rows =
+            await roleQueries.ListAsync(organizationId, dateTimeProvider.UtcNow, cancellationToken);
 
         return rows
             .Select(row => new RoleOptionDto(
@@ -38,7 +40,8 @@ public sealed class RoleService(
         Guid organizationId = RequireOrganizationId();
         RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(
             organizationId, GetCurrentAccountId(), cancellationToken);
-        IReadOnlyList<RoleRow> rows = await roleQueries.ListAsync(organizationId, cancellationToken);
+        IReadOnlyList<RoleRow> rows =
+            await roleQueries.ListAsync(organizationId, dateTimeProvider.UtcNow, cancellationToken);
 
         return rows.Select(row => ToDto(row, caller)).ToList();
     }
@@ -148,7 +151,7 @@ public sealed class RoleService(
         {
             (Role role, _, _) = await LockAndLoadEditableRoleAsync(organizationId, callerId, roleId, ct);
 
-            RoleRow row = await roleQueries.GetAsync(organizationId, role.Id, ct)
+            RoleRow row = await roleQueries.GetAsync(organizationId, role.Id, dateTimeProvider.UtcNow, ct)
                 ?? throw new NotFoundException(nameof(Role), roleId);
             if (row.HolderCount > 0)
             {
@@ -282,7 +285,7 @@ public sealed class RoleService(
     private async Task<RoleDto> LoadDtoAsync(
         Guid organizationId, Guid roleId, RoleGrantCaller caller, CancellationToken cancellationToken)
     {
-        RoleRow row = await roleQueries.GetAsync(organizationId, roleId, cancellationToken)
+        RoleRow row = await roleQueries.GetAsync(organizationId, roleId, dateTimeProvider.UtcNow, cancellationToken)
             ?? throw new NotFoundException(nameof(Role), roleId);
         return ToDto(row, caller);
     }
@@ -305,6 +308,7 @@ public sealed class RoleService(
             isSystem,
             row.PermissionCodes,
             row.HolderCount,
+            caller.Permissions.Contains(Permissions.OrganizationMembersManage) ? row.PendingInvitationCount : null,
             !isSystem && canTakeAway,
             blocked is null,
             blocked);

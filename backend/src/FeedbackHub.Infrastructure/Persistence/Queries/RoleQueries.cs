@@ -7,13 +7,16 @@ namespace FeedbackHub.Infrastructure.Persistence.Queries;
 
 internal sealed class RoleQueries(AppDbContext dbContext) : IRoleQueries
 {
-    public Task<IReadOnlyList<RoleRow>> ListAsync(Guid organizationId, CancellationToken cancellationToken) =>
-        LoadAsync(dbContext.Roles.Where(role => role.OrganizationId == organizationId), cancellationToken);
+    public Task<IReadOnlyList<RoleRow>> ListAsync(
+        Guid organizationId, DateTime utcNow, CancellationToken cancellationToken) =>
+        LoadAsync(dbContext.Roles.Where(role => role.OrganizationId == organizationId), utcNow, cancellationToken);
 
-    public async Task<RoleRow?> GetAsync(Guid organizationId, Guid roleId, CancellationToken cancellationToken)
+    public async Task<RoleRow?> GetAsync(
+        Guid organizationId, Guid roleId, DateTime utcNow, CancellationToken cancellationToken)
     {
         IReadOnlyList<RoleRow> rows = await LoadAsync(
             dbContext.Roles.Where(role => role.OrganizationId == organizationId && role.Id == roleId),
+            utcNow,
             cancellationToken);
 
         return rows.SingleOrDefault();
@@ -29,9 +32,10 @@ internal sealed class RoleQueries(AppDbContext dbContext) : IRoleQueries
                     == EF.Functions.Collate(name, Collations.IcuRoot).ToLower(),
             cancellationToken);
 
-    private async Task<IReadOnlyList<RoleRow>> LoadAsync(IQueryable<Role> roles, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<RoleRow>> LoadAsync(
+        IQueryable<Role> roles, DateTime utcNow, CancellationToken cancellationToken)
     {
-        // Holders are counted in the same statement: one correlated COUNT over active members, no per-role query.
+        // Holders and pending invitations are counted in the same statement: correlated COUNTs, no per-role query.
         List<StoredRole> stored = await roles
             .OrderForDisplay()
             .Select(role => new StoredRole(
@@ -47,7 +51,11 @@ internal sealed class RoleQueries(AppDbContext dbContext) : IRoleQueries
                     && dbContext.OrganizationMembers.Any(member =>
                         member.Id == memberRole.OrganizationMemberId
                         && member.OrganizationId == role.OrganizationId
-                        && member.IsActive))))
+                        && member.IsActive)),
+                dbContext.OrganizationInvitations.Count(invitation =>
+                    invitation.RoleId == role.Id
+                    && invitation.OrganizationId == role.OrganizationId
+                    && invitation.ExpiresAt > utcNow)))
             .ToListAsync(cancellationToken);
 
         return stored
@@ -56,10 +64,16 @@ internal sealed class RoleQueries(AppDbContext dbContext) : IRoleQueries
                 row.Name,
                 row.SystemRoleKind,
                 SystemRoleDefaults.EffectivePermissionCodes(row.SystemRoleKind, row.PermissionCodes),
-                row.HolderCount))
+                row.HolderCount,
+                row.PendingInvitationCount))
             .ToList();
     }
 
     private sealed record StoredRole(
-        Guid Id, string Name, SystemRoleKind? SystemRoleKind, List<string> PermissionCodes, int HolderCount);
+        Guid Id,
+        string Name,
+        SystemRoleKind? SystemRoleKind,
+        List<string> PermissionCodes,
+        int HolderCount,
+        int PendingInvitationCount);
 }

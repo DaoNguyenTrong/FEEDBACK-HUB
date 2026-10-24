@@ -131,7 +131,42 @@ public sealed class CurrentOrganizationRolesTests(ApiFactoryFixture fixture) : I
         Assert.All(roles, role => Assert.False(role.GetProperty("canEdit").GetBoolean()));
         Assert.All(roles, role => Assert.False(role.GetProperty("canDelete").GetBoolean()));
         Assert.Equal("SystemRole", roles[0].GetProperty("deleteBlockedReason").GetString());
-        Assert.False(roles[0].TryGetProperty("pendingInvitationCount", out _));
+        Assert.All(roles, role => Assert.Equal(0, role.GetProperty("pendingInvitationCount").GetInt32()));
+    }
+
+    // TECH00 §4.6: only invitations still open count; the caller can manage members, so the count is shown.
+    [Fact]
+    public async Task Roles_MembersManagerWithPendingAndExpiredInvitations_CountsOnlyPending()
+    {
+        Caller caller = await SeedCallerAsync(
+            owner: false, Permissions.OrganizationRolesManage, Permissions.OrganizationMembersManage);
+        Role tester = await SeedRoleAsync(caller.Organization.Id, "Tester");
+        await SeedInvitationAsync(caller.Organization.Id, tester, DateTime.UtcNow.AddHours(-1));
+        await SeedInvitationAsync(caller.Organization.Id, tester, DateTime.UtcNow.AddDays(-2));
+        await SeedInvitationAsync(caller.Organization.Id, tester, DateTime.UtcNow.AddDays(-8));
+
+        HttpResponseMessage response = await caller.Client.GetAsync(RolesPath);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement role = (await response.Content.ReadJsonElementAsync()).EnumerateArray()
+            .Single(candidate => candidate.GetProperty("id").GetGuid() == tester.Id);
+        Assert.Equal(2, role.GetProperty("pendingInvitationCount").GetInt32());
+    }
+
+    // BR-75, T9: a roles manager without members.manage sees no trace of invitations, even by calling directly.
+    [Fact]
+    public async Task Roles_RolesManagerWithoutMembersManage_ResponseHasNullPendingInvitationCount()
+    {
+        Caller caller = await SeedCallerAsync(owner: false, Permissions.OrganizationRolesManage);
+        Role tester = await SeedRoleAsync(caller.Organization.Id, "Tester");
+        await SeedInvitationAsync(caller.Organization.Id, tester, DateTime.UtcNow.AddHours(-1));
+
+        HttpResponseMessage response = await caller.Client.GetAsync(RolesPath);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement[] roles = (await response.Content.ReadJsonElementAsync()).EnumerateArray().ToArray();
+        Assert.NotEmpty(roles);
+        Assert.All(roles, role => Assert.Equal(JsonValueKind.Null, role.GetProperty("pendingInvitationCount").ValueKind));
     }
 
     // Writes: helpers
@@ -166,6 +201,15 @@ public sealed class CurrentOrganizationRolesTests(ApiFactoryFixture fixture) : I
     {
         await using AppDbContext context = CreateDbContext();
         return await AuthTestHelper.SeedCustomRoleAsync(context, organizationId, name, codes);
+    }
+
+    private async Task SeedInvitationAsync(Guid organizationId, Role role, DateTime issuedAt)
+    {
+        await using AppDbContext context = CreateDbContext();
+        string hash = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+        context.OrganizationInvitations.Add(OrganizationInvitation.Create(new OrganizationInvitationParams(
+            organizationId, $"invitee-{Guid.NewGuid():N}@example.com", role.Id, hash, issuedAt)));
+        await context.SaveChangesAsync();
     }
 
     private async Task<OrganizationMember> SeedHolderAsync(Guid organizationId, Role role, bool active = true)

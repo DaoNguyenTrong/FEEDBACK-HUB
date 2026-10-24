@@ -16,6 +16,8 @@ namespace FeedbackHub.Application.Tests.Services.Roles;
 
 public class RoleServiceWriteTests
 {
+    private static readonly DateTime Now = new(2026, 10, 24, 8, 0, 0, DateTimeKind.Utc);
+
     public enum Operation
     {
         Create,
@@ -81,12 +83,12 @@ public class RoleServiceWriteTests
                             role.Id, role.Name, role.SystemRoleKind, EffectiveCodes(role).ToHashSet()))
                         .ToList();
                 });
-            Queries.GetAsync(Organization.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            Queries.GetAsync(Organization.Id, Arg.Any<Guid>(), Now, Arg.Any<CancellationToken>())
                 .Returns(callInfo => roles
                     .Where(role => role.OrganizationId == Organization.Id && role.Id == callInfo.ArgAt<Guid>(1))
                     .Select(role => new RoleRow(
                         role.Id, role.Name, role.SystemRoleKind, EffectiveCodes(role),
-                        holderCounts.GetValueOrDefault(role.Id)))
+                        holderCounts.GetValueOrDefault(role.Id), 0))
                     .SingleOrDefault());
             Queries.IsNameTakenAsync(
                     Organization.Id, Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
@@ -115,8 +117,10 @@ public class RoleServiceWriteTests
             Tenant.OrganizationId.Returns(_ => Organization.Id);
             CurrentUser.UserId.Returns(CallerId.ToString());
 
+            Clock.UtcNow.Returns(Now);
+
             Service = new RoleService(
-                UnitOfWork, CurrentUser, Tenant, Queries, Reader, OrganizationLock, AuditTrail, PermissionResolver);
+                UnitOfWork, CurrentUser, Tenant, Queries, Reader, OrganizationLock, AuditTrail, PermissionResolver, Clock);
         }
 
         public Guid CallerId { get; } = Guid.NewGuid();
@@ -150,6 +154,8 @@ public class RoleServiceWriteTests
         public IAuditTrail AuditTrail { get; } = Substitute.For<IAuditTrail>();
 
         public IPermissionResolver PermissionResolver { get; } = Substitute.For<IPermissionResolver>();
+
+        public IDateTimeProvider Clock { get; } = Substitute.For<IDateTimeProvider>();
 
         public ICurrentUserService CurrentUser { get; } = Substitute.For<ICurrentUserService>();
 
@@ -871,7 +877,7 @@ public class RoleServiceWriteTests
         await f.DeleteAsync(tester);
 
         Assert.False(f.Exists(tester.Id));
-        await f.Queries.Received(1).GetAsync(f.Organization.Id, tester.Id, Arg.Any<CancellationToken>());
+        await f.Queries.Received(1).GetAsync(f.Organization.Id, tester.Id, Now, Arg.Any<CancellationToken>());
     }
 
     // AC-257, AC-249: BR-58 answers before the holder check (D2).

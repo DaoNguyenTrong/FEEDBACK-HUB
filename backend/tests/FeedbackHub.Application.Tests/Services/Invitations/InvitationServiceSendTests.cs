@@ -53,7 +53,7 @@ public partial class InvitationServiceSendTests
     private static readonly RoleGrantRole[] OrganizationRoles =
         [OwnerRole, AdminRole, MemberRole, PeopleRole, TesterRole, ItLeadRole];
 
-    /// <summary>An in-memory organization behind substitutes, so tests assert both calls and resulting state.</summary>
+    // An in-memory organization behind substitutes, so tests assert both calls and resulting state.
     private sealed record Fixture
     {
         private readonly List<OrganizationMember> members = [];
@@ -121,6 +121,7 @@ public partial class InvitationServiceSendTests
                 UnitOfWork,
                 OrganizationLock,
                 Reader,
+                Substitute.For<IInvitationQueries>(),
                 AuditTrail,
                 EmailSender,
                 Clock,
@@ -176,7 +177,6 @@ public partial class InvitationServiceSendTests
 
         public RoleGrantCaller CallerGrant { get; set; } = new(Guid.Empty, false, new HashSet<string>());
 
-        /// <summary>The caller as an active member holding <paramref name="roles"/>, as the reader would load them.</summary>
         public void SetCaller(params RoleGrantRole[] roles)
         {
             Account account = AddAccount($"caller-{Guid.NewGuid():N}@example.com");
@@ -254,7 +254,7 @@ public partial class InvitationServiceSendTests
         }
     }
 
-    /// <summary>Keeps each entry's text, structured values and exception, to prove what a log line may carry.</summary>
+    // Keeps each entry's text, structured values and exception, to prove what a log line may carry.
     private sealed class CapturingLogger : ILogger<InvitationService>
     {
         public List<string> Entries { get; } = [];
