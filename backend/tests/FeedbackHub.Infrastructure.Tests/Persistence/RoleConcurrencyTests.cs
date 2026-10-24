@@ -73,7 +73,8 @@ public sealed class RoleConcurrencyTests(PostgresContainerFixture fixture)
             new RoleGrantReader(context),
             new OrganizationLock(context),
             wrapTrail?.Invoke(auditTrail) ?? auditTrail,
-            Substitute.For<IPermissionResolver>());
+            Substitute.For<IPermissionResolver>(),
+            new DateTimeProvider());
     }
 
     private static MemberService CreateMemberService(

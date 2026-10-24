@@ -15,8 +15,11 @@ public class RoleServiceReadTests
 {
     private static readonly IReadOnlyList<string> NoCodes = [];
 
-    private static RoleRow Row(string name, SystemRoleKind? kind, IReadOnlyList<string> codes, int holders = 0) =>
-        new(Guid.NewGuid(), name, kind, codes, holders);
+    private static readonly DateTime Now = new(2026, 10, 24, 8, 0, 0, DateTimeKind.Utc);
+
+    private static RoleRow Row(
+        string name, SystemRoleKind? kind, IReadOnlyList<string> codes, int holders = 0, int pendingInvitations = 0) =>
+        new(Guid.NewGuid(), name, kind, codes, holders, pendingInvitations);
 
     private static readonly RoleRow Owner = Row("Owner", SystemRoleKind.Owner, Permissions.All, 1);
 
@@ -39,7 +42,9 @@ public class RoleServiceReadTests
         tenant.OrganizationId.Returns(personalContext ? null : organizationId);
 
         IRoleQueries queries = Substitute.For<IRoleQueries>();
-        queries.ListAsync(organizationId, Arg.Any<CancellationToken>()).Returns(rows);
+        queries.ListAsync(organizationId, Now, Arg.Any<CancellationToken>()).Returns(rows);
+        IDateTimeProvider clock = Substitute.For<IDateTimeProvider>();
+        clock.UtcNow.Returns(Now);
 
         IRoleGrantReader reader = Substitute.For<IRoleGrantReader>();
         reader.LoadCallerAsync(organizationId, callerId, Arg.Any<CancellationToken>())
@@ -53,7 +58,8 @@ public class RoleServiceReadTests
             reader,
             Substitute.For<IOrganizationLock>(),
             Substitute.For<IAuditTrail>(),
-            Substitute.For<IPermissionResolver>());
+            Substitute.For<IPermissionResolver>(),
+            clock);
 
         return new Fixture(service, queries, reader, organizationId);
     }
@@ -159,5 +165,33 @@ public class RoleServiceReadTests
 
         await fixture.Reader.Received(1).LoadCallerAsync(
             fixture.OrganizationId, Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    // BR-75, T9: a roles manager who cannot manage members learns nothing about invitations.
+    [Fact]
+    public async Task ListAsync_CallerWithoutMembersManage_PendingInvitationCountNull()
+    {
+        RoleRow invited = Row("Invited", null, NoCodes, pendingInvitations: 3);
+        Fixture fixture = CreateFixture(
+            [Owner, invited], callerIsOwner: false, new HashSet<string> { Permissions.OrganizationRolesManage });
+
+        IReadOnlyList<RoleDto> roles = await fixture.Service.ListAsync(CancellationToken.None);
+
+        Assert.All(roles, role => Assert.Null(role.PendingInvitationCount));
+    }
+
+    // The query is stubbed for the clock's time only, so a different time would return no rows.
+    [Fact]
+    public async Task ListAsync_CallerWithMembersManage_PendingInvitationCountFromQuery()
+    {
+        RoleRow invited = Row("Invited", null, NoCodes, pendingInvitations: 3);
+        Fixture fixture = CreateFixture(
+            [Owner, invited],
+            callerIsOwner: false,
+            new HashSet<string> { Permissions.OrganizationRolesManage, Permissions.OrganizationMembersManage });
+
+        IReadOnlyList<RoleDto> roles = await fixture.Service.ListAsync(CancellationToken.None);
+
+        Assert.Equal([0, 3], roles.Select(role => role.PendingInvitationCount));
     }
 }

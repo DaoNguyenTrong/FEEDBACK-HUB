@@ -38,7 +38,6 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
             context, username: handle, email: $"{handle}@example.com", name: name);
     }
 
-    /// <summary>An organization with its system roles and a caller holding <paramref name="role"/>.</summary>
     private async Task<(Organization Organization, Account Caller, IReadOnlyDictionary<SystemRoleKind, Role> Roles)>
         SeedCallerAsync(SystemRoleKind role)
     {

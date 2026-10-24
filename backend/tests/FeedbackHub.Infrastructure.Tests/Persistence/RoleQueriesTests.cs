@@ -14,6 +14,8 @@ namespace FeedbackHub.Infrastructure.Tests.Persistence;
 [Collection(nameof(PostgresCollectionB))]
 public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
+    private static readonly DateTime Now = new(2026, 10, 24, 8, 0, 0, DateTimeKind.Utc);
+
     private AppDbContext context = null!;
     private IDbContextTransaction transaction = null!;
     private RoleQueries queries = null!;
@@ -83,6 +85,14 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
         await context.SaveChangesAsync();
     }
 
+    private async Task SeedInvitationAsync(Guid organizationId, Role role, DateTime issuedAt)
+    {
+        string hash = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+        context.OrganizationInvitations.Add(OrganizationInvitation.Create(new OrganizationInvitationParams(
+            organizationId, $"invitee-{Guid.NewGuid():N}@example.com", role.Id, hash, issuedAt)));
+        await context.SaveChangesAsync();
+    }
+
     // AC-252
     [Fact]
     public async Task ListAsync_HolderCountIgnoresInactiveMembers()
@@ -94,7 +104,7 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
         await SeedMemberAsync(organizationId, custom, active: false);
         await SeedMemberAsync(organizationId, system[SystemRoleKind.Member], active: false);
 
-        IReadOnlyList<RoleRow> rows = await queries.ListAsync(organizationId, CancellationToken.None);
+        IReadOnlyList<RoleRow> rows = await queries.ListAsync(organizationId, Now, CancellationToken.None);
 
         Assert.Equal(2, rows.Single(row => row.Id == custom.Id).HolderCount);
         Assert.Equal(0, rows.Single(row => row.Id == system[SystemRoleKind.Member].Id).HolderCount);
@@ -108,7 +118,7 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
         (Guid otherId, IReadOnlyDictionary<SystemRoleKind, Role> otherSystem) = await SeedOrganizationAsync();
         await SeedMemberAsync(otherId, otherSystem[SystemRoleKind.Member], active: true);
 
-        IReadOnlyList<RoleRow> rows = await queries.ListAsync(mineId, CancellationToken.None);
+        IReadOnlyList<RoleRow> rows = await queries.ListAsync(mineId, Now, CancellationToken.None);
 
         Assert.Equal(3, rows.Count);
         Assert.All(rows, row => Assert.Equal(0, row.HolderCount));
@@ -122,7 +132,7 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
         Role au = await SeedCustomRoleAsync(organizationId, "Âu Cơ");
         Role an = await SeedCustomRoleAsync(organizationId, "an Bình");
 
-        IReadOnlyList<RoleRow> rows = await queries.ListAsync(organizationId, CancellationToken.None);
+        IReadOnlyList<RoleRow> rows = await queries.ListAsync(organizationId, Now, CancellationToken.None);
 
         Assert.Equal(
             [
@@ -142,7 +152,7 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
         (Guid organizationId, IReadOnlyDictionary<SystemRoleKind, Role> system) = await SeedOrganizationAsync();
         Role custom = await SeedCustomRoleAsync(organizationId, "Support", Permissions.OrganizationRolesManage);
 
-        IReadOnlyList<RoleRow> rows = await queries.ListAsync(organizationId, CancellationToken.None);
+        IReadOnlyList<RoleRow> rows = await queries.ListAsync(organizationId, Now, CancellationToken.None);
 
         RoleRow owner = rows.Single(row => row.Id == system[SystemRoleKind.Owner].Id);
         Assert.Equal(SystemRoleKind.Owner, owner.SystemKind);
@@ -161,7 +171,7 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
         await SeedMemberAsync(organizationId, custom, active: true);
         await SeedMemberAsync(organizationId, custom, active: false);
 
-        RoleRow? row = await queries.GetAsync(organizationId, custom.Id, CancellationToken.None);
+        RoleRow? row = await queries.GetAsync(organizationId, custom.Id, Now, CancellationToken.None);
 
         Assert.NotNull(row);
         Assert.Equal("Support", row.Name);
@@ -177,8 +187,8 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
         (Guid otherId, _) = await SeedOrganizationAsync();
         Role elsewhere = await SeedCustomRoleAsync(otherId, "Support");
 
-        Assert.Null(await queries.GetAsync(mineId, elsewhere.Id, CancellationToken.None));
-        Assert.Null(await queries.GetAsync(mineId, Guid.NewGuid(), CancellationToken.None));
+        Assert.Null(await queries.GetAsync(mineId, elsewhere.Id, Now, CancellationToken.None));
+        Assert.Null(await queries.GetAsync(mineId, Guid.NewGuid(), Now, CancellationToken.None));
     }
 
     [Fact]
@@ -186,10 +196,56 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
     {
         (Guid organizationId, IReadOnlyDictionary<SystemRoleKind, Role> system) = await SeedOrganizationAsync();
 
-        RoleRow? row = await queries.GetAsync(organizationId, system[SystemRoleKind.Owner].Id, CancellationToken.None);
+        RoleRow? row = await queries.GetAsync(organizationId, system[SystemRoleKind.Owner].Id, Now, CancellationToken.None);
 
         Assert.NotNull(row);
         Assert.Equal(Permissions.All.ToHashSet(), row.PermissionCodes.ToHashSet());
+    }
+
+    // pendingInvitationCount (TECH00 §4.6): only invitations still open at utcNow; ExpiresAt == utcNow is expired.
+    [Fact]
+    public async Task ListAsync_PendingInvitationCount_CountsOnlyUnexpiredInvitationsOfTheRole()
+    {
+        (Guid organizationId, IReadOnlyDictionary<SystemRoleKind, Role> system) = await SeedOrganizationAsync();
+        Role custom = await SeedCustomRoleAsync(organizationId, "Support");
+        await SeedInvitationAsync(organizationId, custom, Now.AddHours(-1));
+        await SeedInvitationAsync(organizationId, custom, Now.AddDays(-6));
+        await SeedInvitationAsync(organizationId, custom, Now - OrganizationInvitation.Lifetime);
+        await SeedInvitationAsync(organizationId, custom, Now.AddDays(-8));
+        await SeedInvitationAsync(organizationId, system[SystemRoleKind.Member], Now.AddDays(-8));
+
+        IReadOnlyList<RoleRow> rows = await queries.ListAsync(organizationId, Now, CancellationToken.None);
+
+        Assert.Equal(2, rows.Single(row => row.Id == custom.Id).PendingInvitationCount);
+        Assert.Equal(0, rows.Single(row => row.Id == system[SystemRoleKind.Member].Id).PendingInvitationCount);
+        Assert.Equal(0, rows.Single(row => row.Id == system[SystemRoleKind.Owner].Id).PendingInvitationCount);
+    }
+
+    [Fact]
+    public async Task ListAsync_PendingInvitationCount_FollowsTheGivenTime()
+    {
+        (Guid organizationId, _) = await SeedOrganizationAsync();
+        Role custom = await SeedCustomRoleAsync(organizationId, "Support");
+        await SeedInvitationAsync(organizationId, custom, Now.AddDays(-6));
+
+        IReadOnlyList<RoleRow> later = await queries.ListAsync(organizationId, Now.AddDays(2), CancellationToken.None);
+
+        Assert.Equal(0, later.Single(row => row.Id == custom.Id).PendingInvitationCount);
+    }
+
+    [Fact]
+    public async Task GetAsync_PendingInvitationCount_CountsOnlyUnexpiredInvitationsOfTheRole()
+    {
+        (Guid organizationId, IReadOnlyDictionary<SystemRoleKind, Role> system) = await SeedOrganizationAsync();
+        Role custom = await SeedCustomRoleAsync(organizationId, "Support");
+        await SeedInvitationAsync(organizationId, custom, Now.AddHours(-1));
+        await SeedInvitationAsync(organizationId, custom, Now.AddDays(-8));
+        await SeedInvitationAsync(organizationId, system[SystemRoleKind.Member], Now.AddHours(-1));
+
+        RoleRow? row = await queries.GetAsync(organizationId, custom.Id, Now, CancellationToken.None);
+
+        Assert.NotNull(row);
+        Assert.Equal(1, row.PendingInvitationCount);
     }
 
     // IsNameTakenAsync

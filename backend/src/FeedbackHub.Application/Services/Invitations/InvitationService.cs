@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditTrail;
@@ -21,6 +22,7 @@ public sealed class InvitationService(
     IUnitOfWork unitOfWork,
     IOrganizationLock organizationLock,
     IRoleGrantReader roleGrantReader,
+    IInvitationQueries invitationQueries,
     IAuditTrail auditTrail,
     IEmailSender emailSender,
     IDateTimeProvider dateTimeProvider,
@@ -41,16 +43,91 @@ public sealed class InvitationService(
             RoleGrantCaller caller = await LockAndLoadManagerAsync(organizationId, callerId, ct);
             IReadOnlyList<RoleGrantRole> roles = await roleGrantReader.LoadRolesAsync(organizationId, [request.RoleId], ct);
             RoleGrantRole role = roles.Count == 1 ? roles[0] : throw new NotFoundException(nameof(Role), request.RoleId);
+            OrganizationInvitation? previous = await unitOfWork.Repository<OrganizationInvitation, Guid>()
+                .FirstOrDefaultAsync(
+                    invitation => invitation.OrganizationId == organizationId && invitation.Email == email, ct);
 
-            sent = await ReplaceAndSendAsync(organizationId, caller, email, role, ct);
+            sent = await ReplaceAndSendAsync(organizationId, caller, email, role, previous, ct);
         }, cancellationToken);
 
         return sent ?? throw new InvalidOperationException("The invitation transaction completed without a result.");
     }
 
-    /// <summary>The one place a <see cref="InvitationDto"/> is built, so its flags follow <see cref="RoleGrantPolicy"/>.</summary>
+    public async Task<PagedResult<InvitationDto>> ListAsync(PageRequest request, CancellationToken cancellationToken)
+    {
+        Guid organizationId = RequireOrganizationId();
+        Guid callerId = GetCurrentAccountId();
+
+        // The database, not the permission cache, decides who sees invited addresses (BR-75); flags need no lock.
+        RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, cancellationToken);
+        if (!caller.Permissions.Contains(Permissions.OrganizationMembersManage))
+        {
+            throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
+        }
+
+        PagedResult<InvitationRow> page = await invitationQueries.ListAsync(organizationId, request, cancellationToken);
+        IReadOnlyList<RoleGrantRole> roles = await roleGrantReader.LoadRolesAsync(
+            organizationId, page.Items.Select(row => row.RoleId).Distinct().ToList(), cancellationToken);
+        Dictionary<Guid, RoleGrantRole> rolesById = roles.ToDictionary(role => role.Id);
+        DateTime utcNow = dateTimeProvider.UtcNow;
+
+        // A role deleted since the page was read took its invitations with it (ON DELETE CASCADE).
+        List<InvitationDto> items = page.Items
+            .Where(row => rolesById.ContainsKey(row.RoleId))
+            .Select(row => ToDto(row, rolesById[row.RoleId], caller, utcNow))
+            .ToList();
+
+        return new PagedResult<InvitationDto>(items, page.TotalCount, page.PageNumber, page.PageSize);
+    }
+
+    public async Task<InvitationDto> ResendAsync(Guid invitationId, CancellationToken cancellationToken)
+    {
+        Guid organizationId = RequireOrganizationId();
+        Guid callerId = GetCurrentAccountId();
+        InvitationDto? sent = null;
+
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            (RoleGrantCaller caller, OrganizationInvitation invitation, RoleGrantRole role) =
+                await LockAndLoadInvitationAsync(organizationId, callerId, invitationId, ct);
+
+            sent = await ReplaceAndSendAsync(organizationId, caller, invitation.Email, role, invitation, ct);
+        }, cancellationToken);
+
+        return sent ?? throw new InvalidOperationException("The invitation transaction completed without a result.");
+    }
+
+    public async Task RevokeOrDeleteAsync(Guid invitationId, CancellationToken cancellationToken)
+    {
+        Guid organizationId = RequireOrganizationId();
+        Guid callerId = GetCurrentAccountId();
+
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            (RoleGrantCaller caller, OrganizationInvitation invitation, RoleGrantRole role) =
+                await LockAndLoadInvitationAsync(organizationId, callerId, invitationId, ct);
+
+            // Recorded before the delete so the entry is built from the invitation while it still exists (D5).
+            AuditEventType type = invitation.IsExpiredAt(dateTimeProvider.UtcNow)
+                ? AuditEventType.InvitationDeleted
+                : AuditEventType.InvitationRevoked;
+            await auditTrail.RecordAsync(InvitationEvent(invitation, type, caller, role), ct);
+            unitOfWork.Repository<OrganizationInvitation, Guid>().Delete(invitation);
+            await unitOfWork.SaveChangesAsync(ct);
+        }, cancellationToken);
+    }
+
     internal static InvitationDto ToDto(
-        OrganizationInvitation invitation, RoleGrantRole role, RoleGrantCaller caller, DateTime utcNow)
+        OrganizationInvitation invitation, RoleGrantRole role, RoleGrantCaller caller, DateTime utcNow) =>
+        ToDto(
+            new InvitationRow(invitation.Id, invitation.Email, invitation.RoleId, invitation.ExpiresAt),
+            role,
+            caller,
+            utcNow);
+
+    // The one place an InvitationDto is built, so its flags follow RoleGrantPolicy like the writes (TECH00 §5.3).
+    internal static InvitationDto ToDto(
+        InvitationRow invitation, RoleGrantRole role, RoleGrantCaller caller, DateTime utcNow)
     {
         RoleGrantDenial? denial = RoleGrantPolicy.CheckTakeAwayAll(caller, [role]);
 
@@ -59,28 +136,50 @@ public sealed class InvitationService(
             invitation.Email,
             new RoleRefDto(role.Id, role.Name, role.SystemKind),
             invitation.ExpiresAt,
-            invitation.IsExpiredAt(utcNow) ? InvitationStatus.Expired : InvitationStatus.Pending,
+            OrganizationInvitation.HasExpired(invitation.ExpiresAt, utcNow)
+                ? InvitationStatus.Expired
+                : InvitationStatus.Pending,
             denial is null,
             denial is null,
             denial?.Reason);
     }
 
-    /// <summary>
-    /// After the lock and the role lookup: BR-58 for the new role and any earlier invitation's role (403), the address
-    /// not an active member (409), then the earlier invitation replaced, recorded, saved and mailed (TECH00 §6.2).
-    /// </summary>
-    private async Task<InvitationDto> ReplaceAndSendAsync(
-        Guid organizationId, RoleGrantCaller caller, string email, RoleGrantRole role, CancellationToken ct)
+    // Resend and revoke, in the D2 order: lock, gate re-check and members.manage, the invitation in the organization
+    // (404 by id only, F17), then BR-58 on its role (403).
+    private async Task<(RoleGrantCaller Caller, OrganizationInvitation Invitation, RoleGrantRole Role)>
+        LockAndLoadInvitationAsync(Guid organizationId, Guid callerId, Guid invitationId, CancellationToken ct)
     {
-        IRepository<OrganizationInvitation, Guid> invitations = unitOfWork.Repository<OrganizationInvitation, Guid>();
-        OrganizationInvitation? previous = await invitations.FirstOrDefaultAsync(
-            invitation => invitation.OrganizationId == organizationId && invitation.Email == email, ct);
+        RoleGrantCaller caller = await LockAndLoadManagerAsync(organizationId, callerId, ct);
 
+        OrganizationInvitation invitation = await unitOfWork.Repository<OrganizationInvitation, Guid>()
+                .FirstOrDefaultAsync(
+                    candidate => candidate.Id == invitationId && candidate.OrganizationId == organizationId, ct)
+            ?? throw new NotFoundException(nameof(OrganizationInvitation), invitationId);
+        RoleGrantRole role = await LoadRoleOfAsync(organizationId, invitation, ct);
+
+        if (RoleGrantPolicy.CheckTakeAwayAll(caller, [role]) is { } denial)
+        {
+            throw new ForbiddenException(RoleGrantPolicy.ErrorCode(denial));
+        }
+
+        return (caller, invitation, role);
+    }
+
+    // After the lock: BR-58 for the role and any earlier invitation's role (403), the address not an active member
+    // (409), then the earlier invitation replaced, recorded, saved and mailed (TECH00 §6.2).
+    private async Task<InvitationDto> ReplaceAndSendAsync(
+        Guid organizationId,
+        RoleGrantCaller caller,
+        string email,
+        RoleGrantRole role,
+        OrganizationInvitation? previous,
+        CancellationToken ct)
+    {
         // Replacing takes the earlier role away (BR-63 point 3); one check lets an Owner refusal win (§5.3, AC-341).
         List<RoleGrantRole> checkedRoles = [role];
         if (previous is not null && previous.RoleId != role.Id)
         {
-            checkedRoles.Add(await LoadPreviousRoleAsync(organizationId, previous, ct));
+            checkedRoles.Add(await LoadRoleOfAsync(organizationId, previous, ct));
         }
 
         if (RoleGrantPolicy.CheckGrantAll(caller, checkedRoles) is { } denial)
@@ -93,6 +192,7 @@ public sealed class InvitationService(
             throw new ConflictException(ApplicationMessages.InvitationEmailAlreadyMember);
         }
 
+        IRepository<OrganizationInvitation, Guid> invitations = unitOfWork.Repository<OrganizationInvitation, Guid>();
         if (previous is not null)
         {
             invitations.Delete(previous);
@@ -105,18 +205,7 @@ public sealed class InvitationService(
             organizationId, email, role.Id, TokenHash.Compute(rawToken), utcNow));
         await invitations.AddAsync(invitation, ct);
 
-        await auditTrail.RecordAsync(
-            AuditEvent.For(
-                invitation,
-                AuditEventType.InvitationSent,
-                ActorKind.Account,
-                caller.AccountId,
-                new Dictionary<string, object>
-                {
-                    ["email"] = email,
-                    ["role"] = new AuditRoleRef(role.Id, role.Name, role.SystemKind)
-                }),
-            ct);
+        await auditTrail.RecordAsync(InvitationEvent(invitation, AuditEventType.InvitationSent, caller, role), ct);
         await unitOfWork.SaveChangesAsync(ct);
 
         await MailAsync(organizationId, invitation, role, rawToken, ct);
@@ -124,14 +213,27 @@ public sealed class InvitationService(
         return ToDto(invitation, role, caller, utcNow);
     }
 
+    private static AuditEvent InvitationEvent(
+        OrganizationInvitation invitation, AuditEventType type, RoleGrantCaller caller, RoleGrantRole role) =>
+        AuditEvent.For(
+            invitation,
+            type,
+            ActorKind.Account,
+            caller.AccountId,
+            new Dictionary<string, object>
+            {
+                ["email"] = invitation.Email,
+                ["role"] = new AuditRoleRef(role.Id, role.Name, role.SystemKind)
+            });
+
     // The foreign key cascades a deleted role to its invitations, so under the lock the role is always there.
-    private async Task<RoleGrantRole> LoadPreviousRoleAsync(
-        Guid organizationId, OrganizationInvitation previous, CancellationToken ct)
+    private async Task<RoleGrantRole> LoadRoleOfAsync(
+        Guid organizationId, OrganizationInvitation invitation, CancellationToken ct)
     {
-        IReadOnlyList<RoleGrantRole> roles = await roleGrantReader.LoadRolesAsync(organizationId, [previous.RoleId], ct);
+        IReadOnlyList<RoleGrantRole> roles = await roleGrantReader.LoadRolesAsync(organizationId, [invitation.RoleId], ct);
         return roles.Count == 1
             ? roles[0]
-            : throw new InvalidOperationException($"The role of invitation {previous.Id} could not be loaded.");
+            : throw new InvalidOperationException($"The role of invitation {invitation.Id} could not be loaded.");
     }
 
     private async Task<bool> IsActiveMemberAsync(Guid organizationId, string email, CancellationToken ct)
@@ -150,10 +252,7 @@ public sealed class InvitationService(
         return member is not null;
     }
 
-    /// <exception cref="ServiceUnavailableException">
-    /// <c>InvitationEmailDeliveryFailed</c>, thrown inside the transaction so the new invitation is rolled back and an
-    /// earlier one stays as it was (TECH00 §6.2, QĐ-10).
-    /// </exception>
+    // Throws inside the transaction, so the new invitation rolls back and an earlier one stays (TECH00 §6.2, QĐ-10).
     private async Task MailAsync(
         Guid organizationId, OrganizationInvitation invitation, RoleGrantRole role, string rawToken, CancellationToken ct)
     {
