@@ -574,6 +574,22 @@ public sealed class CurrentOrganizationRolesTests(ApiFactoryFixture fixture) : I
         Assert.Equal(nameof(AuditEventType.RoleDeleted), entry.Action);
     }
 
+    // BR-45: a role of another organization answers like one that does not exist, and stays.
+    [Fact]
+    public async Task DeleteRole_RoleOfOtherOrganization_Returns404AndRoleRemains()
+    {
+        Caller caller = await SeedCallerAsync();
+        Caller other = await SeedCallerAsync();
+        Role foreign = await SeedRoleAsync(other.Organization.Id, "Tester");
+
+        HttpResponseMessage response = await DeleteRoleAsync(caller.Client, foreign.Id);
+
+        await AssertCodeAsync(response, HttpStatusCode.NotFound, EntityNotFoundCode);
+        Assert.NotNull(await FindRoleAsync(foreign.Id));
+        Assert.Empty(await EventsAsync(other.Organization.Id));
+        Assert.Empty(await EventsAsync(caller.Organization.Id));
+    }
+
     // AC-252
     [Fact]
     public async Task DeleteRole_OnlyInactiveHolder_Returns204()

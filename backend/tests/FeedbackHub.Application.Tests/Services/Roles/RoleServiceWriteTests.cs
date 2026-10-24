@@ -548,6 +548,22 @@ public class RoleServiceWriteTests
         await f.AssertNothingWrittenAsync();
     }
 
+    // BR-58 answers before the name (D2), so a caller out of reach learns nothing about other roles' names.
+    [Fact]
+    public async Task UpdateAsync_CallerLacksPermissionAndNameTaken_Throws403Not409()
+    {
+        Fixture f = CreateFixture();
+        f.AddCustomRole("Tester");
+        Role lead = f.AddCustomRole("Trưởng IT", Permissions.FeedbackHubAdmin);
+        f.SetCaller(isOwner: false, Permissions.OrganizationRolesManage);
+
+        // Every new code is one the caller holds, so only CanTakeAway can refuse before the name check.
+        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
+            ApplicationMessages.InsufficientRolePermissions, () => f.UpdateAsync(lead, "tester"));
+
+        await f.AssertNothingWrittenAsync();
+    }
+
     // AC-296
     [Fact]
     public async Task UpdateAsync_AddPermissionCallerHasButRoleHasOneCallerLacks_Throws403()
