@@ -43,4 +43,6 @@ public static class ApplicationMessages
     public const string UnknownPermissionCode = nameof(UnknownPermissionCode);
     public const string OwnerOnlyOperation = nameof(OwnerOnlyOperation);
     public const string InsufficientRolePermissions = nameof(InsufficientRolePermissions);
+    public const string CannotRemoveSelf = nameof(CannotRemoveSelf);
+    public const string LastOwnerCannotLeave = nameof(LastOwnerCannotLeave);
 }

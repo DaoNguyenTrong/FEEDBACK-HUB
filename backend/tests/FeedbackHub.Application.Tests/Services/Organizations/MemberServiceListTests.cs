@@ -3,11 +3,14 @@ using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
+using FeedbackHub.Application.Services.AuditTrail;
+using FeedbackHub.Application.Services.OrganizationLocking;
 using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Application.Services.Roles;
 using FeedbackHub.Application.Tests.TestSupport;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
+using FeedbackHub.Domain.Interfaces;
 
 namespace FeedbackHub.Application.Tests.Services.Organizations;
 
@@ -58,7 +61,18 @@ public class MemberServiceListTests
                 organizationId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(rows.ToDictionary(r => r.Row.MemberId, r => (IReadOnlyList<RoleGrantRole>)r.Roles));
 
-        return new Fixture(new MemberService(currentUser, tenant, queries, reader), queries, reader, organizationId, callerId);
+        MemberService service = new(
+            currentUser,
+            tenant,
+            queries,
+            reader,
+            Substitute.For<IUnitOfWork>(),
+            Substitute.For<IOrganizationLock>(),
+            Substitute.For<IAuditTrail>(),
+            Substitute.For<ITenantAccessService>(),
+            Substitute.For<IPermissionResolver>());
+
+        return new Fixture(service, queries, reader, organizationId, callerId);
     }
 
     private static MemberRow Row(string name, Guid? accountId = null) =>

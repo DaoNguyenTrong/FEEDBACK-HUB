@@ -78,4 +78,56 @@ public sealed class CurrentOrganizationController(
 
         return Ok(members);
     }
+
+    /// <summary>
+    /// Replaces a member's organization roles. Changing an Owner's roles, or adding or dropping Owner, takes an Owner;
+    /// every other role taken away or added must be within the caller's permissions. The same set again: 204, nothing
+    /// changes.
+    /// </summary>
+    [HttpPut("members/{accountId:guid}/roles")]
+    [Authorize(Policy = Permissions.OrganizationMembersManage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ChangeMemberRoles(
+        Guid accountId,
+        UpdateMemberRolesRequest request,
+        CancellationToken cancellationToken)
+    {
+        await memberService.ChangeRolesAsync(accountId, request, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>Removes a member from the working organization. Callers leave through <c>leave</c>, never here.</summary>
+    [HttpDelete("members/{accountId:guid}")]
+    [Authorize(Policy = Permissions.OrganizationMembersManage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RemoveMember(Guid accountId, CancellationToken cancellationToken)
+    {
+        await memberService.RemoveAsync(accountId, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>Leaves the working organization. The last active Owner cannot leave.</summary>
+    [HttpPost("leave")]
+    [Authorize(Policy = AuthorizationPolicies.ActiveOrganizationMember)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Leave(CancellationToken cancellationToken)
+    {
+        await memberService.LeaveAsync(cancellationToken);
+
+        return NoContent();
+    }
 }
