@@ -36,9 +36,10 @@ public static class AuthTestHelper
         AppDbContext context,
         string username = "test-user",
         string email = "test-user@example.com",
-        string? passwordHash = "seeded-hash")
+        string? passwordHash = "seeded-hash",
+        string name = "Test User")
     {
-        Account account = Account.Create(new AccountParams("Test User", username, email));
+        Account account = Account.Create(new AccountParams(name, username, email));
         if (passwordHash is not null)
         {
             account.SetPasswordHash(passwordHash);
