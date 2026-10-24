@@ -2,6 +2,8 @@ using NSubstitute;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Resources;
+using FeedbackHub.Application.Services.AuditTrail;
+using FeedbackHub.Application.Services.OrganizationLocking;
 using FeedbackHub.Application.Services.Roles;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
@@ -43,7 +45,15 @@ public class RoleServiceReadTests
         reader.LoadCallerAsync(organizationId, callerId, Arg.Any<CancellationToken>())
             .Returns(new RoleGrantCaller(callerId, callerIsOwner, callerPermissions));
 
-        RoleService service = new(Substitute.For<IUnitOfWork>(), currentUser, tenant, queries, reader);
+        RoleService service = new(
+            Substitute.For<IUnitOfWork>(),
+            currentUser,
+            tenant,
+            queries,
+            reader,
+            Substitute.For<IOrganizationLock>(),
+            Substitute.For<IAuditTrail>(),
+            Substitute.For<IPermissionResolver>());
 
         return new Fixture(service, queries, reader, organizationId);
     }

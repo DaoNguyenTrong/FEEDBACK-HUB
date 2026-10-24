@@ -45,4 +45,6 @@ public static class ApplicationMessages
     public const string InsufficientRolePermissions = nameof(InsufficientRolePermissions);
     public const string CannotRemoveSelf = nameof(CannotRemoveSelf);
     public const string LastOwnerCannotLeave = nameof(LastOwnerCannotLeave);
+    public const string RoleHasHolders = nameof(RoleHasHolders);
+    public const string RoleNameReservedForSystemRole = nameof(RoleNameReservedForSystemRole);
 }

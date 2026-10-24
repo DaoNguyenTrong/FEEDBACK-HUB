@@ -19,6 +19,16 @@ internal sealed class RoleQueries(AppDbContext dbContext) : IRoleQueries
         return rows.SingleOrDefault();
     }
 
+    // The same expression as IX_roles_OrganizationId_lower_Name, so the check and the index agree on what is equal.
+    public Task<bool> IsNameTakenAsync(
+        Guid organizationId, string name, Guid? excludeRoleId, CancellationToken cancellationToken) =>
+        dbContext.Roles.AnyAsync(
+            role => role.OrganizationId == organizationId
+                && role.Id != excludeRoleId
+                && EF.Functions.Collate(role.Name, Collations.IcuRoot).ToLower()
+                    == EF.Functions.Collate(name, Collations.IcuRoot).ToLower(),
+            cancellationToken);
+
     private async Task<IReadOnlyList<RoleRow>> LoadAsync(IQueryable<Role> roles, CancellationToken cancellationToken)
     {
         // Holders are counted in the same statement: one correlated COUNT over active members, no per-role query.
