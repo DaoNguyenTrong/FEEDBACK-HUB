@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
 using FeedbackHub.Infrastructure.Tests.TestSupport;
@@ -43,7 +44,35 @@ public sealed class OrganizationInvitationPersistenceTests(PostgresContainerFixt
         await using AppDbContext second = fixture.CreateDbContext();
         second.OrganizationInvitations.Add(NewInvitation(seeded.OrganizationId, seeded.RoleId, "dup@example.com"));
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+        DbUpdateException thrown = await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+
+        PostgresException violation = Assert.IsType<PostgresException>(thrown.InnerException);
+        Assert.Equal("23505", violation.SqlState);
+        Assert.Equal("IX_organization_invitations_OrganizationId_Email", violation.ConstraintName);
+    }
+
+    [Fact]
+    public async Task SaveChanges_SameTokenHashInTwoOrganizations_ViolatesUniqueIndex()
+    {
+        Seeded one = await SeedAsync();
+        Seeded two = await SeedAsync();
+        string hash = NewHash();
+        await using (AppDbContext first = fixture.CreateDbContext())
+        {
+            first.OrganizationInvitations.Add(OrganizationInvitation.Create(
+                new OrganizationInvitationParams(one.OrganizationId, "a@example.com", one.RoleId, hash, Now)));
+            await first.SaveChangesAsync();
+        }
+
+        await using AppDbContext second = fixture.CreateDbContext();
+        second.OrganizationInvitations.Add(OrganizationInvitation.Create(
+            new OrganizationInvitationParams(two.OrganizationId, "b@example.com", two.RoleId, hash, Now)));
+
+        DbUpdateException thrown = await Assert.ThrowsAsync<DbUpdateException>(() => second.SaveChangesAsync());
+
+        PostgresException violation = Assert.IsType<PostgresException>(thrown.InnerException);
+        Assert.Equal("23505", violation.SqlState);
+        Assert.Equal("IX_organization_invitations_TokenHash", violation.ConstraintName);
     }
 
     [Fact]
