@@ -21,12 +21,14 @@ public sealed class OrganizationStatusChanger(
     IPermissionResolver permissionResolver,
     IDateTimeProvider dateTimeProvider)
 {
+    /// <param name="recheckCaller">Runs right after the lock, before anything is read; throws to refuse.</param>
     /// <param name="resolveActorKind">Runs inside the transaction, only when the organization is still active.</param>
     /// <exception cref="NotFoundException">No such organization.</exception>
     public Task DeactivateAsync(
         Guid organizationId,
         Guid actorAccountId,
         string? reason,
+        Func<CancellationToken, Task>? recheckCaller,
         Func<Organization, CancellationToken, Task<ActorKind>> resolveActorKind,
         CancellationToken cancellationToken) =>
         ChangeStatusAsync(
@@ -34,6 +36,7 @@ public sealed class OrganizationStatusChanger(
             actorAccountId,
             targetStatus: false,
             AuditEventType.OrganizationDeactivated,
+            recheckCaller,
             resolveActorKind,
             // The reason stays on the organization only: the audit event never carries it (BR-84).
             (organization, actorKind) => organization.Deactivate(new DeactivationParams(
@@ -52,6 +55,7 @@ public sealed class OrganizationStatusChanger(
             actorAccountId,
             targetStatus: true,
             AuditEventType.OrganizationReactivated,
+            recheckCaller: null,
             resolveActorKind,
             (organization, _) => organization.Reactivate(),
             cancellationToken);
@@ -61,6 +65,7 @@ public sealed class OrganizationStatusChanger(
         Guid actorAccountId,
         bool targetStatus,
         AuditEventType eventType,
+        Func<CancellationToken, Task>? recheckCaller,
         Func<Organization, CancellationToken, Task<ActorKind>> resolveActorKind,
         Action<Organization, ActorKind> apply,
         CancellationToken cancellationToken)
@@ -70,6 +75,11 @@ public sealed class OrganizationStatusChanger(
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             await organizationLock.AcquireAsync(organizationId, ct);
+            if (recheckCaller is not null)
+            {
+                await recheckCaller(ct);
+            }
+
             IRepository<Organization, Guid> organizationRepository = unitOfWork.Repository<Organization, Guid>();
             Organization organization = await organizationRepository.GetByIdAsync(organizationId, ct)
                 ?? throw new NotFoundException(nameof(Organization), organizationId);

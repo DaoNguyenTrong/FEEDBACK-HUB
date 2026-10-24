@@ -1,11 +1,13 @@
 using System.Linq.Expressions;
 using NSubstitute;
+using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditTrail;
 using FeedbackHub.Application.Services.OrganizationLocking;
 using FeedbackHub.Application.Services.Organizations;
+using FeedbackHub.Application.Services.Roles;
 using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Application.Tests.TestSupport;
 using FeedbackHub.Domain.Auditing;
@@ -25,6 +27,7 @@ public class OrganizationContextServiceTests
         IRepository<Organization, Guid> Organizations,
         IRepository<OrganizationMember, Guid> Members,
         IOrganizationLock OrganizationLock,
+        IRoleGrantReader RoleGrants,
         ISystemAdministratorResolver SystemAdministrators,
         IAuditTrail AuditTrail,
         ITenantAccessService TenantAccess,
@@ -36,7 +39,8 @@ public class OrganizationContextServiceTests
         string organizationName = "Bảo Minh",
         bool systemAdministrator = false,
         bool personalContext = false,
-        bool callerActive = true)
+        bool callerActive = true,
+        bool callerManages = true)
     {
         Guid callerId = Guid.NewGuid();
         Organization organization = Organization.Create(new OrganizationParams(organizationName, "bao-minh"));
@@ -56,6 +60,12 @@ public class OrganizationContextServiceTests
         IRepository<OrganizationMember, Guid> members = Substitute.For<IRepository<OrganizationMember, Guid>>();
         unitOfWork.Repository<OrganizationMember, Guid>().Returns(members);
         RepositoryPredicateStub.StubFirstOrDefault(members, [callerMember]);
+
+        // The caller's permissions as the database holds them after the lock, whatever the cache said.
+        IRoleGrantReader roleGrants = Substitute.For<IRoleGrantReader>();
+        HashSet<string> callerPermissions = callerManages ? [Permissions.OrganizationManage] : [];
+        roleGrants.LoadCallerAsync(organization.Id, callerId, Arg.Any<CancellationToken>())
+            .Returns(new RoleGrantCaller(callerId, false, callerPermissions));
 
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(callerId.ToString());
@@ -78,13 +88,14 @@ public class OrganizationContextServiceTests
             currentUser,
             tenantProvider,
             organizationLock,
+            roleGrants,
             systemAdministrators,
             auditTrail,
             new OrganizationStatusChanger(unitOfWork, organizationLock, auditTrail, tenantAccess, permissions, clock));
 
         return new Fixture(
-            service, unitOfWork, organizations, members, organizationLock, systemAdministrators, auditTrail, tenantAccess,
-            permissions, organization, callerId);
+            service, unitOfWork, organizations, members, organizationLock, roleGrants, systemAdministrators, auditTrail,
+            tenantAccess, permissions, organization, callerId);
     }
 
     private static async Task AssertNothingSavedOrRecordedAsync(Fixture f)
@@ -153,6 +164,7 @@ public class OrganizationContextServiceTests
             f.Members.FirstOrDefaultAsync(
                 Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>());
             f.Organizations.GetByIdAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+            f.RoleGrants.LoadCallerAsync(f.Organization.Id, f.CallerId, Arg.Any<CancellationToken>());
             f.Organizations.GetByIdAsync(f.Organization.Id, Arg.Any<CancellationToken>());
             f.AuditTrail.RecordAsync(Arg.Any<AuditEvent>(), Arg.Any<CancellationToken>());
             f.UnitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -224,6 +236,28 @@ public class OrganizationContextServiceTests
             f.OrganizationLock.AcquireAsync(f.Organization.Id, Arg.Any<CancellationToken>());
             f.Members.FirstOrDefaultAsync(
                 Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>());
+        });
+        await AssertNothingSavedOrRecordedAsync(f);
+    }
+
+    // organizations.manage taken away while the cache still granted it: re-read after the gate, nothing written.
+    [Fact]
+    public async Task RenameAsync_CallerLostOrganizationsManageInDatabase_Throws403AccessDeniedNothingSaved()
+    {
+        Fixture f = CreateFixture(callerManages: false);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
+            ApplicationMessages.OrganizationAccessDenied,
+            () => f.Service.RenameAsync(new RenameOrganizationRequest("Bảo Minh Group"), CancellationToken.None));
+
+        Assert.Equal("Bảo Minh", f.Organization.Name);
+        Received.InOrder(() =>
+        {
+            f.OrganizationLock.AcquireAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+            f.Members.FirstOrDefaultAsync(
+                Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>());
+            f.Organizations.GetByIdAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+            f.RoleGrants.LoadCallerAsync(f.Organization.Id, f.CallerId, Arg.Any<CancellationToken>());
         });
         await AssertNothingSavedOrRecordedAsync(f);
     }
@@ -313,9 +347,31 @@ public class OrganizationContextServiceTests
         Received.InOrder(() =>
         {
             f.OrganizationLock.AcquireAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+            f.RoleGrants.LoadCallerAsync(f.Organization.Id, f.CallerId, Arg.Any<CancellationToken>());
             f.UnitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
             f.TenantAccess.InvalidateOrganizationAsync(f.Organization.Id, Arg.Any<CancellationToken>());
             f.Permissions.InvalidateOrganizationAsync(f.Organization.Id, Arg.Any<CancellationToken>());
         });
+    }
+
+    // organizations.manage taken away while the cache still granted it: re-read after the lock, nothing changes.
+    [Fact]
+    public async Task DeactivateAsync_CallerLostOrganizationsManageInDatabase_Throws403AccessDeniedNothingSaved()
+    {
+        Fixture f = CreateFixture(callerManages: false);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
+            ApplicationMessages.OrganizationAccessDenied,
+            () => f.Service.DeactivateAsync(new DeactivateOrganizationRequest("Hết hợp đồng"), CancellationToken.None));
+
+        Assert.True(f.Organization.Status);
+        Assert.Null(f.Organization.DeactivatedAt);
+        Received.InOrder(() =>
+        {
+            f.OrganizationLock.AcquireAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+            f.RoleGrants.LoadCallerAsync(f.Organization.Id, f.CallerId, Arg.Any<CancellationToken>());
+        });
+        await AssertNothingSavedOrRecordedAsync(f);
+        await AssertNoCacheInvalidatedAsync(f);
     }
 }
