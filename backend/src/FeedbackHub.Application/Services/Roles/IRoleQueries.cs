@@ -7,4 +7,11 @@ public interface IRoleQueries
 
     /// <returns>The role, or <c>null</c> when it does not exist in <paramref name="organizationId"/>.</returns>
     Task<RoleRow?> GetAsync(Guid organizationId, Guid roleId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether another role of the organization has <paramref name="name"/>, ignoring case the way the unique index
+    /// on <c>lower("Name" COLLATE "und-x-icu")</c> does. <paramref name="name"/> is already trimmed and NFC.
+    /// </summary>
+    Task<bool> IsNameTakenAsync(
+        Guid organizationId, string name, Guid? excludeRoleId, CancellationToken cancellationToken);
 }

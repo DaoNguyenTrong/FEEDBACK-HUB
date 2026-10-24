@@ -207,6 +207,12 @@
   <data name="LastOwnerCannotLeave" xml:space="preserve">
     <value>The organization needs at least one Owner. Make someone else an Owner before you leave.</value>
   </data>
+  <data name="RoleHasHolders" xml:space="preserve">
+    <value>Someone still has this role. Change their roles before deleting it.</value>
+  </data>
+  <data name="RoleNameReservedForSystemRole" xml:space="preserve">
+    <value>This name is taken by a system role.</value>
+  </data>
   <data name="ExternalLoginEmailNotConfirmed" xml:space="preserve">
     <value>An account with this email already exists but has not been confirmed yet. Please confirm the email before linking an external login.</value>
   </data>

@@ -239,31 +239,10 @@ public sealed class MemberService(
     private static List<AuditRoleRef> ToAuditRefs(IEnumerable<RoleGrantRole> roles) =>
         roles.Select(role => new AuditRoleRef(role.Id, role.Name, role.SystemKind)).ToList();
 
-    /// <summary>
-    /// Takes the organization lock first (TECH00 §5.4), then answers as the gate would now: the caller may have been
-    /// removed, or the organization suspended, after the gate let the request in.
-    /// </summary>
-    /// <returns>The caller's active member row.</returns>
-    private async Task<OrganizationMember> LockAndRecheckGateAsync(
-        Guid organizationId, Guid callerId, CancellationToken cancellationToken)
-    {
-        await organizationLock.AcquireAsync(organizationId, cancellationToken);
-
-        OrganizationMember callerMember = await FindActiveMemberAsync(organizationId, callerId, cancellationToken)
-            ?? throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
-
-        Organization organization =
-            await unitOfWork.Repository<Organization, Guid>().GetByIdAsync(organizationId, cancellationToken)
-            ?? throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
-        if (!organization.Status)
-        {
-            throw new ForbiddenException(
-                ApplicationMessages.OrganizationSuspended,
-                new Dictionary<string, string> { [ProblemExtensionKeys.OrganizationName] = organization.Name });
-        }
-
-        return callerMember;
-    }
+    private Task<OrganizationMember> LockAndRecheckGateAsync(
+        Guid organizationId, Guid callerId, CancellationToken cancellationToken) =>
+        OrganizationWriteGate.LockAndRecheckAsync(
+            organizationLock, unitOfWork, organizationId, callerId, cancellationToken);
 
     private Task<OrganizationMember?> FindActiveMemberAsync(
         Guid organizationId, Guid accountId, CancellationToken cancellationToken) =>

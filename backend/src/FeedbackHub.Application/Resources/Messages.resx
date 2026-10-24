@@ -207,6 +207,12 @@
   <data name="LastOwnerCannotLeave" xml:space="preserve">
     <value>Tổ chức cần ít nhất một Chủ sở hữu. Hãy gán vai trò Chủ sở hữu cho người khác trước khi rời.</value>
   </data>
+  <data name="RoleHasHolders" xml:space="preserve">
+    <value>Vai trò này còn người giữ. Hãy đổi vai trò của họ trước khi xoá.</value>
+  </data>
+  <data name="RoleNameReservedForSystemRole" xml:space="preserve">
+    <value>Tên này trùng tên một vai trò hệ thống.</value>
+  </data>
   <data name="ExternalLoginEmailNotConfirmed" xml:space="preserve">
     <value>Đã có tài khoản dùng email này nhưng chưa được xác thực. Vui lòng xác thực email trước khi liên kết đăng nhập.</value>
   </data>

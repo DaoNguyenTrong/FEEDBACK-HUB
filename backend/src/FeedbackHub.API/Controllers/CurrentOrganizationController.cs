@@ -158,4 +158,59 @@ public sealed class CurrentOrganizationController(
 
         return Ok(roles);
     }
+
+    /// <summary>
+    /// Creates a custom role. Every permission must be one the caller holds; the name may not match another role or a
+    /// system role name in either language, ignoring case.
+    /// </summary>
+    [HttpPost("roles")]
+    [Authorize(Policy = Permissions.OrganizationRolesManage)]
+    [ProducesResponseType(typeof(RoleDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<RoleDto>> CreateRole(CreateRoleRequest request, CancellationToken cancellationToken)
+    {
+        RoleDto role = await roleService.CreateAsync(request, cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, role);
+    }
+
+    /// <summary>
+    /// Renames a custom role and replaces its permissions. The caller must hold every permission the role has and
+    /// every one it is given. The same name and permissions again: 200 with the role, nothing changes.
+    /// </summary>
+    [HttpPut("roles/{roleId:guid}")]
+    [Authorize(Policy = Permissions.OrganizationRolesManage)]
+    [ProducesResponseType(typeof(RoleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<RoleDto>> UpdateRole(
+        Guid roleId,
+        UpdateRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        RoleDto role = await roleService.UpdateAsync(roleId, request, cancellationToken);
+
+        return Ok(role);
+    }
+
+    /// <summary>Deletes a custom role that no active member holds. The caller must hold every permission it has.</summary>
+    [HttpDelete("roles/{roleId:guid}")]
+    [Authorize(Policy = Permissions.OrganizationRolesManage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DeleteRole(Guid roleId, CancellationToken cancellationToken)
+    {
+        await roleService.DeleteAsync(roleId, cancellationToken);
+
+        return NoContent();
+    }
 }

@@ -41,7 +41,7 @@ internal sealed class PermissionResolver(
 
                 if (roles.Any(role => role.SystemRoleKind == SystemRoleKind.Owner))
                 {
-                    return Permissions.All.ToHashSet();
+                    return SystemRoleDefaults.EffectivePermissionCodes(SystemRoleKind.Owner, []).ToHashSet();
                 }
 
                 List<Guid> roleIds = roles.Select(role => role.Id).ToList();

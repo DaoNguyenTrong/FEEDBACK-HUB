@@ -17,4 +17,13 @@ public interface IRoleService
 
     /// <summary>The Roles section: every role with holder count and the caller's edit and delete flags.</summary>
     Task<IReadOnlyList<RoleDto>> ListAsync(CancellationToken cancellationToken);
+
+    /// <summary>Creates a custom role with permissions the caller holds (BR-58, BR-79).</summary>
+    Task<RoleDto> CreateAsync(CreateRoleRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Renames a custom role and replaces its permissions. No change: the current role, nothing written.</summary>
+    Task<RoleDto> UpdateAsync(Guid roleId, UpdateRoleRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Deletes a custom role no active member holds.</summary>
+    Task DeleteAsync(Guid roleId, CancellationToken cancellationToken);
 }

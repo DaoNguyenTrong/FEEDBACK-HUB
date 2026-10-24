@@ -1,4 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Services.Roles;
 using FeedbackHub.Domain.Entities;
@@ -187,5 +190,103 @@ public sealed class RoleQueriesTests(PostgresContainerFixture fixture) : IAsyncL
 
         Assert.NotNull(row);
         Assert.Equal(Permissions.All.ToHashSet(), row.PermissionCodes.ToHashSet());
+    }
+
+    // IsNameTakenAsync
+
+    // AC-290, AC-326: case is ignored for non-ASCII letters too.
+    [Theory]
+    [InlineData("tester")]
+    [InlineData("TESTER")]
+    [InlineData("ước lượng")]
+    public async Task IsNameTakenAsync_SameNameInAnotherCase_ReturnsTrue(string name)
+    {
+        (Guid organizationId, _) = await SeedOrganizationAsync();
+        await SeedCustomRoleAsync(organizationId, "Tester");
+        await SeedCustomRoleAsync(organizationId, "Ước Lượng");
+
+        Assert.True(await queries.IsNameTakenAsync(organizationId, name, null, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task IsNameTakenAsync_OnlyTheExcludedRoleHasIt_ReturnsFalse()
+    {
+        (Guid organizationId, _) = await SeedOrganizationAsync();
+        Role tester = await SeedCustomRoleAsync(organizationId, "Tester");
+
+        Assert.False(await queries.IsNameTakenAsync(organizationId, "TESTER", tester.Id, CancellationToken.None));
+        Assert.False(await queries.IsNameTakenAsync(organizationId, "Kiểm thử", null, CancellationToken.None));
+    }
+
+    // AC-292
+    [Fact]
+    public async Task IsNameTakenAsync_NameInAnotherOrganization_ReturnsFalse()
+    {
+        (Guid mineId, _) = await SeedOrganizationAsync();
+        (Guid otherId, _) = await SeedOrganizationAsync();
+        await SeedCustomRoleAsync(otherId, "Tester");
+
+        Assert.False(await queries.IsNameTakenAsync(mineId, "Tester", null, CancellationToken.None));
+    }
+
+    // F3: the check must use the unique index's expression, or it and the index could disagree on what is equal.
+    [Fact]
+    public async Task IsNameTakenAsync_Sql_UsesTheUniqueIndexExpression()
+    {
+        List<string> commands = [];
+        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(fixture.ConnectionString)
+            .LogTo(commands.Add, [RelationalEventId.CommandExecuted])
+            .Options;
+        await using AppDbContext logged = new(options);
+
+        await new RoleQueries(logged).IsNameTakenAsync(Guid.NewGuid(), "Tester", Guid.NewGuid(), CancellationToken.None);
+
+        string sql = Assert.Single(commands);
+        Assert.Contains("lower(r.\"Name\" COLLATE \"und-x-icu\")", sql);
+    }
+
+    // lower() follows the database ctype: under a C-locale database it would keep "Ước" and "ước" apart.
+    [Fact]
+    public async Task IsNameTakenAsync_OnCLocaleDatabase_IgnoresNonAsciiCase()
+    {
+        string database = $"c_locale_{Guid.NewGuid():N}";
+        await using (NpgsqlConnection admin = new(fixture.ConnectionString))
+        {
+            await admin.OpenAsync();
+            await using NpgsqlCommand create = new($"CREATE DATABASE {database} TEMPLATE template0 LOCALE 'C'", admin);
+            await create.ExecuteNonQueryAsync();
+        }
+
+        try
+        {
+            NpgsqlConnectionStringBuilder builder = new(fixture.ConnectionString) { Database = database, Pooling = false };
+            Guid organizationId = Guid.NewGuid();
+            await using (NpgsqlConnection cLocale = new(builder.ConnectionString))
+            {
+                await cLocale.OpenAsync();
+                await using NpgsqlCommand setup = new("""
+                    CREATE TABLE roles ("Id" uuid PRIMARY KEY, "OrganizationId" uuid NOT NULL, "Name" varchar(100) NOT NULL);
+                    INSERT INTO roles VALUES (gen_random_uuid(), @organization, 'Ước');
+                    """, cLocale);
+                setup.Parameters.AddWithValue("organization", organizationId);
+                await setup.ExecuteNonQueryAsync();
+            }
+
+            DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql(builder.ConnectionString)
+                .Options;
+            await using AppDbContext cLocaleContext = new(options);
+
+            Assert.True(await new RoleQueries(cLocaleContext)
+                .IsNameTakenAsync(organizationId, "ước", null, CancellationToken.None));
+        }
+        finally
+        {
+            await using NpgsqlConnection admin = new(fixture.ConnectionString);
+            await admin.OpenAsync();
+            await using NpgsqlCommand drop = new($"DROP DATABASE IF EXISTS {database} WITH (FORCE)", admin);
+            await drop.ExecuteNonQueryAsync();
+        }
     }
 }

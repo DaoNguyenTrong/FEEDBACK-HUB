@@ -63,8 +63,9 @@ public class RoleTests
     public void Update_NameWithSpacesAndDecomposedUnicode_StoresTrimmedNfc()
     {
         string decomposed = "  Chủ sở hữu ".Normalize(System.Text.NormalizationForm.FormD);
+        Role role = Role.Create(ValidParams());
 
-        Role role = Role.Create(ValidParams() with { Name = decomposed });
+        role.Update(ValidParams() with { Name = decomposed });
 
         Assert.Equal("Chủ sở hữu", role.Name);
         Assert.True(role.Name.IsNormalized(System.Text.NormalizationForm.FormC));
