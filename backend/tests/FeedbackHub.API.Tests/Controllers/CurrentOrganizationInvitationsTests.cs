@@ -1,11 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Security.Cryptography;
-using System.Text;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using FeedbackHub.API.Controllers;
 using FeedbackHub.API.Tests.TestSupport;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Resources;
@@ -51,14 +52,10 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
     }
 
     private async Task<OrganizationInvitation> SeedInvitationAsync(
-        Guid organizationId, string email, Guid roleId, string rawToken)
+        Guid organizationId, string email, Guid roleId, string rawToken, DateTime? issuedAt = null)
     {
         await using AppDbContext context = CreateDbContext();
-        OrganizationInvitation invitation = OrganizationInvitation.Create(new OrganizationInvitationParams(
-            organizationId, email, roleId, Sha256(rawToken), DateTime.UtcNow));
-        context.OrganizationInvitations.Add(invitation);
-        await context.SaveChangesAsync();
-        return invitation;
+        return await AuthTestHelper.SeedInvitationAsync(context, organizationId, email, roleId, rawToken, issuedAt);
     }
 
     private async Task<List<OrganizationInvitation>> InvitationsOfAsync(Guid organizationId)
@@ -88,6 +85,25 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
     private static Task<HttpResponseMessage> SendAsync(HttpClient client, object body) =>
         client.PostAsJsonAsync(Path, body);
 
+    // One call per invitation endpoint, so the authorization cases run against all four alike.
+    private static Task<HttpResponseMessage> CallAsync(HttpClient client, string endpoint, Guid invitationId, Guid roleId) =>
+        endpoint switch
+        {
+            "List" => client.GetAsync(Path),
+            "Send" => SendAsync(client, new { email = "b@example.com", roleId }),
+            "Resend" => client.PostAsync($"{Path}/{invitationId}/resend", null),
+            "Delete" => client.DeleteAsync($"{Path}/{invitationId}"),
+            _ => throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint, null)
+        };
+
+    private async Task<string?> LookupStatusAsync(string rawToken)
+    {
+        HttpResponseMessage response =
+            await fixture.CreateTestClient().PostAsJsonAsync("/api/invitations/lookup", new { token = rawToken });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadJsonElementAsync()).GetProperty("status").GetString();
+    }
+
     private static async Task AssertCodeAsync(HttpResponseMessage response, HttpStatusCode status, string code)
     {
         Assert.Equal(status, response.StatusCode);
@@ -95,22 +111,64 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
         Assert.Equal(code, body.GetProperty("code").GetString());
     }
 
-    // The stored hash, computed as TokenHash does (internal to Application).
-    private static string Sha256(string input) =>
-        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(input)));
-
     [GeneratedRegex("#/invite\\?token=([A-Za-z0-9_-]+)")]
     private static partial Regex InviteLink();
 
     // Send: authorization
 
-    [Fact]
-    public async Task Send_Anonymous_Returns401()
+    [Theory]
+    [InlineData("List")]
+    [InlineData("Send")]
+    [InlineData("Resend")]
+    [InlineData("Delete")]
+    public async Task Invitations_Anonymous_Returns401(string endpoint)
     {
         HttpResponseMessage response =
-            await SendAsync(fixture.CreateTestClient(), new { email = "b@example.com", roleId = Guid.NewGuid() });
+            await CallAsync(fixture.CreateTestClient(), endpoint, Guid.NewGuid(), Guid.NewGuid());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // AC-316: without organizations.members.manage nobody sees or touches an invitation (BR-75).
+    [Theory]
+    [InlineData("List")]
+    [InlineData("Resend")]
+    [InlineData("Delete")]
+    public async Task Invitations_MemberWithoutMembersManage_Returns403AndChangesNothing(string endpoint)
+    {
+        (Organization organization, Account caller, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
+            await SeedCallerAsync(SystemRoleKind.Member);
+        OrganizationInvitation invitation = await SeedInvitationAsync(
+            organization.Id, "b@example.com", roles[SystemRoleKind.Member].Id, "member-token");
+
+        HttpResponseMessage response = await CallAsync(
+            ClientFor(caller, organization.Id), endpoint, invitation.Id, roles[SystemRoleKind.Member].Id);
+
+        await AssertCodeAsync(response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationAccessDenied);
+        Assert.Equal(invitation.Id, Assert.Single(await InvitationsOfAsync(organization.Id)).Id);
+        Assert.Empty(await EventsOfAsync(organization.Id));
+        Assert.Empty(fixture.Emails.Sent);
+    }
+
+    // An Owner without a working organization: the gate has no organization to check (TECH00 §5.1).
+    [Theory]
+    [InlineData("List")]
+    [InlineData("Send")]
+    [InlineData("Resend")]
+    [InlineData("Delete")]
+    public async Task Invitations_PersonalContext_Returns403AccessDenied(string endpoint)
+    {
+        (Organization organization, Account owner, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
+            await SeedCallerAsync(SystemRoleKind.Owner);
+        OrganizationInvitation invitation = await SeedInvitationAsync(
+            organization.Id, "c@example.com", roles[SystemRoleKind.Member].Id, "personal-token");
+
+        HttpResponseMessage response = await CallAsync(
+            ClientFor(owner, null), endpoint, invitation.Id, roles[SystemRoleKind.Member].Id);
+
+        await AssertCodeAsync(response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationAccessDenied);
+        Assert.Equal(invitation.Id, Assert.Single(await InvitationsOfAsync(organization.Id)).Id);
+        Assert.Empty(fixture.Emails.Sent);
     }
 
     // AC-316
@@ -129,11 +187,17 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
     }
 
     // An API key never stands in an organization (TECH00 §5.2).
-    [Fact]
-    public async Task Send_ApiKey_Returns403AccessDenied()
+    [Theory]
+    [InlineData("List")]
+    [InlineData("Send")]
+    [InlineData("Resend")]
+    [InlineData("Delete")]
+    public async Task Invitations_ApiKey_Returns403AccessDenied(string endpoint)
     {
         (Organization organization, _, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
             await SeedCallerAsync(SystemRoleKind.Owner);
+        OrganizationInvitation invitation = await SeedInvitationAsync(
+            organization.Id, "c@example.com", roles[SystemRoleKind.Member].Id, "api-key-token");
         string rawKey;
         await using (AppDbContext context = CreateDbContext())
         {
@@ -144,11 +208,28 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
         client.DefaultRequestHeaders.Add("X-Api-Key", rawKey);
 
         HttpResponseMessage response =
-            await SendAsync(client, new { email = "b@example.com", roleId = roles[SystemRoleKind.Member].Id });
+            await CallAsync(client, endpoint, invitation.Id, roles[SystemRoleKind.Member].Id);
 
         await AssertCodeAsync(response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationAccessDenied);
-        Assert.Empty(await InvitationsOfAsync(organization.Id));
+        Assert.Equal(invitation.Id, Assert.Single(await InvitationsOfAsync(organization.Id)).Id);
+        Assert.Empty(await EventsOfAsync(organization.Id));
         Assert.Empty(fixture.Emails.Sent);
+    }
+
+    // The service re-reads the permission after the lock and answers the same 403, which would hide a weaker endpoint
+    // policy from every HTTP test here; the gate's own check is pinned instead.
+    [Theory]
+    [InlineData(nameof(CurrentOrganizationController.ListInvitations))]
+    [InlineData(nameof(CurrentOrganizationController.SendInvitation))]
+    [InlineData(nameof(CurrentOrganizationController.ResendInvitation))]
+    [InlineData(nameof(CurrentOrganizationController.RevokeOrDeleteInvitation))]
+    public void InvitationActions_RequireMembersManagePolicy(string action)
+    {
+        MethodInfo method = typeof(CurrentOrganizationController).GetMethod(action)
+            ?? throw new InvalidOperationException($"No action {action}.");
+
+        AuthorizeAttribute authorize = Assert.Single(method.GetCustomAttributes<AuthorizeAttribute>(true));
+        Assert.Equal(Permissions.OrganizationMembersManage, authorize.Policy);
     }
 
     // F2: the token and the permission cache still say "manage"; the service re-reads it after the lock.
@@ -256,7 +337,7 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
         Assert.Equal("new@example.com", email.ToEmail);
         string token = InviteLink().Match(email.HtmlBody).Groups[1].Value;
         Assert.NotEmpty(token);
-        Assert.Equal(Sha256(token), invitation.TokenHash);
+        Assert.Equal(AuthTestHelper.InvitationTokenHash(token), invitation.TokenHash);
 
         AuditLog recorded = Assert.Single(await EventsOfAsync(organization.Id));
         Assert.Equal(nameof(AuditEventType.InvitationSent), recorded.Action);
@@ -267,7 +348,7 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
 
     // Review Focus 2 over HTTP: the rollback keeps the earlier invitation and its token, and records nothing.
     [Fact]
-    public async Task Send_SmtpFails_Returns503AndKeepsEarlierInvitation()
+    public async Task Send_SmtpFails_Returns503OldInvitationStillOpens()
     {
         (Organization organization, Account owner, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
             await SeedCallerAsync(SystemRoleKind.Owner);
@@ -282,11 +363,12 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
             response, HttpStatusCode.ServiceUnavailable, ApplicationMessages.InvitationEmailDeliveryFailed);
         OrganizationInvitation kept = Assert.Single(await InvitationsOfAsync(organization.Id));
         Assert.Equal(earlier.Id, kept.Id);
-        Assert.Equal(Sha256("earlier-token"), kept.TokenHash);
+        Assert.Equal(AuthTestHelper.InvitationTokenHash("earlier-token"), kept.TokenHash);
         Assert.Equal(roles[SystemRoleKind.Member].Id, kept.RoleId);
         Assert.Equal(earlier.ExpiresAt, kept.ExpiresAt, TimeSpan.FromMilliseconds(1));
         Assert.Empty(await EventsOfAsync(organization.Id));
         Assert.Empty(fixture.Emails.Sent);
+        Assert.Equal("Valid", await LookupStatusAsync("earlier-token"));
     }
 
     // AC-180
@@ -302,6 +384,122 @@ public sealed partial class CurrentOrganizationInvitationsTests(ApiFactoryFixtur
 
         await AssertCodeAsync(response, HttpStatusCode.Conflict, ApplicationMessages.InvitationEmailAlreadyMember);
         Assert.Empty(await InvitationsOfAsync(organization.Id));
+        Assert.Empty(fixture.Emails.Sent);
+    }
+
+    // List
+
+    [Fact]
+    public async Task List_Owner_Returns200PendingAndExpiredLatestExpiryFirst()
+    {
+        (Organization organization, Account owner, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
+            await SeedCallerAsync(SystemRoleKind.Owner);
+        OrganizationInvitation expired = await SeedInvitationAsync(
+            organization.Id, "old@example.com", roles[SystemRoleKind.Member].Id, "old-token",
+            DateTime.UtcNow.AddHours(-200));
+        OrganizationInvitation pending = await SeedInvitationAsync(
+            organization.Id, "new@example.com", roles[SystemRoleKind.Admin].Id, "new-token");
+        (Organization other, _, IReadOnlyDictionary<SystemRoleKind, Role> otherRoles) =
+            await SeedCallerAsync(SystemRoleKind.Owner);
+        await SeedInvitationAsync(other.Id, "elsewhere@example.com", otherRoles[SystemRoleKind.Member].Id, "x-token");
+
+        HttpResponseMessage response = await ClientFor(owner, organization.Id).GetAsync(Path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement page = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(2, page.GetProperty("totalCount").GetInt32());
+        JsonElement[] items = [.. page.GetProperty("items").EnumerateArray()];
+        Assert.Equal([pending.Id, expired.Id], items.Select(item => item.GetProperty("id").GetGuid()));
+        Assert.Equal(["Pending", "Expired"], items.Select(item => item.GetProperty("status").GetString()));
+        Assert.Equal("new@example.com", items[0].GetProperty("email").GetString());
+    }
+
+    // Resend
+
+    [Fact]
+    public async Task Resend_Pending_Returns201WithNewIdAndMailsNewLink()
+    {
+        (Organization organization, Account owner, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
+            await SeedCallerAsync(SystemRoleKind.Owner);
+        OrganizationInvitation earlier = await SeedInvitationAsync(
+            organization.Id, "b@example.com", roles[SystemRoleKind.Member].Id, "resend-token");
+
+        HttpResponseMessage response =
+            await ClientFor(owner, organization.Id).PostAsync($"{Path}/{earlier.Id}/resend", null);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Guid newId = (await response.Content.ReadJsonElementAsync()).GetProperty("id").GetGuid();
+        OrganizationInvitation replacement = Assert.Single(await InvitationsOfAsync(organization.Id));
+        Assert.Equal(newId, replacement.Id);
+        Assert.NotEqual(earlier.Id, newId);
+        Assert.Equal(roles[SystemRoleKind.Member].Id, replacement.RoleId);
+        SentEmail email = Assert.Single(fixture.Emails.Sent);
+        Assert.Equal("b@example.com", email.ToEmail);
+        Assert.Equal(AuthTestHelper.InvitationTokenHash(InviteLink().Match(email.HtmlBody).Groups[1].Value),
+            replacement.TokenHash);
+        Assert.Equal("NoLongerValid", await LookupStatusAsync("resend-token"));
+    }
+
+    [Fact]
+    public async Task Resend_SmtpFails_Returns503OldInvitationStillOpens()
+    {
+        (Organization organization, Account owner, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
+            await SeedCallerAsync(SystemRoleKind.Owner);
+        OrganizationInvitation earlier = await SeedInvitationAsync(
+            organization.Id, "b@example.com", roles[SystemRoleKind.Member].Id, "resend-fail-token");
+        fixture.Emails.FailNextSend();
+
+        HttpResponseMessage response =
+            await ClientFor(owner, organization.Id).PostAsync($"{Path}/{earlier.Id}/resend", null);
+
+        await AssertCodeAsync(
+            response, HttpStatusCode.ServiceUnavailable, ApplicationMessages.InvitationEmailDeliveryFailed);
+        Assert.Equal(earlier.Id, Assert.Single(await InvitationsOfAsync(organization.Id)).Id);
+        Assert.Empty(await EventsOfAsync(organization.Id));
+        Assert.Equal("Valid", await LookupStatusAsync("resend-fail-token"));
+    }
+
+    // Delete
+
+    [Theory]
+    [InlineData(false, nameof(AuditEventType.InvitationRevoked))]
+    [InlineData(true, nameof(AuditEventType.InvitationDeleted))]
+    public async Task Delete_PendingOrExpired_Returns204AndRecords(bool expired, string recordedType)
+    {
+        (Organization organization, Account owner, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
+            await SeedCallerAsync(SystemRoleKind.Owner);
+        OrganizationInvitation invitation = await SeedInvitationAsync(
+            organization.Id, "b@example.com", roles[SystemRoleKind.Member].Id, "delete-token",
+            expired ? DateTime.UtcNow.AddHours(-200) : null);
+
+        HttpResponseMessage response = await ClientFor(owner, organization.Id).DeleteAsync($"{Path}/{invitation.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Empty(await InvitationsOfAsync(organization.Id));
+        AuditLog recorded = Assert.Single(await EventsOfAsync(organization.Id));
+        Assert.Equal(recordedType, recorded.Action);
+        Assert.Equal("NoLongerValid", await LookupStatusAsync("delete-token"));
+    }
+
+    // BR-45: another organization's invitation answers exactly as one that does not exist.
+    [Theory]
+    [InlineData("Resend")]
+    [InlineData("Delete")]
+    public async Task Invitations_OtherOrganizationsInvitation_Returns404AndChangesNothing(string endpoint)
+    {
+        (Organization organization, Account owner, IReadOnlyDictionary<SystemRoleKind, Role> roles) =
+            await SeedCallerAsync(SystemRoleKind.Owner);
+        (Organization other, _, IReadOnlyDictionary<SystemRoleKind, Role> otherRoles) =
+            await SeedCallerAsync(SystemRoleKind.Owner);
+        OrganizationInvitation foreign = await SeedInvitationAsync(
+            other.Id, "b@example.com", otherRoles[SystemRoleKind.Member].Id, "foreign-token");
+
+        HttpResponseMessage response = await CallAsync(
+            ClientFor(owner, organization.Id), endpoint, foreign.Id, roles[SystemRoleKind.Member].Id);
+
+        await AssertCodeAsync(response, HttpStatusCode.NotFound, EntityNotFoundCode);
+        Assert.Equal(foreign.Id, Assert.Single(await InvitationsOfAsync(other.Id)).Id);
+        Assert.Empty(await EventsOfAsync(other.Id));
         Assert.Empty(fixture.Emails.Sent);
     }
 }
