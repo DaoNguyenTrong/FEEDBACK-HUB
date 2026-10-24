@@ -44,17 +44,10 @@ public sealed class OrganizationContextService(
         // Locked, so two renames at once each record the name the other one left.
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            await organizationLock.AcquireAsync(organizationId, ct);
+            // Removed or deactivated after the gate let the request in: answer as the gate now would.
+            await OrganizationWriteGate.LockAndRecheckAsync(organizationLock, unitOfWork, organizationId, callerId, ct);
             Organization organization = await LoadAsync(organizationId, ct);
             renamed = organization;
-
-            // Deactivated after the gate let the request in: answer as the gate now would.
-            if (!organization.Status)
-            {
-                throw new ForbiddenException(
-                    ApplicationMessages.OrganizationSuspended,
-                    new Dictionary<string, string> { [ProblemExtensionKeys.OrganizationName] = organization.Name });
-            }
 
             if (string.Equals(organization.Name, name, StringComparison.Ordinal))
             {

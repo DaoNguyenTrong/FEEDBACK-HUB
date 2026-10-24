@@ -205,4 +205,31 @@ public class OrganizationServiceTests
             .ListAsync(Arg.Any<Expression<Func<Organization, bool>>>(), Arg.Any<CancellationToken>());
         await f.OrganizationRepo.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
+
+    // No foreign key ties a member-role link to the member's organization, so a crossing link grants nothing.
+    [Fact]
+    public async Task ListMineAsync_RoleLinkCrossingOrganizations_IsIgnored()
+    {
+        Fixture f = CreateFixture();
+        Organization mine = Organization.Create(new OrganizationParams("An Bình", "an-binh"));
+        Organization other = Organization.Create(new OrganizationParams("Bảo Minh", "bao-minh"));
+        OrganizationMember membership = OrganizationMember.Create(new OrganizationMemberParams(mine.Id, f.Caller.Id));
+        Role member = Role.Create(new RoleParams(mine.Id, "Member", SystemRoleKind.Member));
+        Role foreignOwner = Role.Create(new RoleParams(other.Id, "Owner", SystemRoleKind.Owner));
+        RepositoryPredicateStub.StubListAsync(f.MemberRepo, [membership]);
+        RepositoryPredicateStub.StubListAsync(f.OrganizationRepo, [mine, other]);
+        RepositoryPredicateStub.StubListAsync(f.MemberRoleRepo,
+        [
+            OrganizationMemberRole.Create(new OrganizationMemberRoleParams(membership.Id, member.Id)),
+            OrganizationMemberRole.Create(new OrganizationMemberRoleParams(membership.Id, foreignOwner.Id))
+        ]);
+        RepositoryPredicateStub.StubListAsync(f.RoleRepo, [member, foreignOwner]);
+        RepositoryPredicateStub.StubListAsync(f.RolePermissionRepo, []);
+
+        IReadOnlyList<OrganizationDto> result = await f.Service.ListMineAsync(CancellationToken.None);
+
+        OrganizationDto only = Assert.Single(result);
+        Assert.Equal([new RoleRefDto(member.Id, "Member", SystemRoleKind.Member)], only.MyRoles);
+        Assert.Empty(only.MyPermissionCodes);
+    }
 }

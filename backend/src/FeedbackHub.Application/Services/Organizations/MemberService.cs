@@ -38,7 +38,7 @@ public sealed class MemberService(
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            await LockAndRecheckGateAsync(organizationId, callerId, ct);
+            RoleGrantCaller caller = await LockAndLoadManagerAsync(organizationId, callerId, ct);
             OrganizationMember member = await LoadActiveMemberAsync(organizationId, accountId, ct);
 
             IReadOnlyList<RoleGrantRole> roles = await roleGrantReader.LoadRolesAsync(organizationId, requestedIds, ct);
@@ -48,7 +48,6 @@ public sealed class MemberService(
                 throw new NotFoundException(nameof(Role), missingId);
             }
 
-            RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, ct);
             IReadOnlyList<RoleGrantRole> current = await LoadRolesOfAsync(organizationId, member, ct);
             HashSet<Guid> currentIds = current.Select(role => role.Id).ToHashSet();
             List<RoleGrantRole> added = roles.Where(role => !currentIds.Contains(role.Id)).ToList();
@@ -106,9 +105,8 @@ public sealed class MemberService(
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            await LockAndRecheckGateAsync(organizationId, callerId, ct);
+            RoleGrantCaller caller = await LockAndLoadManagerAsync(organizationId, callerId, ct);
             OrganizationMember member = await LoadActiveMemberAsync(organizationId, accountId, ct);
-            RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, ct);
             IReadOnlyList<RoleGrantRole> roles = await LoadRolesOfAsync(organizationId, member, ct);
 
             if (RoleGrantPolicy.CheckTakeAwayAll(caller, roles) is { } denial)
@@ -243,6 +241,23 @@ public sealed class MemberService(
         Guid organizationId, Guid callerId, CancellationToken cancellationToken) =>
         OrganizationWriteGate.LockAndRecheckAsync(
             organizationLock, unitOfWork, organizationId, callerId, cancellationToken);
+
+    /// <summary>
+    /// The gate re-check, then the endpoint's permission <c>organizations.members.manage</c> read from the database:
+    /// the permission cache may still grant it after it was taken away, or while the caller waited for the lock.
+    /// </summary>
+    private async Task<RoleGrantCaller> LockAndLoadManagerAsync(
+        Guid organizationId, Guid callerId, CancellationToken cancellationToken)
+    {
+        await LockAndRecheckGateAsync(organizationId, callerId, cancellationToken);
+        RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, cancellationToken);
+        if (!caller.Permissions.Contains(Permissions.OrganizationMembersManage))
+        {
+            throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
+        }
+
+        return caller;
+    }
 
     private Task<OrganizationMember?> FindActiveMemberAsync(
         Guid organizationId, Guid accountId, CancellationToken cancellationToken) =>

@@ -311,6 +311,26 @@ public class RoleServiceWriteTests
         await f.AssertNothingWrittenAsync();
     }
 
+    // roles.manage lost after the gate (stale cache, or removed while waiting for the lock); BR-58 alone would pass.
+    [Theory]
+    [InlineData(Operation.Create)]
+    [InlineData(Operation.Update)]
+    [InlineData(Operation.Delete)]
+    public async Task Write_CallerLostRolesManageAfterGate_Throws403AccessDenied(Operation operation)
+    {
+        Fixture f = CreateFixture();
+        Role tester = f.AddCustomRole("Tester", Permissions.FilesManage);
+        f.SetCaller(isOwner: false, Permissions.FilesManage);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
+            ApplicationMessages.OrganizationAccessDenied, () => f.RunAsync(operation, tester));
+
+        await f.AssertNothingWrittenAsync();
+        Assert.True(f.Exists(tester.Id));
+        Assert.Equal("Tester", tester.Name);
+        Assert.Null(f.FindByName("Hỗ trợ"));
+    }
+
     // BR-58 inputs come from the database after the lock, never from the permission cache (TECH00 §5.3).
     [Theory]
     [InlineData(Operation.Create)]

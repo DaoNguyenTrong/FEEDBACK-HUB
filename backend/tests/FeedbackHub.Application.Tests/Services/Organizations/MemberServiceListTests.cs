@@ -206,7 +206,8 @@ public class MemberServiceListTests
 
         await f.Reader.Received(1).LoadRolesOfMembersAsync(
             f.OrganizationId,
-            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { self.MemberId, other.MemberId })),
+            Arg.Is<IReadOnlyCollection<Guid>>(ids =>
+                ids != null && ids.SequenceEqual(new[] { self.MemberId, other.MemberId })),
             Arg.Any<CancellationToken>());
         Assert.Equal((123, 1, 50), (result.TotalCount, result.PageNumber, result.PageSize));
     }

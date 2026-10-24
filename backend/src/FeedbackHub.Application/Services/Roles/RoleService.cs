@@ -52,8 +52,7 @@ public sealed class RoleService(
 
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            await OrganizationWriteGate.LockAndRecheckAsync(organizationLock, unitOfWork, organizationId, callerId, ct);
-            RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, ct);
+            RoleGrantCaller caller = await LockAndLoadManagerAsync(organizationId, callerId, ct);
             EnsureCallerHolds(caller, codes);
 
             Role role = Role.Create(new RoleParams(organizationId, request.Name));
@@ -173,14 +172,13 @@ public sealed class RoleService(
     }
 
     /// <summary>
-    /// The prelude of API-17 and API-18, in the D2 order: lock and gate re-check, the role in the organization (404),
-    /// not a system role (403 <c>OrganizationSystemRoleImmutable</c>), then BR-58 <c>CanTakeAway</c> (403).
+    /// The prelude of API-17 and API-18, in the D2 order: lock, gate re-check and roles.manage, the role in the
+    /// organization (404), not a system role (403 <c>OrganizationSystemRoleImmutable</c>), then BR-58 CanTakeAway.
     /// </summary>
     private async Task<(Role Role, RoleGrantCaller Caller, RoleGrantRole Current)> LockAndLoadEditableRoleAsync(
         Guid organizationId, Guid callerId, Guid roleId, CancellationToken cancellationToken)
     {
-        await OrganizationWriteGate.LockAndRecheckAsync(
-            organizationLock, unitOfWork, organizationId, callerId, cancellationToken);
+        RoleGrantCaller caller = await LockAndLoadManagerAsync(organizationId, callerId, cancellationToken);
 
         Role role = await unitOfWork.Repository<Role, Guid>().FirstOrDefaultAsync(
                 candidate => candidate.Id == roleId && candidate.OrganizationId == organizationId, cancellationToken)
@@ -190,7 +188,6 @@ public sealed class RoleService(
             throw new ForbiddenException(ApplicationMessages.OrganizationSystemRoleImmutable);
         }
 
-        RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, cancellationToken);
         IReadOnlyList<RoleGrantRole> loaded =
             await roleGrantReader.LoadRolesAsync(organizationId, [role.Id], cancellationToken);
         RoleGrantRole current = loaded.Count == 1 ? loaded[0] : throw new NotFoundException(nameof(Role), roleId);
@@ -200,6 +197,24 @@ public sealed class RoleService(
         }
 
         return (role, caller, current);
+    }
+
+    /// <summary>
+    /// The gate re-check, then the endpoint's permission <c>organizations.roles.manage</c> read from the database:
+    /// the permission cache may still grant it after it was taken away, or while the caller waited for the lock.
+    /// </summary>
+    private async Task<RoleGrantCaller> LockAndLoadManagerAsync(
+        Guid organizationId, Guid callerId, CancellationToken cancellationToken)
+    {
+        await OrganizationWriteGate.LockAndRecheckAsync(
+            organizationLock, unitOfWork, organizationId, callerId, cancellationToken);
+        RoleGrantCaller caller = await roleGrantReader.LoadCallerAsync(organizationId, callerId, cancellationToken);
+        if (!caller.Permissions.Contains(Permissions.OrganizationRolesManage))
+        {
+            throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
+        }
+
+        return caller;
     }
 
     private async Task ApplyChangesAsync(

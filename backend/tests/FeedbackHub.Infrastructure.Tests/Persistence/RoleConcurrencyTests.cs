@@ -39,7 +39,8 @@ public sealed class RoleConcurrencyTests(PostgresContainerFixture fixture)
         }
     }
 
-    private sealed record Seeded(Guid OrganizationId, Guid OwnerId, Guid ManagerId, Guid PlainId, Role Member, Role Tester);
+    private sealed record Seeded(
+        Guid OrganizationId, Guid OwnerId, Guid ManagerId, Guid PlainId, Role Member, Role Manager, Role Tester);
 
     private static ServiceProvider RepositoriesFor(AppDbContext context) =>
         new ServiceCollection()
@@ -124,7 +125,7 @@ public sealed class RoleConcurrencyTests(PostgresContainerFixture fixture)
         Guid managerId = AddMember("Bảo Quản", manager);
         Guid plainId = AddMember("Cơ Bản", member);
         await context.SaveChangesAsync();
-        return new Seeded(organization.Id, ownerId, managerId, plainId, member, tester);
+        return new Seeded(organization.Id, ownerId, managerId, plainId, member, manager, tester);
     }
 
     // TECH00 §5.4: deleting a role never runs alongside assigning it, or the new holder would lose it by cascade.
@@ -193,6 +194,46 @@ public sealed class RoleConcurrencyTests(PostgresContainerFixture fixture)
         releaseFirst.SetResult();
 
         await remove;
+        ForbiddenException refused = await Assert.ThrowsAsync<ForbiddenException>(() => delete);
+
+        Assert.True(deleteWaitedForLock);
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, refused.Message);
+        await using AppDbContext reader = fixture.CreateDbContext();
+        Assert.True(await reader.Roles.AnyAsync(role => role.Id == seeded.Tester.Id));
+        Assert.Equal(0, await reader.AuditLogs.CountAsync(log => log.OrganizationId == seeded.OrganizationId
+            && log.Kind == AuditLogKind.Event
+            && log.Action == nameof(AuditEventType.RoleDeleted)));
+    }
+
+    // roles.manage taken from the manager while they wait for the lock: refused as the gate would now refuse them.
+    [Fact]
+    public async Task DeleteAsync_CallerLostRolesManageWhileWaitingForLock_Throws403AccessDenied()
+    {
+        Seeded seeded = await SeedAsync();
+        TaskCompletionSource firstEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource releaseFirst = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using AppDbContext firstContext = fixture.CreateDbContext();
+        await using AppDbContext secondContext = fixture.CreateDbContext();
+        await using ServiceProvider firstRepositories = RepositoriesFor(firstContext);
+        await using ServiceProvider secondRepositories = RepositoriesFor(secondContext);
+        RoleService ownerRoles = CreateRoleService(
+            firstContext, firstRepositories, seeded.OrganizationId, seeded.OwnerId,
+            trail => new PausingAuditTrail(trail, firstEntered, releaseFirst.Task));
+        RoleService managerRoles = CreateRoleService(
+            secondContext, secondRepositories, seeded.OrganizationId, seeded.ManagerId);
+        List<string> withoutRolesManage =
+            Permissions.All.Where(code => code != Permissions.OrganizationRolesManage).ToList();
+
+        Task<RoleDto> update = ownerRoles.UpdateAsync(
+            seeded.Manager.Id, new UpdateRoleRequest(seeded.Manager.Name, withoutRolesManage), CancellationToken.None);
+        await Task.WhenAny(firstEntered.Task, update).WaitAsync(StepLimit);
+        Assert.False(update.IsCompleted, update.Exception?.ToString());
+        Task delete = managerRoles.DeleteAsync(seeded.Tester.Id, CancellationToken.None);
+        await Task.WhenAny(delete, Task.Delay(BlockedWindow));
+        bool deleteWaitedForLock = !delete.IsCompleted;
+        releaseFirst.SetResult();
+
+        await update;
         ForbiddenException refused = await Assert.ThrowsAsync<ForbiddenException>(() => delete);
 
         Assert.True(deleteWaitedForLock);

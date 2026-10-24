@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using NSubstitute;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Models;
@@ -22,6 +23,7 @@ public class OrganizationContextServiceTests
         OrganizationContextService Service,
         IUnitOfWork UnitOfWork,
         IRepository<Organization, Guid> Organizations,
+        IRepository<OrganizationMember, Guid> Members,
         IOrganizationLock OrganizationLock,
         ISystemAdministratorResolver SystemAdministrators,
         IAuditTrail AuditTrail,
@@ -31,7 +33,10 @@ public class OrganizationContextServiceTests
         Guid CallerId);
 
     private static Fixture CreateFixture(
-        string organizationName = "Bảo Minh", bool systemAdministrator = false, bool personalContext = false)
+        string organizationName = "Bảo Minh",
+        bool systemAdministrator = false,
+        bool personalContext = false,
+        bool callerActive = true)
     {
         Guid callerId = Guid.NewGuid();
         Organization organization = Organization.Create(new OrganizationParams(organizationName, "bao-minh"));
@@ -42,6 +47,15 @@ public class OrganizationContextServiceTests
         IRepository<Organization, Guid> organizations = Substitute.For<IRepository<Organization, Guid>>();
         unitOfWork.Repository<Organization, Guid>().Returns(organizations);
         organizations.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
+        OrganizationMember callerMember = OrganizationMember.Create(new OrganizationMemberParams(organization.Id, callerId));
+        if (!callerActive)
+        {
+            callerMember.Deactivate();
+        }
+
+        IRepository<OrganizationMember, Guid> members = Substitute.For<IRepository<OrganizationMember, Guid>>();
+        unitOfWork.Repository<OrganizationMember, Guid>().Returns(members);
+        RepositoryPredicateStub.StubFirstOrDefault(members, [callerMember]);
 
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(callerId.ToString());
@@ -69,7 +83,7 @@ public class OrganizationContextServiceTests
             new OrganizationStatusChanger(unitOfWork, organizationLock, auditTrail, tenantAccess, permissions, clock));
 
         return new Fixture(
-            service, unitOfWork, organizations, organizationLock, systemAdministrators, auditTrail, tenantAccess,
+            service, unitOfWork, organizations, members, organizationLock, systemAdministrators, auditTrail, tenantAccess,
             permissions, organization, callerId);
     }
 
@@ -111,7 +125,7 @@ public class OrganizationContextServiceTests
 
     // RenameAsync
 
-    // AC-367: the event carries both names, and the row is locked before it is read.
+    // AC-367: the event carries both names; the row is locked, then the gate re-checked, before it is read.
     [Fact]
     public async Task RenameAsync_NewName_UpdatesAndRecordsRenamedWithBothNames()
     {
@@ -136,6 +150,9 @@ public class OrganizationContextServiceTests
         Received.InOrder(() =>
         {
             f.OrganizationLock.AcquireAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+            f.Members.FirstOrDefaultAsync(
+                Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>());
+            f.Organizations.GetByIdAsync(f.Organization.Id, Arg.Any<CancellationToken>());
             f.Organizations.GetByIdAsync(f.Organization.Id, Arg.Any<CancellationToken>());
             f.AuditTrail.RecordAsync(Arg.Any<AuditEvent>(), Arg.Any<CancellationToken>());
             f.UnitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -188,6 +205,26 @@ public class OrganizationContextServiceTests
         Assert.Equal("Bảo Minh", exception.Extensions[ProblemExtensionKeys.OrganizationName]);
         Assert.Equal("Bảo Minh", f.Organization.Name);
         await f.OrganizationLock.Received(1).AcquireAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+        await AssertNothingSavedOrRecordedAsync(f);
+    }
+
+    // Removed between the gate and the lock: refused the way the gate now would, nothing written.
+    [Fact]
+    public async Task RenameAsync_CallerRemovedWhileWaitingForLock_Throws403AccessDeniedNothingSaved()
+    {
+        Fixture f = CreateFixture(callerActive: false);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
+            ApplicationMessages.OrganizationAccessDenied,
+            () => f.Service.RenameAsync(new RenameOrganizationRequest("Bảo Minh Group"), CancellationToken.None));
+
+        Assert.Equal("Bảo Minh", f.Organization.Name);
+        Received.InOrder(() =>
+        {
+            f.OrganizationLock.AcquireAsync(f.Organization.Id, Arg.Any<CancellationToken>());
+            f.Members.FirstOrDefaultAsync(
+                Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>());
+        });
         await AssertNothingSavedOrRecordedAsync(f);
     }
 

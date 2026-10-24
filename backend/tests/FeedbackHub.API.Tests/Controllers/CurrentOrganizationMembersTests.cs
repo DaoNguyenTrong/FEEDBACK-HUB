@@ -296,6 +296,43 @@ public sealed class CurrentOrganizationMembersTests(ApiFactoryFixture fixture) :
 
     // Writes: authorization
 
+    // The token and the permission cache still say "manage"; the service re-reads it after the lock.
+    [Theory]
+    [InlineData("change-roles")]
+    [InlineData("remove")]
+    public async Task ChangeRolesOrRemove_ManageRemovedInDatabase_Returns403AndNothingChanges(string write)
+    {
+        Organization organization = await SeedOrganizationAsync();
+        Account owner = await SeedAccountAsync("Âu Cơ");
+        Account admin = await SeedAccountAsync("an Bình");
+        Account plain = await SeedAccountAsync("Cơ Bản");
+        await SeedMemberAsync(organization.Id, owner.Id, SystemRoleKind.Owner);
+        await SeedMemberAsync(organization.Id, admin.Id, SystemRoleKind.Admin);
+        OrganizationMember plainMember = await SeedMemberAsync(organization.Id, plain.Id, SystemRoleKind.Member);
+        HttpClient client = ClientFor(admin, organization.Id);
+        // role-options requires members.manage, so this caches it for the caller.
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/organization/role-options")).StatusCode);
+        IReadOnlyDictionary<SystemRoleKind, Role> roles = await SystemRolesAsync(organization.Id);
+        await using (AppDbContext context = CreateDbContext())
+        {
+            await context.RolePermissions
+                .Where(permission => permission.RoleId == roles[SystemRoleKind.Admin].Id
+                    && permission.PermissionCode == Permissions.OrganizationMembersManage)
+                .ExecuteDeleteAsync();
+        }
+
+        int eventsBefore = await CountEventsAsync(organization.Id);
+
+        HttpResponseMessage response = write == "remove"
+            ? await client.DeleteAsync($"{Path}/{plain.Id}")
+            : await ChangeRolesAsync(client, plain.Id, new { roleIds = new[] { roles[SystemRoleKind.Admin].Id } });
+
+        await AssertCodeAsync(response, HttpStatusCode.Forbidden, ApplicationMessages.OrganizationAccessDenied);
+        Assert.True(await IsActiveAsync(plainMember.Id));
+        Assert.Equal([roles[SystemRoleKind.Member].Id], await RoleIdsOfAsync(plainMember.Id));
+        Assert.Equal(eventsBefore, await CountEventsAsync(organization.Id));
+    }
+
     [Theory]
     [InlineData("change-roles")]
     [InlineData("remove")]
