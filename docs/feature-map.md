@@ -120,14 +120,14 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 ## Nhật ký kiểm toán
 
 - **PRD:** PRD00-FR-68, BR-83, BR-84.
-- **Vào bằng:** chưa có màn hình (phần 8 (`AuditLogView.vue`, route `/organization/audit-log`)). Gọi API bằng token của thành viên tổ chức đang làm việc có quyền `auditlogs.view`; khoá API bị cổng từ chối 403.
+- **Vào bằng:** chưa có màn hình; phần 8 dựng `AuditLogView.vue` ở route `/organization/audit-log`. Gọi API bằng token của thành viên tổ chức đang làm việc có quyền `auditlogs.view`; khoá API bị cổng từ chối 403.
 - **Backend:**
   - API-33: `GET /api/organization/audit-log?cursor=&limit=` → `CurrentOrganizationController` → `AuditLogService` → `AuditLogRepository.ListEventsAsync`
   - Chính sách là `auditlogs.view` (`DenyMode.Forbidden`); `AuditLogService` còn đọc lại quyền này từ cơ sở dữ liệu qua `IRoleGrantReader`, nên cache quyền cũ không mở được nhật ký.
   - Chỉ trả các dòng `kind = 'Event'` của tổ chức đang làm việc, mới nhất trước (`timestamp DESC, id DESC`); dòng `Change` không bao giờ ra ngoài.
   - Phân trang bằng keyset qua `nextCursor` mờ (chuỗi không đọc được, máy khách chỉ chuyển lại làm `cursor`); `limit` mặc định 50, ngoài 1 đến 100 trả 400, cursor hỏng trả 400 `InvalidCursor`.
   - Một trang có thể ngắn hơn `limit`, thậm chí rỗng, khi dòng không dựng được bị bỏ; máy khách chỉ dừng khi `nextCursor` là null.
-  - Mục trả về chỉ có `id`, `occurredAt`, `actorKind`, `actorName`, `type`, `parameters`; không có IP, user agent hay giá trị cũ/mới. Dòng bỏ ghi log Warning `Skipped audit entry {id}`.
+  - Mục trả về chỉ có `id`, `occurredAt`, `actorKind`, `actorName`, `type`, `parameters`; không có IP, user agent hay giá trị cũ/mới. Dòng bỏ ghi log Warning `Skipped audit entry {AuditLogId}`.
   - Route cũ `api/admin/audit-logs` đã bỏ.
 - **Test đã có:**
   - API: `OrganizationAuditLogTests`, `AuditLogEndToEndTests`, `Architecture/ArchitectureTests`
