@@ -102,12 +102,20 @@ function applyCommonHeaders(config: { headers?: AxiosRequestHeaders; url?: strin
   return headers
 }
 
-// An authenticated call that re-issues tokens, not a sign-in flow: an expired access token
-// answers it with a bodyless 401, which must go through refresh-and-retry like any other call.
-const AUTHENTICATED_AUTH_URLS = new Set(['/api/auth/switch-organization'])
+// Authenticated calls under /api/auth/, not sign-in flows: an expired access token answers them
+// with a bodyless 401, which must go through refresh-and-retry like any other call.
+const AUTHENTICATED_AUTH_URLS = new Set(['/api/auth/switch-organization', '/api/auth/sessions'])
+const AUTHENTICATED_AUTH_PREFIXES = ['/api/auth/sessions/']
 
 function isAuthFlowRequest(url?: string) {
-  if (!url || AUTHENTICATED_AUTH_URLS.has(url)) return false
+  if (!url) return false
+  const path = url.split('?')[0] ?? url
+  if (
+    AUTHENTICATED_AUTH_URLS.has(path) ||
+    AUTHENTICATED_AUTH_PREFIXES.some((prefix) => path.startsWith(prefix))
+  ) {
+    return false
+  }
   return url.startsWith('/api/auth/')
 }
 
