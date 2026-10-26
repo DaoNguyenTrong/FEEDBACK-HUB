@@ -112,6 +112,11 @@ public sealed class InvitationService(
             (RoleGrantCaller caller, OrganizationInvitation invitation, RoleGrantRole role) =
                 await LockAndLoadInvitationAsync(organizationId, callerId, invitationId, ct);
 
+            if (RoleGrantPolicy.CheckTakeAwayAll(caller, [role]) is { } denial)
+            {
+                throw new ForbiddenException(RoleGrantPolicy.ErrorCode(denial));
+            }
+
             // Recorded before the delete so the entry is built from the invitation while it still exists (D5).
             AuditEventType type = invitation.IsExpiredAt(dateTimeProvider.UtcNow)
                 ? AuditEventType.InvitationDeleted
@@ -370,8 +375,9 @@ public sealed class InvitationService(
             denial?.Reason);
     }
 
-    // Resend and revoke, in the D2 order: lock, gate re-check and members.manage, the invitation in the organization
-    // (404 by id only, F17), then BR-58 on its role (403).
+    // Resend and revoke, in the D2 order: lock, gate re-check and members.manage, then the invitation in the
+    // organization (404 by id only, F17). BR-58 (403) comes after it, once per operation: in RevokeOrDeleteAsync,
+    // and for resend in ReplaceAndSendAsync.
     private async Task<(RoleGrantCaller Caller, OrganizationInvitation Invitation, RoleGrantRole Role)>
         LockAndLoadInvitationAsync(Guid organizationId, Guid callerId, Guid invitationId, CancellationToken ct)
     {
@@ -383,16 +389,11 @@ public sealed class InvitationService(
             ?? throw new NotFoundException(nameof(OrganizationInvitation), invitationId);
         RoleGrantRole role = await LoadRoleOfAsync(organizationId, invitation, ct);
 
-        if (RoleGrantPolicy.CheckTakeAwayAll(caller, [role]) is { } denial)
-        {
-            throw new ForbiddenException(RoleGrantPolicy.ErrorCode(denial));
-        }
-
         return (caller, invitation, role);
     }
 
-    // After the lock: BR-58 for the role and any earlier invitation's role (403), the address not an active member
-    // (409), then the earlier invitation replaced, recorded, saved and mailed (TECH00 §6.2).
+    // After the lock and any 404: BR-58 for the role and any earlier invitation's role (403), the address not an
+    // active member (409), then the earlier invitation replaced, recorded, saved and mailed (TECH00 §6.2).
     private async Task<InvitationDto> ReplaceAndSendAsync(
         Guid organizationId,
         RoleGrantCaller caller,
