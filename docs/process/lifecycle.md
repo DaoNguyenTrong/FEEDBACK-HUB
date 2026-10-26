@@ -92,6 +92,14 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 
 Quyết định về cách làm việc (agent, cổng duyệt, review) ghi ở đây, mới nhất ở trên; quyết định kỹ thuật theo `AGENTS.md` § Decision Log.
 
+### 2026-10-26 — Tăng tốc chạy kế hoạch trong một bản checkout
+Người dùng thấy chạy kế hoạch còn chậm, nhưng muốn giữ nguyên quy tắc dự án. Quy tắc chung (gộp task nhỏ, cho review chạy chồng lên task kế tiếp, brief mang đủ phán quyết, nhịp chạy test) nằm trong `~/.claude/CLAUDE.md` § Subagent-driven execution pacing. Ở dự án này còn thêm:
+- Mỗi lúc chỉ một agent build backend, vì các agent dùng chung `obj/` (`-m:1`). Hai task backend chạy nối tiếp nhau. Một task backend và một task frontend được chạy song song.
+- Trong lúc làm, agent chỉ chạy project test bị ảnh hưởng. Trước khi commit, agent chạy `backend/scripts/test.sh` hoặc `bun run --cwd frontend test:run` một lần.
+- Chỉ phiên chính chạy `scripts/test-gate.sh`, ở cuối phase và sau lượt sửa cuối.
+
+Phương án loại: hai luồng song song bằng git worktree. Mỗi luồng phải cài và build lại từ đầu, các tệp dùng chung (`locales`, `router`, `feature-map.md`) phải gộp tay, và cách này trái với `AGENTS.md` § Branch & worktree. Chỉ dùng khi người dùng duyệt riêng.
+
 ### 2026-10-26 — Chọn model theo việc, mặc định Sonnet
 Người dùng thấy các agent chạy ổn nhưng tốn kém. Ở module 00, gần như mọi implementer và reviewer chạy Opus, mỗi agent tốn 120–290 nghìn token. Vì vậy `implementer` và `code-reviewer` khai `model: sonnet` trong frontmatter, để một lượt gọi không ghi model cũng không thành Opus. Phiên chính chỉ đặt Opus qua tham số `model` cho:
 - reviewer của task đụng tới đăng nhập, token, cookie, khoá tổ chức, kiểm quyền hoặc lọc theo tổ chức; implementer của các task này vẫn chạy Sonnet;
