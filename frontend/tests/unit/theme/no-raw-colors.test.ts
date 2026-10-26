@@ -36,6 +36,8 @@ const PHASE_7_FILES: string[] = [
   'views/NotFoundView.vue',
   'views/WelcomeView.vue',
   'components/OrganizationRows.vue',
+  'components/DeactivateOrganizationDialog.vue',
+  'views/organization/OrganizationSettingsView.vue',
 ]
 
 const RAW_COLOR = /#[0-9a-fA-F]{3,8}\b|(?<![a-z])(?:rgba?|hsla?)\(/

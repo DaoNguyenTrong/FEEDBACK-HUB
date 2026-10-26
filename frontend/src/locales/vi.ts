@@ -59,6 +59,10 @@ const vi: LocaleSchema = {
       'Định danh chỉ gồm chữ a–z, số 0–9 và dấu "-", bắt đầu và kết thúc bằng chữ hoặc số, không có hai dấu "-" liền nhau, dài từ 3 đến 50 ký tự.',
     OrganizationSlugAlreadyExists: 'Định danh này đã được dùng.',
     EmailNotConfirmed: 'Bạn cần xác minh email trước khi làm việc này.',
+    OrganizationNameRequired: 'Nhập tên tổ chức.',
+    DeactivationReasonRequired: 'Nhập lý do.',
+    OwnerOnlyOperation: 'Chỉ Chủ sở hữu làm được việc này.',
+    InsufficientRolePermissions: 'Bạn không có đủ quyền để làm việc này.',
   },
   accessProblem: {
     notFoundTitle: 'Không tìm thấy',
@@ -158,6 +162,7 @@ const vi: LocaleSchema = {
   nav: {
     home: 'Trang chủ',
     organizations: 'Tổ chức',
+    organizationSettings: 'Quản lý tổ chức',
     profile: 'Hồ sơ cá nhân',
     openMenu: 'Mở menu',
     groups: {
@@ -270,6 +275,41 @@ const vi: LocaleSchema = {
     permissionAuditLogsView: 'Xem nhật ký hoạt động',
     permissionSettingsManage: 'Quản lý cài đặt',
     permissionFeedbackHubAdmin: 'Quản trị FeedbackHub',
+  },
+  organizationSettings: {
+    title: 'Quản lý tổ chức',
+    infoTitle: 'Thông tin tổ chức',
+    name: 'Tên tổ chức',
+    slug: 'Định danh ngắn',
+    slugFixed: 'Không đổi được.',
+    save: 'Lưu',
+    renamed: 'Đã đổi tên thành {name}',
+    deactivateTitle: 'Vô hiệu tổ chức',
+    deactivateText: 'Tạm ngừng toàn bộ tổ chức ngay lập tức. Dữ liệu được giữ nguyên.',
+    deactivateAction: 'Vô hiệu tổ chức',
+  },
+  deactivateOrganization: {
+    title: 'Vô hiệu {name}?',
+    intro: 'Toàn bộ tổ chức tạm ngừng ngay:',
+    reason: 'Lý do',
+    optional: '(không bắt buộc)',
+    count: '{n}/500',
+    submit: 'Vô hiệu tổ chức',
+    member: {
+      widget: 'Widget của mọi sản phẩm ngừng nhận feedback, link riêng của khách tạm ngừng.',
+      access: 'Không ai vào được tổ chức, kể cả bạn.',
+      data: 'Dữ liệu giữ nguyên. Chỉ admin hệ thống FeedbackHub kích hoạt lại được.',
+    },
+    systemMember: {
+      widget: 'Widget của mọi sản phẩm ngừng nhận feedback, link riêng của khách tạm ngừng.',
+      access: 'Không ai vào được tổ chức, kể cả bạn.',
+      data: 'Dữ liệu giữ nguyên. Bạn kích hoạt lại được trong danh sách Các tổ chức.',
+    },
+    system: {
+      widget: 'Widget của mọi sản phẩm ngừng nhận feedback, link riêng của khách tạm ngừng.',
+      access: 'Thành viên không vào được tổ chức.',
+      data: 'Dữ liệu giữ nguyên. Bạn kích hoạt lại được bất cứ lúc nào.',
+    },
   },
   notifications: {
     title: 'Thông báo',

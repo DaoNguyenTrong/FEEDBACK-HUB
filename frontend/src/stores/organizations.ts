@@ -18,10 +18,17 @@ export const useOrganizationsStore = defineStore('organizations', () => {
     return organization
   }
 
+  function applyRename(id: string, name: string) {
+    myOrganizations.value = myOrganizations.value.map((organization) =>
+      organization.id === id ? { ...organization, name } : organization,
+    )
+  }
+
   return {
     myOrganizations,
     loaded,
     fetchMine,
     create,
+    applyRename,
   }
 })
