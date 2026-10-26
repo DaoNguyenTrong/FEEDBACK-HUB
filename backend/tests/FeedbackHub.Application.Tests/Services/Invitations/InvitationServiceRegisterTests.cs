@@ -424,6 +424,8 @@ public class InvitationServiceRegisterTests
 
         await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
             ApplicationMessages.InvitationExpired, () => f.RegisterAsync(token));
+
+        await f.AssertNothingCreatedAsync();
     }
 
     // Review Focus 4: the person retries with another username and the link still works.
@@ -468,5 +470,7 @@ public class InvitationServiceRegisterTests
 
         await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
             ApplicationMessages.AccountUsernameAlreadyExists, () => f.RegisterAsync(token));
+
+        await f.AssertNothingCreatedAsync();
     }
 }

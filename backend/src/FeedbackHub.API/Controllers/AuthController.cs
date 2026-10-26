@@ -318,8 +318,8 @@ public sealed class AuthController(
         ToResponse(result, (token, refresh, expiry, account, orgId, orgName, permissions, admin) =>
             new LoginResponse(token, refresh, expiry, account, orgId, orgName, permissions, admin));
 
-    // The only place an AuthResult is read into a response: a field added to LoginResponse changes this delegate,
-    // so every response shape built through it stops compiling until it passes the field on.
+    // The only place an AuthResult is read into a response: a field added to LoginResponse breaks every factory
+    // passed here until this delegate passes it on.
     private static TResponse ToResponse<TResponse>(AuthResult result, LoginResponseFactory<TResponse> create)
         where TResponse : LoginResponse =>
         create(
