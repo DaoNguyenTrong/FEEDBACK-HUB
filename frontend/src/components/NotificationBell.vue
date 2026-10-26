@@ -4,9 +4,6 @@ import { showErrorMessage } from '@/lib/feedback'
 import { ApiError } from '@/api/types'
 import type { Notification } from '@/api/types'
 
-// 'on-brand' is the bell on the purple menu bar (horizontal mode, brand color, light): a white icon there.
-const props = withDefaults(defineProps<{ tone?: 'default' | 'on-brand' }>(), { tone: 'default' })
-
 const { t, locale } = useI18n()
 const notificationsStore = useNotificationsStore()
 const { unreadCount } = storeToRefs(notificationsStore)
@@ -89,8 +86,7 @@ function reportError(error: unknown) {
           :aria-label="t('notifications.title')"
           circle
           secondary
-          :color="props.tone === 'on-brand' ? 'var(--color-on-accent)' : undefined"
-          class="pointer-coarse:size-10!"
+          class="max-desktop:size-11! desktop:pointer-coarse:size-10!"
         >
           <template #icon
             ><n-icon><Bell /></n-icon

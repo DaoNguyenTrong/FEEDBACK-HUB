@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest'
 const ALLOWED = [
   'components/GoogleLoginButton.vue',
   'components/MicrosoftLoginButton.vue',
-  'layouts/AppSidebar.vue',
-  'layouts/AppHeader.vue',
 ]
 
 const EXCLUDED = /^\/src\/(theme|assets|api\/generated|typings|locales)\//
@@ -22,6 +20,12 @@ const PHASE_7_FILES: string[] = [
   'components/EmptyState.vue',
   'components/StatusLabel.vue',
   'components/AmbientBackdrop.vue',
+  'layouts/AppRail.vue',
+  'layouts/AppRailNav.vue',
+  'layouts/AppTopBar.vue',
+  'layouts/AppFooter.vue',
+  'layouts/UserMenu.vue',
+  'layouts/AppLayout.vue',
 ]
 
 const RAW_COLOR = /#[0-9a-fA-F]{3,8}\b|(?<![a-z])(?:rgba?|hsla?)\(/

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import i18n from '@/plugins/i18n'
+import AppFooter from '@/layouts/AppFooter.vue'
 import UserMenu from '@/layouts/UserMenu.vue'
 import { setConfirmationOverrideNaive } from '@/lib/confirmation-override'
 import { renderComponent } from '../helpers/render'
@@ -8,26 +9,17 @@ import { storeIn } from '../helpers/pinia'
 
 const t = i18n.global.t
 
-function render(
-  account: Record<string, unknown>,
-  organizationName: string | null = null,
-  props: { tone?: 'default' | 'on-brand' } = {},
-  attachTo?: HTMLElement,
-) {
+function render(account: Record<string, unknown>, attachTo?: HTMLElement) {
   return renderComponent(UserMenu, {
-    props,
     attachTo,
-    initialState: {
-      auth: { account, organizationName },
-      organizations: { loaded: true, myOrganizations: [] },
-    },
+    initialState: { auth: { account } },
     global: { stubs: { teleport: true } },
   })
 }
 
 // Keyboard checks need a connected tree: focus only lands on attached elements.
 function renderAttached() {
-  return render({ id: '1', name: 'Jane Doe', username: 'jane' }, null, {}, document.body)
+  return render({ id: '1', name: 'Jane Doe', username: 'jane' }, document.body)
 }
 
 async function pressKey(key: string) {
@@ -44,6 +36,7 @@ async function openMenu(wrapper: Awaited<ReturnType<typeof render>>['wrapper']) 
 
 describe('UserMenu', () => {
   afterEach(() => {
+    useThemePreference().setPreference('light')
     // Back to the default from tests/setup.ts: accept immediately.
     setConfirmationOverrideNaive((options) => {
       void options.accept?.()
@@ -65,51 +58,18 @@ describe('UserMenu', () => {
     expect(avatar.text()).toBe('')
   })
 
-  it('shows initials, name and the current organization on the trigger', async () => {
-    const { wrapper } = await render(
-      { id: '1', name: 'Nguyễn Trọng', username: 'nt', email: 'nt@example.com' },
-      'Acme',
-    )
+  it('shows initials and name on the trigger, without the organization', async () => {
+    const { wrapper } = await render({
+      id: '1',
+      name: 'Nguyễn Trọng',
+      username: 'nt',
+      email: 'nt@example.com',
+    })
 
     const trigger = wrapper.get('[data-testid="app-header-user-menu"]')
     expect(trigger.text()).toContain('NT')
     expect(trigger.text()).toContain('Nguyễn Trọng')
-    expect(trigger.text()).toContain('Acme')
-  })
-
-  it('draws the trigger in white tones on the brand menu bar', async () => {
-    const account = { id: '1', name: 'Jane Doe', username: 'jane' }
-    const brand = await render(account, 'Acme', { tone: 'on-brand' })
-
-    const avatar = brand.wrapper.get('[data-testid="user-menu-avatar"]')
-    expect(avatar.classes()).toContain('bg-white/20')
-    expect(avatar.classes()).not.toContain('bg-primary-600')
-    const org = brand.wrapper.get('[data-testid="user-menu-organization"]')
-    expect(org.classes()).toContain('text-white/70')
-    expect(org.classes()).not.toContain('text-surface-500')
-    expect(brand.wrapper.get('[data-testid="user-menu-chevron"]').classes()).toContain(
-      'text-white/70',
-    )
-    brand.wrapper.unmount()
-
-    const plain = await render(account, 'Acme')
-    expect(plain.wrapper.get('[data-testid="user-menu-avatar"]').classes()).toContain(
-      'bg-primary-600',
-    )
-    expect(plain.wrapper.get('[data-testid="user-menu-organization"]').classes()).toContain(
-      'text-surface-500',
-    )
-    expect(plain.wrapper.get('[data-testid="user-menu-chevron"]').classes()).toContain(
-      'text-surface-400',
-    )
-  })
-
-  it('shows the personal workspace when no organization is active', async () => {
-    const { wrapper } = await render({ id: '1', name: 'Jane Doe', username: 'jane' })
-
-    expect(wrapper.get('[data-testid="app-header-user-menu"]').text()).toContain(
-      t('organizations.personalWorkspace'),
-    )
+    expect(wrapper.find('[data-testid="user-menu-organization"]').exists()).toBe(false)
   })
 
   it('falls back to the username, then to the generic user label', async () => {
@@ -158,6 +118,46 @@ describe('UserMenu', () => {
     expect(storeIn(pinia, useLocaleStore).currentLocale).toBe('en')
   })
 
+  it('opens the profile, the appearance settings and the user guide from the menu', async () => {
+    const { wrapper, pinia } = await render({ id: '1', name: 'Jane Doe', username: 'jane' })
+    const layout = storeIn(pinia, useLayoutStore)
+    useThemePreference().setPreference('dark')
+    await openMenu(wrapper)
+
+    await wrapper.get('[data-testid="user-menu-profile"]').trigger('click')
+    expect(layout.profileOpen).toBe(true)
+
+    await openMenu(wrapper)
+    const appearance = wrapper.get('[data-testid="user-menu-appearance"]')
+    expect(appearance.text()).toContain(t('layout.userMenu.appearance'))
+    expect(appearance.text()).toContain(t('layout.settings.dark'))
+    await appearance.trigger('click')
+    expect(layout.settingsOpen).toBe(true)
+
+    await openMenu(wrapper)
+    const guide = wrapper.get('[data-testid="app-header-user-guide"]')
+    expect(guide.attributes('href')).toBe('/guide/en/')
+    expect(guide.attributes('target')).toBe('_blank')
+    expect(guide.text()).toContain(t('nav.userGuide'))
+  })
+
+  it('puts the user guide item directly above Log out', async () => {
+    const { wrapper } = await render({ id: '1', name: 'Jane Doe', username: 'jane' })
+    await openMenu(wrapper)
+
+    const items = wrapper.get('[role="menu"]').findAll('[role^="menuitem"]')
+    const logout = items.findIndex((item) => item.attributes('data-testid') === 'user-menu-logout')
+    expect(logout).toBe(items.length - 1)
+    expect(items[logout - 1]!.attributes('data-testid')).toBe('app-header-user-guide')
+  })
+
+  it('keeps the user guide link out of the footer', async () => {
+    const { wrapper } = await renderComponent(AppFooter)
+
+    expect(wrapper.find('[data-testid="app-header-user-guide"]').exists()).toBe(false)
+    expect(wrapper.find('a').exists()).toBe(false)
+  })
+
   it('sets layout.profileOpen from the profile item', async () => {
     const { wrapper, pinia } = await render({ id: '1', name: 'Jane Doe', username: 'jane' })
     await openMenu(wrapper)
@@ -187,7 +187,7 @@ describe('UserMenu', () => {
 
       const items = wrapper.get('[role="menu"]').findAll('[role^="menuitem"]')
       expect(document.activeElement).toBe(items[0]!.element)
-      expect(items[0]!.text()).toContain(t('organizations.personalWorkspace'))
+      expect(items[0]!.attributes('data-testid')).toBe('user-menu-profile')
     })
 
     it('moves focus between the items with the arrow, Home and End keys', async () => {
@@ -213,18 +213,6 @@ describe('UserMenu', () => {
       expect(document.activeElement).toBe(logout)
       await pressKey('Home')
       expect(document.activeElement).toBe(items[0])
-    })
-
-    it('marks the organization rows as menu items, the current one checked', async () => {
-      const { wrapper } = await renderAttached()
-      await openMenu(wrapper)
-
-      const list = wrapper.get('[data-testid="organization-list"]')
-      const personal = list.get('[role="menuitemradio"]')
-      expect(personal.attributes('aria-checked')).toBe('true')
-      expect(list.get('[data-testid="organization-list-manage"]').attributes('role')).toBe(
-        'menuitem',
-      )
     })
 
     it('closes on Escape and returns focus to the trigger', async () => {

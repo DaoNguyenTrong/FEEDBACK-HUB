@@ -1,26 +1,20 @@
 <script setup lang="ts">
 import { Minus, Plus, Refresh } from '@vicons/tabler'
-import { MENU_MODES, MENU_THEMES, type MenuMode } from '@/lib/layout-preferences'
-import { BELOW_LG_QUERY } from '@/lib/responsive'
 import type { ThemePreference } from '@/lib/theme'
-import MenuModePreview from './MenuModePreview.vue'
+import type { SupportedLocale } from '@/plugins/i18n'
 
 const { t } = useI18n()
 const layout = useLayoutStore()
-const { settingsOpen, menuMode, menuTheme } = storeToRefs(layout)
+const { settingsOpen } = storeToRefs(layout)
 const { preference, setPreference } = useThemePreference()
-const belowLg = useMediaQuery(BELOW_LG_QUERY)
+const localeStore = useLocaleStore()
 
 const COLOR_MODES: readonly ThemePreference[] = ['light', 'dark', 'system']
 
-// Mode values are kebab-case, locale keys camelCase.
-const MODE_LABEL_KEYS: Record<MenuMode, string> = {
-  static: 'layout.menuModes.static',
-  slim: 'layout.menuModes.slim',
-  'slim-plus': 'layout.menuModes.slimPlus',
-  drawer: 'layout.menuModes.drawer',
-  horizontal: 'layout.menuModes.horizontal',
-}
+const locales = computed<{ code: SupportedLocale; label: string }[]>(() => [
+  { code: 'vi', label: t('layout.userMenu.vietnamese') },
+  { code: 'en', label: t('layout.userMenu.english') },
+])
 
 // Font size (same behaviour as AppControls)
 const fontSize = ref(getFontSize())
@@ -39,10 +33,10 @@ function resetFontSize() {
 }
 
 const segmentClass = (active: boolean) => [
-  'flex-1 rounded-md border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-10',
+  'flex-1 rounded-md border px-3 py-1.5 text-body transition-colors max-desktop:min-h-11',
   active
-    ? 'border-primary-600 bg-primary-600/10 text-primary-600 dark:border-primary-300 dark:text-primary-300 font-semibold'
-    : 'border-surface-300 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800',
+    ? 'border-accent bg-accent-soft text-on-accent-soft font-semibold'
+    : 'border-line text-ink hover:bg-ghost-hover',
 ]
 </script>
 
@@ -51,7 +45,7 @@ const segmentClass = (active: boolean) => [
     <n-drawer-content :title="t('layout.settings.title')" closable>
       <div class="flex flex-col gap-6">
         <section :aria-label="t('layout.settings.colorMode')">
-          <h3 class="mb-2 text-sm font-semibold">{{ t('layout.settings.colorMode') }}</h3>
+          <h3 class="mb-2 text-section text-ink">{{ t('layout.settings.colorMode') }}</h3>
           <div class="flex gap-2">
             <button
               v-for="option in COLOR_MODES"
@@ -67,60 +61,29 @@ const segmentClass = (active: boolean) => [
           </div>
         </section>
 
-        <section
-          :aria-label="t('layout.settings.menuMode')"
-          :aria-disabled="belowLg"
-          :class="{ 'opacity-60': belowLg }"
-        >
-          <h3 class="mb-2 text-sm font-semibold">{{ t('layout.settings.menuMode') }}</h3>
-          <p v-if="belowLg" id="appearance-mode-note" class="text-surface-500 mb-2 text-xs">
-            {{ t('layout.settings.menuModeWideOnly') }}
-          </p>
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              v-for="mode in MENU_MODES"
-              :key="mode"
-              type="button"
-              :data-testid="`appearance-mode-${mode}`"
-              :aria-pressed="menuMode === mode"
-              :aria-describedby="belowLg ? 'appearance-mode-note' : undefined"
-              :class="[
-                'flex flex-col gap-1.5 rounded-md border p-2 text-left text-xs transition-colors pointer-coarse:min-h-10',
-                menuMode === mode
-                  ? 'border-primary-600 bg-primary-600/10 dark:border-primary-300 font-semibold'
-                  : 'border-surface-300 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800',
-              ]"
-              @click="layout.setMenuMode(mode)"
-            >
-              <MenuModePreview :mode="mode" />
-              {{ t(MODE_LABEL_KEYS[mode]) }}
-            </button>
-          </div>
-        </section>
-
-        <section :aria-label="t('layout.settings.menuTheme')">
-          <h3 class="mb-2 text-sm font-semibold">{{ t('layout.settings.menuTheme') }}</h3>
+        <section :aria-label="t('common.language')">
+          <h3 class="mb-2 text-section text-ink">{{ t('common.language') }}</h3>
           <div class="flex gap-2">
             <button
-              v-for="theme in MENU_THEMES"
-              :key="theme"
+              v-for="option in locales"
+              :key="option.code"
               type="button"
-              :data-testid="`appearance-menu-theme-${theme}`"
-              :aria-pressed="menuTheme === theme"
-              :class="segmentClass(menuTheme === theme)"
-              @click="layout.setMenuTheme(theme)"
+              :data-testid="`appearance-locale-${option.code}`"
+              :aria-pressed="localeStore.currentLocale === option.code"
+              :class="segmentClass(localeStore.currentLocale === option.code)"
+              @click="localeStore.setLocale(option.code)"
             >
-              {{ t(`layout.menuThemes.${theme}`) }}
+              {{ option.label }}
             </button>
           </div>
         </section>
 
         <section :aria-label="t('common.fontSize')">
-          <h3 class="mb-2 text-sm font-semibold">{{ t('common.fontSize') }}</h3>
+          <h3 class="mb-2 text-section text-ink">{{ t('common.fontSize') }}</h3>
           <div class="flex items-center gap-2">
             <n-button
               secondary
-              class="pointer-coarse:h-10! pointer-coarse:min-w-10!"
+              class="max-desktop:h-11! max-desktop:min-w-11!"
               :disabled="!canDecrease"
               :aria-label="t('common.decreaseFontSize')"
               @click="decreaseFontSize"
@@ -132,7 +95,7 @@ const segmentClass = (active: boolean) => [
             <span class="min-w-12 text-center text-sm tabular-nums">{{ fontSize }}px</span>
             <n-button
               secondary
-              class="pointer-coarse:h-10! pointer-coarse:min-w-10!"
+              class="max-desktop:h-11! max-desktop:min-w-11!"
               :disabled="!canIncrease"
               :aria-label="t('common.increaseFontSize')"
               @click="increaseFontSize"
@@ -143,7 +106,7 @@ const segmentClass = (active: boolean) => [
             </n-button>
             <n-button
               text
-              class="pointer-coarse:h-10! pointer-coarse:min-w-10!"
+              class="max-desktop:h-11! max-desktop:min-w-11!"
               :disabled="!canReset"
               :aria-label="t('common.resetFontSize')"
               @click="resetFontSize"
