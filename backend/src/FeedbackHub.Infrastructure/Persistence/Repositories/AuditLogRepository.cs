@@ -26,21 +26,37 @@ public sealed class AuditLogRepository(AppDbContext dbContext) : IAuditLogReposi
                 EF.Functions.LessThan(ValueTuple.Create(log.Timestamp, log.Id), ValueTuple.Create(timestamp, id)));
         }
 
-        return await (
-            from log in query
-            join account in dbContext.Accounts.AsNoTracking()
-                on log.UserId equals account.Id.ToString() into accountGroup
-            from account in accountGroup.DefaultIfEmpty()
-            orderby log.Timestamp descending, log.Id descending
-            select new AuditEventRow(
+        // Two reads, not a LEFT JOIN on "UserId = Id::text": the cast cannot use an accounts index, so the planner
+        // chose Hash Join + Sort and read every older event row of the organization, defeating the keyset.
+        var page = await query
+            .OrderByDescending(log => log.Timestamp).ThenByDescending(log => log.Id)
+            .Select(log => new { log.Id, log.Timestamp, log.EntityName, log.Action, log.ActorKind, log.UserId, log.NewValues })
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        // user_id is free text: only values that parse as a Guid can name an account; the rest get no name.
+        List<Guid> userIds = page
+            .Select(log => Guid.TryParse(log.UserId, out Guid userId) ? userId : (Guid?)null)
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+
+        Dictionary<Guid, string> names = userIds.Count == 0
+            ? []
+            : await dbContext.Accounts.AsNoTracking()
+                .Where(account => userIds.Contains(account.Id))
+                .Select(account => new { account.Id, account.Name })
+                .ToDictionaryAsync(account => account.Id, account => account.Name, cancellationToken);
+
+        return page
+            .Select(log => new AuditEventRow(
                 log.Id,
                 log.Timestamp,
                 log.EntityName,
                 log.Action,
                 log.ActorKind,
-                account != null ? account.Name : null,
+                Guid.TryParse(log.UserId, out Guid userId) && names.TryGetValue(userId, out string? name) ? name : null,
                 log.NewValues))
-            .Take(take)
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 }

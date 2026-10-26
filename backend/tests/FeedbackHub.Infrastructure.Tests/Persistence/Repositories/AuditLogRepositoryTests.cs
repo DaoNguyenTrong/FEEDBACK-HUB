@@ -212,15 +212,14 @@ public sealed class AuditLogRepositoryTests(PostgresContainerFixture fixture) : 
         // EXPLAIN of the exact command EF ran: the keyset must be an Index Cond (a seek), not a Filter that reads
         // every newer row first. The literal kind is what lets the planner match the partial index's WHERE clause.
         Guid organizationId = Guid.NewGuid();
-        await SeedAsync(EventRow(organizationId, BaseTime));
-        await context.Database.ExecuteSqlRawAsync("SET LOCAL enable_seqscan = off");
-        // On near-empty tables the planner picks Hash Join + Sort (every matching row read, then sorted). Forcing a
-        // nested loop pins that the keyset index can deliver the order itself, so the Sort assertion below can bite.
-        await context.Database.ExecuteSqlRawAsync("SET LOCAL enable_hashjoin = off");
-        await context.Database.ExecuteSqlRawAsync("SET LOCAL enable_mergejoin = off");
+        Account actor = await SeedAccountAsync("Plan Actor");
+        await SeedAsync(EventRow(organizationId, BaseTime, userId: actor.Id.ToString()));
         sqlCapture.Commands.Clear();
-        await ListAsync(organizationId, new AuditCursor(BaseTime, 100));
-        CapturedCommand query = Assert.Single(sqlCapture.Commands);
+        // The cursor is later than the row, so the page is non-empty whatever the id sequence has reached.
+        await ListAsync(organizationId, new AuditCursor(BaseTime.AddMinutes(1), 0));
+        Assert.Equal(2, sqlCapture.Commands.Count);
+        CapturedCommand query = sqlCapture.Commands[0];
+        CapturedCommand namesQuery = sqlCapture.Commands[1];
 
         (string? indexCond, bool hasSort) = await KeysetPlanAsync(query);
 
@@ -230,6 +229,23 @@ public sealed class AuditLogRepositoryTests(PostgresContainerFixture fixture) : 
         Assert.Contains("(a.timestamp, a.id) < (@", query.Text);
         Assert.Contains("a.kind = 'Event'", query.Text);
         Assert.Contains("a.organization_id = @", query.Text);
+        Assert.DoesNotContain("JOIN", query.Text);
+        Assert.Contains("FROM accounts", namesQuery.Text);
+        // Npgsql renders the Guid list as "= ANY (@array)", the IN form on the primary key column.
+        Assert.Contains("a.\"Id\" = ANY (@", namesQuery.Text);
+    }
+
+    [Fact]
+    public async Task ListEventsAsync_NonGuidUserId_ActorNameNullWithoutFailure()
+    {
+        Guid organizationId = Guid.NewGuid();
+        await SeedAsync(EventRow(organizationId, BaseTime, userId: "not-a-guid"));
+        sqlCapture.Commands.Clear();
+
+        AuditEventRow row = Assert.Single(await ListAsync(organizationId));
+
+        Assert.Null(row.ActorName);
+        Assert.Single(sqlCapture.Commands);
     }
 
     private async Task<(string? IndexCond, bool HasSort)> KeysetPlanAsync(CapturedCommand query)
