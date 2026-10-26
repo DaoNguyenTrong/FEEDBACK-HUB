@@ -1481,4 +1481,51 @@ public class AuthServiceTests
         f.RefreshTokenRepo.DidNotReceive().Update(Arg.Any<RefreshToken>());
         await f.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_SessionWhoseOnlyOpenTokenExpired_ThrowsUnauthorizedAndIssuesNothing()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid sessionId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(sessionId);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        RefreshToken expired = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "expired-hash", DateTime.UtcNow.AddDays(1), null, null, true, DateTime.UtcNow.AddDays(-8), FamilyId: sessionId));
+        ForceExpired(expired);
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [expired]);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.AuthenticatedUserRequired,
+            () => f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None));
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_ExpiredSiblingToken_DoesNotLeakItsChoiceOrSignInTime()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid sessionId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(sessionId);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        DateTime activeSignIn = DateTime.UtcNow.AddDays(-1);
+        RefreshToken expired = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "expired-hash", DateTime.UtcNow.AddDays(1), null, null, true, DateTime.UtcNow.AddDays(-9), FamilyId: sessionId));
+        ForceExpired(expired);
+        RefreshToken active = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "active-hash", DateTime.UtcNow.AddDays(1), null, null, false, activeSignIn, FamilyId: sessionId));
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [expired, active]);
+
+        await f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None);
+
+        await f.RefreshTokenRepo.Received(1).AddAsync(
+            Arg.Is<RefreshToken>(t => !t.IsPersistent && t.LoginAt == activeSignIn), Arg.Any<CancellationToken>());
+    }
+
+    // Create refuses a past expiry, so a token that expired after it was issued is made by setting the property.
+    private static void ForceExpired(RefreshToken token) =>
+        typeof(RefreshToken).GetProperty(nameof(RefreshToken.ExpiresAt))!.SetValue(token, DateTime.UtcNow.AddMinutes(-1));
 }

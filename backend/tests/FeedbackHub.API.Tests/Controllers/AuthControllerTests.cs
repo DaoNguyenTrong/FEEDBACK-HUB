@@ -1249,6 +1249,8 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
             "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.AuthenticatedUserRequired, body.GetProperty("code").GetString());
         await using AppDbContext verifyContext = CreateDbContext();
         Assert.Equal(rowsBefore, await verifyContext.RefreshTokens.CountAsync(t => t.FamilyId == original.FamilyId));
         Assert.DoesNotContain(

@@ -336,17 +336,23 @@ public sealed class AuthService(
         Account account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken)
             ?? throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
 
-        // Same sign-in, different organization: the session keeps its family, its remember-me choice, its sign-in
-        // time and its place in the device list. A token without a session claim starts a new one (not persistent). A
-        // session claim whose family has no active token was signed out or revoked: it is refused, never revived.
+        // Same sign-in, different organization: the family keeps its remember-me choice, sign-in time and device slot.
+        // No session claim starts a new, non-persistent session. A family with no active token was signed out, revoked
+        // or has lapsed: it is refused, never revived.
         Guid? sessionId = currentUserService.SessionId;
         bool isPersistent = false;
         DateTime loginAt = DateTime.UtcNow;
         if (sessionId is { } currentSessionId)
         {
             IRepository<RefreshToken, long> refreshTokenRepository = unitOfWork.Repository<RefreshToken, long>();
+            // EF cannot translate RefreshToken.IsActive (a computed property), so the query repeats its rule: not
+            // revoked and not yet expired.
+            DateTime now = DateTime.UtcNow;
             IReadOnlyList<RefreshToken> previousTokens = await refreshTokenRepository.ListAsync(
-                token => token.AccountId == accountId && token.FamilyId == currentSessionId && token.RevokedAt == null,
+                token => token.AccountId == accountId
+                    && token.FamilyId == currentSessionId
+                    && token.RevokedAt == null
+                    && token.ExpiresAt > now,
                 cancellationToken);
 
             if (previousTokens.Count == 0)
