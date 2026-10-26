@@ -216,6 +216,31 @@ describe('apiClient interceptors', () => {
     expect(refreshCalls).toBe(0)
   })
 
+  it('refreshes and retries switch-organization after a bodyless 401', async () => {
+    let switchCalls = 0
+    let refreshCalls = 0
+
+    server.use(
+      http.post('*/api/auth/switch-organization', () => {
+        switchCalls++
+        return switchCalls === 1
+          ? new HttpResponse(null, { status: 401 })
+          : HttpResponse.json({ ok: true })
+      }),
+      http.post('*/api/auth/refresh', () => {
+        refreshCalls++
+        return HttpResponse.json(makeAuthResponse())
+      }),
+    )
+
+    const apiClient = await loadApiClient()
+
+    const response = await apiClient.post('/api/auth/switch-organization', {})
+    expect(response.data).toEqual({ ok: true })
+    expect(refreshCalls).toBe(1)
+    expect(switchCalls).toBe(2)
+  })
+
   it('does not refresh on password change 401', async () => {
     let refreshCalls = 0
 
