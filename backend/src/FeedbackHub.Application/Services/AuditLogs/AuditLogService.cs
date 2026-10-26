@@ -66,7 +66,7 @@ public sealed class AuditLogService(
     private static bool TryBuildEntry(AuditEventRow row, out AuditEntryDto entry)
     {
         entry = default!;
-        if (!TryParseActorKind(row.ActorKind, out ActorKind actorKind)
+        if (!AuditParameterReader.TryParseExactName(row.ActorKind, out ActorKind actorKind)
             || !AuditEventCatalog.TryResolve(row.EntityName, row.Action, out AuditEventType type)
             || !TryReadParameters(row.NewValues, AuditEventCatalog.Get(type), out Dictionary<string, object> parameters))
         {
@@ -77,21 +77,6 @@ public sealed class AuditLogService(
         string? actorName = actorKind == ActorKind.Account ? row.ActorName : null;
         entry = new AuditEntryDto(row.Id, row.Timestamp, actorKind, actorName, type, parameters);
         return true;
-    }
-
-    // Enum.TryParse alone would accept "1" and " Account"; the name must match exactly or the row is skipped.
-    private static bool TryParseActorKind(string? raw, out ActorKind kind)
-    {
-        if (raw is not null
-            && Enum.TryParse(raw, ignoreCase: false, out kind)
-            && Enum.IsDefined(kind)
-            && string.Equals(kind.ToString(), raw, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        kind = default;
-        return false;
     }
 
     private static bool TryReadParameters(

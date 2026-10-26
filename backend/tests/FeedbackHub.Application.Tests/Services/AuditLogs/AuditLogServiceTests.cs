@@ -64,7 +64,7 @@ public class AuditLogServiceTests
     private static Task<AuditEntryPage> List(Fixture f, string? cursor = null, int limit = 50) =>
         f.Service.ListAsync(new AuditLogQuery(cursor, limit), CancellationToken.None);
 
-    // ListAsync: prelude (F5)
+    // ListAsync
 
     [Fact]
     public async Task ListAsync_PersonalContext_ThrowsForbiddenOrganizationAccessDenied()
@@ -114,6 +114,18 @@ public class AuditLogServiceTests
     }
 
     // ListAsync: cursor and paging
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(101)]
+    public async Task ListAsync_LimitOutOfRange_ThrowsWithoutQuerying(int limit)
+    {
+        Fixture f = CreateFixture();
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => List(f, limit: limit));
+
+        await f.Repository.DidNotReceiveWithAnyArgs().ListEventsAsync(default, default, default, default);
+    }
 
     [Theory]
     [InlineData("@@@")]
@@ -192,10 +204,10 @@ public class AuditLogServiceTests
     // ListAsync: parameters
 
     [Fact]
-    public async Task ListAsync_ParametersOnlyDeclaredKeys()
+    public async Task ListAsync_UndeclaredKeysStored_ReturnsOnlyDeclaredKeys()
     {
         Fixture f = CreateFixture();
-        // B1: tokenHash and ip are not declared for InvitationSent, so they must never leave the service.
+        // BR-83 point 5: tokenHash and ip are not declared for InvitationSent, so they must never leave the service.
         Returns(f, Row(newValues:
             """{"email":"a@x.com","role":{"id":"11111111-1111-1111-1111-111111111111","name":"Owner","systemKind":"Owner"},"tokenHash":"h","ip":"1.2.3.4"}"""));
 
@@ -206,7 +218,7 @@ public class AuditLogServiceTests
     }
 
     [Fact]
-    public async Task ListAsync_ParametersConvertedByDeclaredKind()
+    public async Task ListAsync_DeclaredKinds_ConvertsEachToItsType()
     {
         Fixture f = CreateFixture();
         Guid ownerId = Guid.NewGuid();
@@ -230,11 +242,13 @@ public class AuditLogServiceTests
         Assert.Equal(["a.b", "c.d"], Assert.IsAssignableFrom<IReadOnlyList<string>>(created["permissionCodes"]));
     }
 
-    [Fact]
-    public async Task ListAsync_DeclaredKeyWithWrongShape_SkipsRowAndWarns()
+    [Theory]
+    [InlineData("""{"email":5,"role":{"id":"11111111-1111-1111-1111-111111111111","name":"Owner"}}""")]
+    [InlineData("""{"email":"a@x.com","role":"Owner"}""")]
+    public async Task ListAsync_DeclaredKeyWithWrongShape_SkipsRowAndWarns(string newValues)
     {
         Fixture f = CreateFixture();
-        Returns(f, Row(9, newValues: """{"email":5,"role":"Owner"}"""));
+        Returns(f, Row(9, newValues: newValues));
 
         AuditEntryPage page = await List(f);
 
@@ -247,6 +261,9 @@ public class AuditLogServiceTests
     [InlineData("""{"email":"a@x.com","role":{"id":"11111111-1111-1111-1111-111111111111","name":"O","systemKind":1}}""")]
     [InlineData("""{"email":"a@x.com","role":{"id":"11111111-1111-1111-1111-111111111111","name":"O","systemKind":"1"}}""")]
     [InlineData("""{"email":"a@x.com","role":{"id":"11111111-1111-1111-1111-111111111111","name":"O","systemKind":"owner"}}""")]
+    [InlineData("""{"email":"a@x.com","role":{"id":"11111111-1111-1111-1111-111111111111","name":"O","systemKind":"5"}}""")]
+    [InlineData("""{"email":"a@x.com","role":{"id":5,"name":"O"}}""")]
+    [InlineData("""{"email":"a@x.com","role":{"id":"11111111-1111-1111-1111-111111111111","name":5}}""")]
     [InlineData("""{"email":"a@x.com","role":{"id":"00000000-0000-0000-0000-000000000000","name":"O"}}""")]
     [InlineData("""{"email":"a@x.com","role":{"id":"x","name":"O"}}""")]
     [InlineData("""{"email":"a@x.com","role":{"id":"11111111-1111-1111-1111-111111111111"}}""")]
@@ -357,7 +374,9 @@ public class AuditLogServiceTests
     [Theory]
     [InlineData(null)]
     [InlineData("Bogus")]
+    [InlineData("0")]
     [InlineData("1")]
+    [InlineData("4")]
     [InlineData("account")]
     [InlineData(" Account")]
     [InlineData("")]
