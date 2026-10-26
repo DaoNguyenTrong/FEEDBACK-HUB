@@ -106,6 +106,9 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
         return await response.Content.ReadJsonElementAsync();
     }
 
+    private static string Base64UrlEncode(string payload) =>
+        Convert.ToBase64String(Encoding.UTF8.GetBytes(payload)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
     private static long[] IdsOf(JsonElement page) =>
         [.. page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetInt64())];
 
@@ -234,7 +237,7 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
     // The service re-reads the permission and answers the same 403, which would hide a weaker endpoint policy from
     // every HTTP test here; the gate's own check is pinned instead.
     [Fact]
-    public void GetAuditLog_RequiresAuditLogsViewPolicy()
+    public void GetAuditLog_Action_RequiresAuditLogsViewPolicy()
     {
         MethodInfo method = typeof(CurrentOrganizationController).GetMethod(nameof(CurrentOrganizationController.GetAuditLog))
             ?? throw new InvalidOperationException("No audit-log action.");
@@ -256,16 +259,23 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
 
         HttpResponseMessage response = await ClientFor(viewer, organization.Id).GetAsync($"{Path}?{query}");
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        JsonElement problem = await AssertCodeAsync(response, HttpStatusCode.BadRequest, ApplicationMessages.ValidationFailed);
+        Assert.Contains(
+            problem.GetProperty("errors").EnumerateObject(),
+            error => string.Equals(error.Name, "limit", StringComparison.OrdinalIgnoreCase));
     }
 
+    // The payload is encoded in the test body; the first three rows are literal strings that are not a cursor.
     [Theory]
-    [InlineData("@@@")]
-    [InlineData("A=")]
-    [InlineData("bm90LWEtY3Vyc29y")]
-    public async Task AuditLog_MalformedCursor_Returns400InvalidCursor(string cursor)
+    [InlineData("@@@", false)]
+    [InlineData("A=", false)]
+    [InlineData("bm90LWEtY3Vyc29y", false)]
+    [InlineData("1:0", true)]
+    [InlineData("99999999999999999999:1", true)]
+    public async Task AuditLog_MalformedCursor_Returns400InvalidCursor(string value, bool encode)
     {
         (Organization organization, Account viewer) = await SeedViewerAsync();
+        string cursor = encode ? Base64UrlEncode(value) : value;
 
         HttpResponseMessage response = await ClientFor(viewer, organization.Id)
             .GetAsync($"{Path}?cursor={Uri.EscapeDataString(cursor)}");
@@ -288,7 +298,7 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
 
     // AC-363, T19
     [Fact]
-    public async Task AuditLog_OnlyEventEntriesOfCurrentOrganization()
+    public async Task AuditLog_MixedRows_ReturnsOnlyEventEntriesOfCurrentOrganization()
     {
         (Organization organization, Account viewer) = await SeedViewerAsync();
         Organization other;
@@ -307,7 +317,7 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
         Assert.Equal([own.Id], IdsOf(page));
     }
 
-    // Review Focus 3: a cursor is only a position; the organization always comes from the session.
+    // A cursor is only a position; the organization always comes from the session.
     [Fact]
     public async Task AuditLog_CursorFromOtherOrganization_ReturnsOnlyCurrentOrganizationRows()
     {
@@ -330,7 +340,7 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
 
     // AC-371
     [Fact]
-    public async Task AuditLog_ResponseHasNoIpUserAgentEntityIdOrRawValues()
+    public async Task AuditLog_Response_OmitsIpUserAgentEntityIdAndRawValues()
     {
         (Organization organization, Account viewer) = await SeedViewerAsync();
         AuditLog row = await SeedRowAsync(organization.Id, Newest);
@@ -351,7 +361,7 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
     }
 
     [Fact]
-    public async Task AuditLog_EnumsSerializeAsNames()
+    public async Task AuditLog_EnumFields_SerializeAsNames()
     {
         (Organization organization, Account viewer) = await SeedViewerAsync();
         Account actor = await SeedAccountAsync("Người mời");
@@ -389,7 +399,7 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
 
     // AC-360
     [Fact]
-    public async Task AuditLog_PagesNewestFirstWithNextCursor()
+    public async Task AuditLog_TwoPages_ReturnsNewestFirstWithNextCursor()
     {
         (Organization organization, Account viewer) = await SeedViewerAsync();
         AuditLog[] rows =
