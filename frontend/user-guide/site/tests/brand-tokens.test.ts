@@ -11,44 +11,61 @@ const appCss = await Bun.file(
 ).text()
 
 describe('generateBrandTokensCss', () => {
-  test('maps every accent and leaf step', () => {
+  test('emits every brand token for light and dark', () => {
     const css = generateBrandTokensCss(fixture)
-    for (const n of [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]) {
-      expect(css).toContain(`--brand-violet-${n}:`)
-      expect(css).toContain(`--brand-leaf-${n}:`)
+    const [lightBlock, darkBlock] = css.split('.dark {')
+    for (const name of ['accent', 'accent-soft', 'on-chrome', 'chrome', 'deep', 'leaf', 'page']) {
+      expect(lightBlock).toContain(`--brand-${name}:`)
+      expect(darkBlock).toContain(`--brand-${name}:`)
     }
   })
 
   test('resolves chained var() to a hex value', () => {
-    expect(generateBrandTokensCss(fixture)).toContain('--brand-violet-700: #123456;')
+    expect(generateBrandTokensCss(fixture)).toContain('--brand-accent-hover: #123456;')
   })
 
-  test('takes dark-only tokens from the .dark block', () => {
-    const css = generateBrandTokensCss(fixture)
-    expect(css).toContain('--brand-primary-200-dark: #9c80dc;')
-    expect(css).toContain('--brand-surface-900: #1e2235;')
-    expect(css).toContain('--brand-surface-950: #121527;')
+  test('takes each mode from its own block', () => {
+    const [lightBlock, darkBlock] = generateBrandTokensCss(fixture).split('.dark {')
+    expect(lightBlock).toContain('--brand-accent: #4f3d91;')
+    expect(darkBlock).toContain('--brand-accent: #b4a6f2;')
+    expect(lightBlock).toContain('--brand-page: #e9f1fa;')
+    expect(darkBlock).toContain('--brand-page: #0e1124;')
+  })
+
+  test('keeps the sidebar, hero and table chrome dark and its text light in both modes', () => {
+    const [lightBlock, darkBlock] = generateBrandTokensCss(fixture).split('.dark {')
+    expect(lightBlock).toContain('--brand-chrome: #37296b;')
+    expect(darkBlock).toContain('--brand-chrome: #15132b;')
+    expect(lightBlock).toContain('--brand-on-chrome: #eceaf7;')
+    expect(darkBlock).toContain('--brand-on-chrome: #eceaf7;')
+    expect(lightBlock).toContain('--brand-accent-fill: #4f3d91;')
+    expect(darkBlock).toContain('--brand-accent-fill: #4f3d91;')
   })
 
   test('names every missing token', () => {
     const broken = fixture
-      .replace(/--color-leaf-400:[^;]+;/, '')
-      .replace(/--color-accent-950:[^;]+;/, '')
+      .replace(/--color-leaf:[^;]+;/, '')
+      .replace(/--color-accent-soft:[^;]+;/, '')
     expect(() => generateBrandTokensCss(broken)).toThrow(
-      /--color-accent-950.*--color-leaf-400|--color-leaf-400.*--color-accent-950/,
+      /--color-accent-soft.*--color-leaf|--color-leaf.*--color-accent-soft/,
     )
   })
 
+  test('reads an app stylesheet whose theme block is plain @theme', () => {
+    const plain = fixture.replace('@theme static {', '@theme {')
+    expect(generateBrandTokensCss(plain)).toContain('--brand-accent: #4f3d91;')
+  })
+
   // Only the shape, never the values: a fork recolours the app without touching this base file.
-  test('the real app stylesheet yields every brand token', () => {
+  test('the real app stylesheet yields every brand token in both modes', () => {
     const css = generateBrandTokensCss(appCss)
     const names = [...css.matchAll(/--brand-([\w-]+):/g)].map((m) => m[1])
-    expect(names).toHaveLength(25)
+    expect(names).toHaveLength(36)
   })
 
   test('a fork that recolours the app still gets every brand token', () => {
     const recoloured = appCss.replace(/#[0-9a-f]{6}\b/gi, '#010203')
-    expect(generateBrandTokensCss(recoloured)).toContain('--brand-violet-500: #010203;')
+    expect(generateBrandTokensCss(recoloured)).toContain('--brand-accent: #010203;')
   })
 })
 
