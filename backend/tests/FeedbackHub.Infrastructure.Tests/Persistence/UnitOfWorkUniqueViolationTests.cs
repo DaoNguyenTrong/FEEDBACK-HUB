@@ -36,4 +36,36 @@ public sealed class UnitOfWorkUniqueViolationTests(PostgresContainerFixture fixt
         await using AppDbContext reader = fixture.CreateDbContext();
         Assert.Equal(1, await reader.Organizations.CountAsync(o => o.Slug == slug));
     }
+
+    // Two registrations with one username, both past the service's username check: the loser gets the check's 409.
+    [Fact]
+    public async Task SaveChanges_SameUsernameFromTwoContextsConcurrently_OneSucceedsOtherConflict()
+    {
+        string tag = Guid.NewGuid().ToString("N")[..12];
+        string username = $"race-{tag}";
+        await using AppDbContext firstContext = fixture.CreateDbContext();
+        await using AppDbContext secondContext = fixture.CreateDbContext();
+        firstContext.Accounts.Add(Account.Create(new AccountParams("First", username, $"a{tag}@example.com")));
+        secondContext.Accounts.Add(
+            Account.Create(new AccountParams("Second", username.ToUpperInvariant(), $"b{tag}@example.com")));
+
+        Task firstSave = CreateUnitOfWork(firstContext).SaveChangesAsync();
+        Task secondSave = CreateUnitOfWork(secondContext).SaveChangesAsync();
+        Task[] saves = [firstSave, secondSave];
+        try
+        {
+            await Task.WhenAll(saves);
+        }
+        catch (ConflictException)
+        {
+            // Inspected below, per task.
+        }
+
+        Task failedSave = Assert.Single(saves, save => save.IsFaulted);
+        ConflictException conflict = Assert.IsType<ConflictException>(failedSave.Exception!.InnerException);
+        Assert.Equal(ApplicationMessages.AccountUsernameAlreadyExists, conflict.Message);
+
+        await using AppDbContext reader = fixture.CreateDbContext();
+        Assert.Equal(1, await reader.Accounts.CountAsync(a => a.Username == username));
+    }
 }

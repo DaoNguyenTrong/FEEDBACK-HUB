@@ -48,6 +48,9 @@ public sealed class UnitOfWork(
     /// <summary>Name of the unique index on <c>accounts.Email</c> (see the InitialCreate migration).</summary>
     internal const string AccountEmailUniqueIndexName = "IX_accounts_Email";
 
+    /// <summary>Name of the unique index on <c>accounts.Username</c> (see the InitialCreate migration).</summary>
+    internal const string AccountUsernameUniqueIndexName = "IX_accounts_Username";
+
     /// <summary>Name of the unique index on <c>system_administrators.AccountId</c> (AddSystemAdministrators migration).</summary>
     internal const string SystemAdministratorAccountUniqueIndexName = "IX_system_administrators_AccountId";
 
@@ -71,6 +74,15 @@ public sealed class UnitOfWork(
         {
             // Two writers claimed the same address between the service's duplicate check and the save.
             throw new ConflictException(ApplicationMessages.AccountEmailAlreadyExists);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: AccountUsernameUniqueIndexName
+        })
+        {
+            // Two registrations claimed the same username between the service's duplicate check and the save.
+            throw new ConflictException(ApplicationMessages.AccountUsernameAlreadyExists);
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
         {
