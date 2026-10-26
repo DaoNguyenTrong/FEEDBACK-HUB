@@ -31,6 +31,7 @@ public static class ApplicationMessages
     public const string InternalServerError = nameof(InternalServerError);
     public const string EmailDeliveryFailed = nameof(EmailDeliveryFailed);
     public const string OrganizationAccessDenied = nameof(OrganizationAccessDenied);
+    public const string InvalidCursor = nameof(InvalidCursor);
     public const string OrganizationSuspended = nameof(OrganizationSuspended);
     public const string SystemAdministratorRequired = nameof(SystemAdministratorRequired);
     public const string DeactivationReasonRequired = nameof(DeactivationReasonRequired);
