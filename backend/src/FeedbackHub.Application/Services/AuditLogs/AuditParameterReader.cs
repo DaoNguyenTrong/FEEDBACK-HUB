@@ -89,14 +89,28 @@ internal static class AuditParameterReader
         }
 
         string? text = raw.ValueKind == JsonValueKind.String ? raw.GetString() : null;
-        if (!Enum.TryParse(text, ignoreCase: false, out SystemRoleKind parsed)
-            || !Enum.IsDefined(parsed)
-            || !string.Equals(parsed.ToString(), text, StringComparison.Ordinal))
+        if (!TryParseExactName(text, out SystemRoleKind parsed))
         {
             return false;
         }
 
         kind = parsed;
         return true;
+    }
+
+    // Enum.TryParse alone would accept "1" and " Account"; the name must match exactly.
+    internal static bool TryParseExactName<TEnum>(string? value, out TEnum result)
+        where TEnum : struct, Enum
+    {
+        if (value is not null
+            && Enum.TryParse(value, ignoreCase: false, out result)
+            && Enum.IsDefined(result)
+            && string.Equals(result.ToString(), value, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        result = default;
+        return false;
     }
 }
