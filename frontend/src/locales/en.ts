@@ -13,6 +13,8 @@ export interface LocaleSchema {
     loading: string
     search: string
     goHome: string
+    notFoundReloaded: string
+    showMore: string
     language: string
     theme: string
     lightMode: string
@@ -150,6 +152,9 @@ export interface LocaleSchema {
     home: string
     organizations: string
     organizationSettings: string
+    members: string
+    invitations: string
+    roles: string
     profile: string
     openMenu: string
     groups: {
@@ -157,6 +162,26 @@ export interface LocaleSchema {
       system: string
     }
     userGuide: string
+  }
+  members: {
+    self: string
+    actions: string
+    changeRoles: string
+    leave: string
+    remove: string
+    atLeastOneRole: string
+    rolesChanged: string
+    removed: string
+    removeConfirmMessage: string
+    removeConfirmDetail: string
+    leaveConfirmMessage: string
+    leaveConfirmDetail: string
+    showingOf: string
+    lockReasonOwnerOnly: string
+    lockReasonInsufficientRole: string
+    lockReasonInsufficientRoleGeneric: string
+    ownerOnlyRoleHint: string
+    insufficientRoleHint: string
   }
   guideAuth: {
     opening: string
@@ -308,6 +333,8 @@ const en: LocaleSchema = {
     loading: 'Loading...',
     search: 'Search',
     goHome: 'Go to workspace',
+    notFoundReloaded: 'This item no longer exists. The list has been reloaded.',
+    showMore: 'Show more',
     language: 'Language',
     theme: 'Theme',
     lightMode: 'Light',
@@ -361,7 +388,12 @@ const en: LocaleSchema = {
     OrganizationNameRequired: 'Enter the organization name.',
     DeactivationReasonRequired: 'Enter a reason.',
     OwnerOnlyOperation: 'Only an Owner can do this.',
-    InsufficientRolePermissions: "You don't have enough permissions to do this.",
+    InsufficientRolePermissions: "You don't have every permission of this role.",
+    OrganizationCannotRemoveLastOwner: 'The organization needs at least one owner.',
+    OrganizationMemberRequiresAtLeastOneRole: 'Every member needs at least one role.',
+    CannotRemoveSelf: "You can't remove yourself. Use Leave organization.",
+    LastOwnerCannotLeave:
+      'You are the only owner. Give the owner role to someone else before you leave.',
   },
   accessProblem: {
     notFoundTitle: 'Not found',
@@ -464,6 +496,9 @@ const en: LocaleSchema = {
     home: 'Home',
     organizations: 'Organizations',
     organizationSettings: 'Organization management',
+    members: 'Members',
+    invitations: 'Invitations',
+    roles: 'Roles',
     profile: 'Profile',
     openMenu: 'Open menu',
     groups: {
@@ -615,6 +650,27 @@ const en: LocaleSchema = {
       access: 'Members cannot enter the organization.',
       data: 'Data is kept. You can reactivate it at any time.',
     },
+  },
+  members: {
+    self: 'you',
+    actions: 'Actions',
+    changeRoles: 'Change roles',
+    leave: 'Leave organization',
+    remove: 'Remove from organization',
+    atLeastOneRole: 'Every member needs at least one role.',
+    rolesChanged: "Changed {name}'s roles to {roles}.",
+    removed: 'Removed {name} from {org}',
+    removeConfirmMessage: 'Remove {name} from {org}?',
+    removeConfirmDetail: "{name} will no longer be able to see this organization's data.",
+    leaveConfirmMessage: 'Leave {org}?',
+    leaveConfirmDetail:
+      "You will no longer be able to see {org}'s data. To come back, you will need a new invitation.",
+    showingOf: 'Showing {shown} of {total} members',
+    lockReasonOwnerOnly: 'Only an Owner can change this row',
+    lockReasonInsufficientRole: "You don't have every permission of the {role} role",
+    lockReasonInsufficientRoleGeneric: "You don't have enough permissions to change this row",
+    ownerOnlyRoleHint: 'Only an Owner can select this role.',
+    insufficientRoleHint: "You don't have every permission of this role.",
   },
   notifications: {
     title: 'Notifications',

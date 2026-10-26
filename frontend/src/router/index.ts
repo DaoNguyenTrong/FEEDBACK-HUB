@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteMeta } from 'vue-router'
-import { Home, Settings } from '@vicons/tabler'
+import { Home, Settings, Users } from '@vicons/tabler'
 import { Permissions } from '@/lib/permissions'
 import { routeAccess } from '@/lib/route-access'
 import type { RouteAccessContext } from '@/lib/route-access'
@@ -52,6 +52,21 @@ const router = createRouter({
             sidebar: {
               labelKey: 'nav.home',
               icon: Home,
+            },
+          },
+        },
+        {
+          path: 'organization/members',
+          name: 'organization-members',
+          component: () => import('@/views/organization/MembersView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresOrganization: true,
+            sidebar: {
+              labelKey: 'nav.members',
+              icon: Users,
+              group: 'organization',
+              order: 10,
             },
           },
         },
