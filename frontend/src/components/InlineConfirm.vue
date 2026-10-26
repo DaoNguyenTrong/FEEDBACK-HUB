@@ -15,6 +15,7 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>()
 const { t } = useI18n()
 const size = useControlSize()
 const root = ref<HTMLElement | null>(null)
+const messageId = useId()
 
 onMounted(() => root.value?.focus())
 
@@ -28,11 +29,11 @@ function onEscape() {
     ref="root"
     role="group"
     tabindex="-1"
-    :aria-label="props.message"
+    :aria-labelledby="messageId"
     class="rounded-md border border-line bg-sunken px-3 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-focus"
     @keydown.esc="onEscape"
   >
-    <p class="text-row text-ink">{{ props.message }}</p>
+    <p :id="messageId" class="text-row text-ink">{{ props.message }}</p>
     <p v-if="props.detail" class="mt-0.5 text-meta text-ink-muted">{{ props.detail }}</p>
     <div class="mt-2.5 flex flex-wrap justify-end gap-2">
       <n-button

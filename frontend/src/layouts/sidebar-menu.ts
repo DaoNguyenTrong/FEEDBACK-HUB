@@ -53,6 +53,34 @@ export function flattenMenuLinks(entries: SidebarMenuEntry[]): FlatMenuLink[] {
   return links
 }
 
+export interface NavSection {
+  key: string
+  headingKey?: string
+  links: FlatMenuLink[]
+}
+
+// Loose items next to each other share one section; each group is a section headed by its name.
+export function toNavSections(entries: SidebarMenuEntry[]): NavSection[] {
+  const sections: NavSection[] = []
+  let openLoose: NavSection | null = null
+
+  for (const entry of entries) {
+    const links = flattenMenuLinks([entry])
+
+    if (entry.kind === 'group') {
+      sections.push({ key: entry.id, headingKey: entry.labelKey, links })
+      openLoose = null
+    } else if (openLoose) {
+      openLoose.links.push(...links)
+    } else {
+      openLoose = { key: `loose-${sections.length}`, links }
+      sections.push(openLoose)
+    }
+  }
+
+  return sections
+}
+
 export function containsRoute(
   entry: SidebarMenuEntry | SidebarMenuItem,
   routeName: string | undefined,

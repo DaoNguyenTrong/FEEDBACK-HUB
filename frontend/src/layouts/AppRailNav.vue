@@ -1,37 +1,14 @@
 <script setup lang="ts">
-import { flattenMenuLinks, type FlatMenuLink } from './sidebar-menu'
+import { toNavSections } from './sidebar-menu'
 
 const props = defineProps<{ variant: 'wide' | 'icon' }>()
 const emit = defineEmits<{ navigate: [] }>()
-
-interface NavSection {
-  key: string
-  headingKey?: string
-  links: FlatMenuLink[]
-}
 
 const { t } = useI18n()
 const route = useRoute()
 const entries = useSidebarMenu()
 
-// Loose items share one leading section; each group is a section of its own, headed by the group name.
-const sections = computed<NavSection[]>(() => {
-  const result: NavSection[] = []
-
-  for (const entry of entries.value) {
-    const links = flattenMenuLinks([entry])
-
-    if (entry.kind === 'group') {
-      result.push({ key: entry.id, headingKey: entry.labelKey, links })
-    } else if (result.at(-1)?.key === 'main') {
-      result.at(-1)!.links.push(...links)
-    } else {
-      result.push({ key: 'main', links })
-    }
-  }
-
-  return result
-})
+const sections = computed(() => toNavSections(entries.value))
 
 // A page without its own item names the item to show as open in `meta.activeMenu`.
 const activeName = computed(() => route.meta.activeMenu ?? route.name)

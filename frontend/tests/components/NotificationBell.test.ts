@@ -52,6 +52,17 @@ describe('NotificationBell', () => {
     expect(wrapper.text().includes('5')).toBe(badgeShown)
   })
 
+  it('keeps a 44 px bell target below the desktop width', async () => {
+    server.use(http.get('*/api/notifications', emptyList))
+    const { wrapper } = await renderComponent(NotificationBell, {
+      initialState: { notifications: { unreadCount: 0 } },
+      global: { stubs: { teleport: true } },
+    })
+
+    const bell = wrapper.get(`button[aria-label="${i18n.global.t('notifications.title')}"]`)
+    expect(bell.classes()).toContain('max-desktop:size-11!')
+  })
+
   it('shows the empty state when the list has no notifications', async () => {
     server.use(http.get('*/api/notifications', emptyList))
     const { wrapper } = await renderComponent(NotificationBell, {

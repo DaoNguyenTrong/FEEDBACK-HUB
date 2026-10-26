@@ -34,7 +34,7 @@ const ProfilePanelStub = defineComponent({
   template: '<div data-testid="profile-stub" :data-visible="visible" />',
 })
 
-// The real panel, palette and dialog are covered by their own tests; the palette also listens on `window`.
+// The real settings panel, palette and profile panel have their own tests; the palette listens on `window`.
 const overlayStubs = {
   AppearanceSettings: { template: '<div data-testid="settings-stub" />' },
   CommandPalette: { template: '<div data-testid="palette-stub" />' },
@@ -112,7 +112,7 @@ describe('AppLayout', () => {
     }
   })
 
-  it('mounts the settings panel, the palette and the profile dialog once', async () => {
+  it('mounts the settings panel, the palette and the profile panel once', async () => {
     const { wrapper, pinia } = await renderComponent(AppLayout, {
       global: { stubs: shellStubs },
     })

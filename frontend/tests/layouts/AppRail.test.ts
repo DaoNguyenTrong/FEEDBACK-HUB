@@ -14,7 +14,7 @@ const t = i18n.global.t
 const stub = { template: '<div />' }
 
 async function mountRail(width: number, initialPath = '/') {
-  stubViewport(width)
+  const viewport = stubViewport(width)
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -58,7 +58,7 @@ async function mountRail(width: number, initialPath = '/') {
     },
   })
   await flushPromises()
-  return { wrapper, router, layout: storeIn(pinia, useLayoutStore) }
+  return { wrapper, router, viewport, layout: storeIn(pinia, useLayoutStore) }
 }
 
 describe('AppRail', () => {
@@ -131,6 +131,28 @@ describe('AppRail', () => {
     const current = wrapper.get('[data-testid="app-sidebar"]').findAll('a[aria-current="page"]')
     expect(current).toHaveLength(1)
     expect(current[0]!.text()).toContain(t('nav.organizations'))
+  })
+
+  it('heads the groups of the slide-in menu with their names', async () => {
+    const { wrapper, layout } = await mountRail(390)
+    layout.openMobile()
+    await flushPromises()
+
+    const menu = wrapper.get('[data-testid="app-sidebar-mobile"]')
+    expect(menu.text()).toContain(t('nav.groups.organization'))
+    expect(menu.text()).toContain(t('nav.organizations'))
+  })
+
+  it('closes the slide-in menu when the screen grows past a phone', async () => {
+    const { layout, viewport } = await mountRail(390)
+    layout.openMobile()
+    await flushPromises()
+    expect(layout.mobileOpen).toBe(true)
+
+    viewport.setWidth(834)
+    await flushPromises()
+
+    expect(layout.mobileOpen).toBe(false)
   })
 
   it('closes the slide-in menu after a navigation', async () => {
