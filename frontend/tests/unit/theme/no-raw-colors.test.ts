@@ -29,6 +29,7 @@ const PHASE_7_FILES: string[] = [
   'layouts/AppFooter.vue',
   'layouts/UserMenu.vue',
   'layouts/AppLayout.vue',
+  'components/AccessProblemState.vue',
 ]
 
 const RAW_COLOR = /#[0-9a-fA-F]{3,8}\b|(?<![a-z])(?:rgba?|hsla?)\(/

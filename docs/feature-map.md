@@ -141,3 +141,26 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
   4. Token thành viên không có `auditlogs.view` hoặc khoá API trả 403; không token trả 401.
 - **Rủi ro hay gặp:** `parameters` là object mở (client sinh ra kiểu `unknown`), phần 8 phải thu hẹp theo `type`; chữ `vi`/`en` cho từng loại sự kiện và `InvalidCursor` thuộc phần 8.
 - **Frontend:** chưa có; phần 8 (`AuditLogView.vue`, route `/organization/audit-log`).
+
+## Khung ứng dụng và design system
+
+- **PRD:** PRD00-FR-03, FR-30, FR-66: AC-73 (tổ chức tạm ngừng mờ trong bộ chọn, bấm không chuyển), AC-298 và AC-299 (trang không có quyền: mục menu ẩn, mở bằng URL thấy _Không đủ quyền_), AC-362 (mục rail theo quyền). BR-45: màn *Không tìm thấy* và *Không đủ quyền* chỉ hiện câu chung, không tên hay mã đối tượng.
+- **Vào bằng:** mọi trang sau đăng nhập. Gõ một đường dẫn không có (`/#/no/such/page`) khi đã đăng nhập thì thấy _Không tìm thấy_ trong khung; khi chưa đăng nhập thì về đăng nhập rồi quay lại đúng đường dẫn đó.
+- **Frontend:**
+  - Token màu, chữ, bo góc: `frontend/src/theme/tokens.ts` (khai báo trong `frontend/src/assets/styles/tailwind.css`)
+  - Khung: `frontend/src/layouts/AppLayout.vue`, `AppRail.vue` (rail rộng, rail biểu tượng, ngăn kéo trên điện thoại), `AppTopBar.vue`, `OrgSwitcher.vue`, `AppFooter.vue`
+  - Quyền vào trang: `frontend/src/lib/route-access.ts` (một hàm cho guard, menu và `AppLayout`); trang `forbidden` được `AppLayout` thay cho `<RouterView>`, nên trang không được mount và không gọi API
+  - Màn *Không tìm thấy* / *Không đủ quyền*: `frontend/src/components/AccessProblemState.vue`; `frontend/src/lib/access-problem.ts` (`accessProblemOf`: 404 là `not-found`; 403 `OrganizationAccessDenied` hoặc `SystemAdministratorRequired` là `forbidden`; còn lại `null`); `frontend/src/views/NotFoundView.vue` là route `not-found`, con của layout `/`, `requiresAuth`
+  - Testid: `app-shell`, `app-sidebar`, `app-header-menu`, `app-header-palette`, `org-switcher-trigger`, `app-sheet`
+- **Backend:** không có; màn hình chỉ là cổng giao diện, API vẫn kiểm quyền từng request (BR-75).
+- **Test đã có:**
+  - Frontend unit: `frontend/tests/unit/lib/access-problem.test.ts`, `route-access.test.ts`; `tests/components/AccessProblemState.test.ts`; `tests/layouts/AppLayout.test.ts` (trạng thái _Không đủ quyền_ không mount trang, 404 trong khung, không lộ `detail`), `AppRail.test.ts`, `OrgSwitcher.test.ts`; `tests/unit/router/guard-integration.test.ts`; `tests/unit/theme/*`
+  - E2E: `frontend/e2e/guards.spec.ts` (đường dẫn lạ hiện _Not found_ trong khung)
+- **Cách kiểm tra "đã chạy đúng":**
+  1. Mở một đường dẫn lạ khi đã đăng nhập: thấy rail, thanh trên và chữ _Không tìm thấy_ kèm nút _Về trang chủ_; URL giữ nguyên.
+  2. Với tài khoản thiếu quyền của một trang có `meta.permission`: mục menu ẩn; mở bằng URL thấy _Không đủ quyền_, URL giữ nguyên, tab Network không có request của trang đó.
+  3. Ba khoảng màn hình (điện thoại dưới 768 px, máy tính bảng, từ 1200 px): rail rộng từ 1200 px, rail biểu tượng ở giữa, ngăn kéo và sheet từ dưới lên trên điện thoại.
+  4. Chế độ sáng và tối (menu tài khoản, _Giao diện_): chữ và nền đủ tương phản, không có màu ngoài token.
+  5. Bật giảm trong suốt của hệ điều hành (`prefers-reduced-transparency`): rail, thanh trên và panel thành nền đặc, không còn nền mờ.
+  6. Bộ chọn tổ chức: tổ chức tạm ngừng mờ, có nhãn _Tạm ngừng_, bấm không chuyển.
+- **Rủi ro hay gặp:** `AccessProblemState` không nhận tên, mã hay `detail`; đừng thêm prop hay slot truyền chúng vào. Trang con của tổ chức chưa có màn hình dùng `accessProblemOf` cho đến phần 8.

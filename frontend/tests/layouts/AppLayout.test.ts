@@ -1,11 +1,22 @@
+import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises } from '@vue/test-utils'
-import { defineComponent, onUnmounted } from 'vue'
+import { flushPromises, mount } from '@vue/test-utils'
+import { createTestingPinia } from '@pinia/testing'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
+import { defineComponent, onMounted, onUnmounted } from 'vue'
+import AccessProblemState from '@/components/AccessProblemState.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppRail from '@/layouts/AppRail.vue'
+import NotFoundView from '@/views/NotFoundView.vue'
+import i18n from '@/plugins/i18n'
+import { apiClient } from '@/api/client'
+import { accessProblemOf } from '@/lib/access-problem'
+import { server } from '../helpers/msw/server'
 import { renderComponent } from '../helpers/render'
 import { storeIn } from '../helpers/pinia'
 import { stubViewport } from '../helpers/viewport'
+
+const t = i18n.global.t
 
 const profileUnmounted = vi.fn()
 const ProfilePanelStub = defineComponent({
@@ -139,5 +150,132 @@ describe('AppLayout', () => {
 
     expect(notifications.stopPolling).toHaveBeenCalledTimes(1)
     expect(notifications.disconnectRealtime).toHaveBeenCalledTimes(1)
+  })
+
+  describe('access problems', () => {
+    const pageMounted = vi.fn()
+    const GatedPage = defineComponent({
+      setup() {
+        onMounted(pageMounted)
+      },
+      template: '<p data-testid="gated-page">Gated page</p>',
+    })
+    const LeakyPage = defineComponent({
+      components: { AccessProblemState },
+      data: () => ({ kind: null as 'not-found' | 'forbidden' | null }),
+      async mounted() {
+        try {
+          await apiClient.get('/api/leaky')
+        } catch (error) {
+          this.kind = accessProblemOf(error)
+        }
+      },
+      template: '<AccessProblemState v-if="kind" :kind="kind" />',
+    })
+
+    async function renderShell(path: string, auth: Record<string, unknown> = {}) {
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [
+          {
+            path: '/',
+            component: AppLayout,
+            children: [
+              { path: '', name: 'home', component: { template: '<div />' } },
+              {
+                path: 'reports',
+                component: GatedPage,
+                meta: { requiresAuth: true, permission: 'reports.view' },
+              },
+              { path: 'leaky', component: LeakyPage, meta: { requiresAuth: true } },
+              {
+                path: ':pathMatch(.*)*',
+                name: 'not-found',
+                component: NotFoundView,
+                meta: { requiresAuth: true },
+              },
+            ],
+          },
+        ],
+      })
+      await router.push(path)
+      await router.isReady()
+
+      const pinia = createTestingPinia({
+        createSpy: vi.fn,
+        stubActions: false,
+        initialState: {
+          auth: { account: { id: 'a-1' }, organizationId: 'org-1', permissions: [], ...auth },
+        },
+      })
+      const wrapper = mount(RouterView, {
+        global: { plugins: [pinia, router], stubs: shellStubs },
+      })
+      await flushPromises()
+
+      return { wrapper, router }
+    }
+
+    beforeEach(() => pageMounted.mockClear())
+
+    it('shows the forbidden state in the shell for a page whose permission the user lacks', async () => {
+      const { wrapper, router } = await renderShell('/reports')
+
+      expect(wrapper.find('[data-testid="app-shell"]').exists()).toBe(true)
+      expect(wrapper.get('h1').text()).toBe(t('accessProblem.forbiddenTitle'))
+      expect(router.currentRoute.value.fullPath).toBe('/reports')
+    })
+
+    it('does not mount the routed page behind the forbidden state', async () => {
+      const { wrapper } = await renderShell('/reports')
+
+      expect(wrapper.find('[data-testid="gated-page"]').exists()).toBe(false)
+      expect(pageMounted).not.toHaveBeenCalled()
+    })
+
+    it('renders the routed page when the user holds the permission', async () => {
+      const { wrapper } = await renderShell('/reports', { permissions: ['reports.view'] })
+
+      expect(wrapper.find('[data-testid="gated-page"]').exists()).toBe(true)
+      expect(wrapper.find('h1').exists()).toBe(false)
+    })
+
+    it('shows the not-found state inside the shell for an unknown path', async () => {
+      const { wrapper, router } = await renderShell('/no/such/page')
+
+      expect(wrapper.find('[data-testid="app-shell"]').exists()).toBe(true)
+      expect(wrapper.get('main h1').text()).toBe(t('accessProblem.notFoundTitle'))
+      expect(router.currentRoute.value.fullPath).toBe('/no/such/page')
+    })
+
+    it('never renders the problem detail, title or extensions of a 404', async () => {
+      server.use(
+        http.get('*/api/leaky', () =>
+          HttpResponse.json(
+            {
+              status: 404,
+              title: 'Sao Mai Tech',
+              detail: 'Role Trưởng IT',
+              code: 'X',
+              organizationName: 'Sao Mai Tech',
+            },
+            { status: 404, headers: { 'Content-Type': 'application/problem+json' } },
+          ),
+        ),
+      )
+      const { wrapper } = await renderShell('/leaky')
+      await vi.waitFor(() => expect(wrapper.find('main h1').exists()).toBe(true))
+
+      const main = wrapper.get('main')
+      expect(main.text()).toBe(
+        [
+          t('accessProblem.notFoundTitle'),
+          t('accessProblem.notFoundText'),
+          t('accessProblem.goHome'),
+        ].join(''),
+      )
+      expect(main.html()).not.toContain('Sao Mai Tech')
+      expect(main.html()).not.toContain('Trưởng IT')
+    })
   })
 })

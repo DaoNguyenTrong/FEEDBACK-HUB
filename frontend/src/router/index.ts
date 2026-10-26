@@ -66,6 +66,13 @@ const router = createRouter({
             },
           },
         },
+        {
+          // Last child: an unknown path shows "not found" inside the shell, after sign-in if need be.
+          path: '/:pathMatch(.*)*',
+          name: 'not-found',
+          component: () => import('@/views/NotFoundView.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {
@@ -98,11 +105,6 @@ const router = createRouter({
       name: 'guide-auth',
       component: () => import('@/views/GuideAuthView.vue'),
       meta: { requiresAuth: true },
-    },
-    {
-      path: '/:pathMatch(.*)*',
-      name: 'not-found',
-      component: () => import('@/views/NotFoundView.vue'),
     },
   ],
 })

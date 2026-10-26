@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const props = defineProps<{ title: string; description?: string }>()
+const props = defineProps<{ title: string; description?: string; headingLevel?: 1 | 2 }>()
 </script>
 
 <template>
@@ -10,7 +10,9 @@ const props = defineProps<{ title: string; description?: string }>()
     >
       <slot name="icon" />
     </div>
-    <h2 class="text-section text-ink">{{ props.title }}</h2>
+    <component :is="props.headingLevel === 1 ? 'h1' : 'h2'" class="text-section text-ink">
+      {{ props.title }}
+    </component>
     <p v-if="props.description" class="max-w-md text-body text-ink-muted">
       {{ props.description }}
     </p>

@@ -24,4 +24,12 @@ describe('EmptyState', () => {
     expect(wrapper.find('[data-testid="icon"]').exists()).toBe(true)
     expect(wrapper.find('button').text()).toBe('Add')
   })
+
+  it('renders the title as an h1 when asked to', async () => {
+    const { wrapper } = await renderComponent(EmptyState, {
+      props: { title: 'Nothing here', headingLevel: 1 },
+    })
+    expect(wrapper.get('h1').text()).toBe('Nothing here')
+    expect(wrapper.find('h2').exists()).toBe(false)
+  })
 })
