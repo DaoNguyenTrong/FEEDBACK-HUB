@@ -21,7 +21,6 @@ declare module 'vue-router' {
     systemAdministrator?: boolean
     /** Route name of the menu item shown as open when this page has no item of its own. */
     activeMenu?: string
-    breadcrumbKey?: string
     sidebar?: {
       labelKey: string
       icon: Component
@@ -49,7 +48,6 @@ const router = createRouter({
           component: () => import('@/views/HomeView.vue'),
           meta: {
             requiresAuth: true,
-            breadcrumbKey: 'nav.home',
             sidebar: {
               labelKey: 'nav.home',
               icon: Home,
@@ -62,7 +60,6 @@ const router = createRouter({
           component: () => import('@/views/OrganizationsView.vue'),
           meta: {
             requiresAuth: true,
-            breadcrumbKey: 'nav.organizations',
             sidebar: {
               labelKey: 'nav.organizations',
               icon: Building,

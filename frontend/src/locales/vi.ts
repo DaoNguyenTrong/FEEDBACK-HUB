@@ -26,11 +26,9 @@ const vi: LocaleSchema = {
     user: 'Người dùng',
   },
   layout: {
-    openSettings: 'Cài đặt giao diện',
-    more: 'Thêm',
-    pinSidebar: 'Ghim thanh bên',
     userMenu: {
       open: 'Tài khoản',
+      appearance: 'Giao diện',
       vietnamese: 'Tiếng Việt',
       english: 'English',
     },
@@ -40,23 +38,9 @@ const vi: LocaleSchema = {
       light: 'Sáng',
       dark: 'Tối',
       system: 'Theo hệ thống',
-      menuMode: 'Kiểu menu',
-      menuModeWideOnly: 'Áp dụng trên màn hình rộng',
-      menuTheme: 'Màu menu',
-    },
-    menuModes: {
-      static: 'Static',
-      slim: 'Slim',
-      slimPlus: 'Slim+',
-      drawer: 'Drawer',
-      horizontal: 'Horizontal',
-    },
-    menuThemes: {
-      brand: 'Thương hiệu',
-      transparent: 'Trong suốt',
     },
     palette: {
-      trigger: 'Đi tới trang…',
+      trigger: 'Đi tới…',
       placeholder: 'Nhập tên trang hoặc hành động',
       empty: 'Không có kết quả',
       pages: 'Trang',
@@ -149,14 +133,14 @@ const vi: LocaleSchema = {
     registerLink: 'Chưa có tài khoản? Tạo tài khoản',
   },
   app: {
-    name: 'App Starter',
+    name: 'FeedbackHub',
     version: 'Phiên bản {version}',
     copyright: '© 2026 App Starter',
     apiVersion: 'API v{version}',
     apiBuildTime: 'Build {time}',
     apiStatus: {
       checking: 'Đang kiểm tra API…',
-      online: 'API đang hoạt động',
+      online: 'Đã kết nối',
       offline: 'API ngoại tuyến',
       error: 'API không khả dụng',
     },
@@ -167,7 +151,7 @@ const vi: LocaleSchema = {
     home: 'Trang chủ',
     organizations: 'Tổ chức',
     profile: 'Hồ sơ cá nhân',
-    toggleSidebar: 'Đóng/mở thanh bên',
+    openMenu: 'Mở menu',
     groups: {
       organization: 'Tổ chức',
       system: 'Hệ thống',

@@ -12,6 +12,29 @@ function escapeRegExp(text: string): string {
 // so these tests seed the store state rather than mock the /api/health request.
 
 describe('AppFooter', () => {
+  it('keeps the one-line footer with app name, version and connection dot below the content', async () => {
+    const { wrapper } = await renderComponent(AppFooter, {
+      initialState: { health: { status: 'online' } },
+    })
+
+    const footer = wrapper.get('footer')
+    expect(footer.classes()).toEqual(expect.arrayContaining(['border-line', 'text-ink-muted']))
+    expect(footer.text()).toContain(i18n.global.t('app.name'))
+    expect(footer.text()).toContain(i18n.global.t('app.version', { version: __APP_VERSION__ }))
+    expect(footer.find('[role="status"]').exists()).toBe(true)
+  })
+
+  it('labels the connection dot with app.apiStatus.online when the API is up', async () => {
+    const { wrapper } = await renderComponent(AppFooter, {
+      initialState: { health: { status: 'online' } },
+    })
+
+    expect(wrapper.get('[role="status"]').attributes('aria-label')).toBe(
+      i18n.global.t('app.apiStatus.online'),
+    )
+    expect(i18n.global.t('app.apiStatus.online')).toBe('Connected')
+  })
+
   it('renders the app name and version', async () => {
     const { wrapper } = await renderComponent(AppFooter)
 
@@ -25,8 +48,9 @@ describe('AppFooter', () => {
     })
 
     const dot = wrapper.find('[role="status"]')
-    expect(dot.classes()).not.toContain('bg-green-500')
-    expect(dot.classes()).not.toContain('bg-red-500')
+    expect(dot.classes()).toContain('bg-ink-disabled')
+    expect(dot.classes()).not.toContain('bg-success')
+    expect(dot.classes()).not.toContain('bg-danger')
   })
 
   it('shows the online status dot and API version when the store reports "online"', async () => {
@@ -34,7 +58,7 @@ describe('AppFooter', () => {
       initialState: { health: { status: 'online', apiVersion: '3.1.4' } },
     })
 
-    expect(wrapper.find('[role="status"]').classes()).toContain('bg-green-500')
+    expect(wrapper.find('[role="status"]').classes()).toContain('bg-success')
     expect(wrapper.text()).toContain(i18n.global.t('app.apiVersion', { version: '3.1.4' }))
   })
 
@@ -43,7 +67,7 @@ describe('AppFooter', () => {
       initialState: { health: { status: 'offline' } },
     })
 
-    expect(wrapper.find('[role="status"]').classes()).toContain('bg-red-500')
+    expect(wrapper.find('[role="status"]').classes()).toContain('bg-danger')
   })
 
   it('shows a red status dot when the store reports "error"', async () => {
@@ -51,7 +75,7 @@ describe('AppFooter', () => {
       initialState: { health: { status: 'error' } },
     })
 
-    expect(wrapper.find('[role="status"]').classes()).toContain('bg-red-500')
+    expect(wrapper.find('[role="status"]').classes()).toContain('bg-danger')
   })
 
   it('formats and shows the API build time when the store has one', async () => {

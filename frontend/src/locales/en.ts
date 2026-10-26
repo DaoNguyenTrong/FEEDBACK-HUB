@@ -24,11 +24,9 @@ export interface LocaleSchema {
     user: string
   }
   layout: {
-    openSettings: string
-    more: string
-    pinSidebar: string
     userMenu: {
       open: string
+      appearance: string
       vietnamese: string
       english: string
     }
@@ -38,20 +36,6 @@ export interface LocaleSchema {
       light: string
       dark: string
       system: string
-      menuMode: string
-      menuModeWideOnly: string
-      menuTheme: string
-    }
-    menuModes: {
-      static: string
-      slim: string
-      slimPlus: string
-      drawer: string
-      horizontal: string
-    }
-    menuThemes: {
-      brand: string
-      transparent: string
     }
     palette: {
       trigger: string
@@ -156,7 +140,7 @@ export interface LocaleSchema {
     home: string
     organizations: string
     profile: string
-    toggleSidebar: string
+    openMenu: string
     groups: {
       organization: string
       system: string
@@ -306,11 +290,9 @@ const en: LocaleSchema = {
     user: 'User',
   },
   layout: {
-    openSettings: 'Appearance settings',
-    more: 'More',
-    pinSidebar: 'Pin sidebar',
     userMenu: {
       open: 'Account',
+      appearance: 'Appearance',
       vietnamese: 'Tiếng Việt',
       english: 'English',
     },
@@ -320,23 +302,9 @@ const en: LocaleSchema = {
       light: 'Light',
       dark: 'Dark',
       system: 'System',
-      menuMode: 'Menu type',
-      menuModeWideOnly: 'Applies on wide screens',
-      menuTheme: 'Menu color',
-    },
-    menuModes: {
-      static: 'Static',
-      slim: 'Slim',
-      slimPlus: 'Slim+',
-      drawer: 'Drawer',
-      horizontal: 'Horizontal',
-    },
-    menuThemes: {
-      brand: 'Brand',
-      transparent: 'Transparent',
     },
     palette: {
-      trigger: 'Go to page…',
+      trigger: 'Go to…',
       placeholder: 'Type a page or action',
       empty: 'No results',
       pages: 'Pages',
@@ -431,14 +399,14 @@ const en: LocaleSchema = {
     registerLink: "Don't have an account? Create one",
   },
   app: {
-    name: 'App Starter',
+    name: 'FeedbackHub',
     version: 'Version {version}',
     copyright: '© 2026 App Starter',
     apiVersion: 'API v{version}',
     apiBuildTime: 'Build {time}',
     apiStatus: {
       checking: 'Checking API…',
-      online: 'API online',
+      online: 'Connected',
       offline: 'API offline',
       error: 'API unavailable',
     },
@@ -449,7 +417,7 @@ const en: LocaleSchema = {
     home: 'Home',
     organizations: 'Organizations',
     profile: 'Profile',
-    toggleSidebar: 'Toggle sidebar',
+    openMenu: 'Open menu',
     groups: {
       organization: 'Organization',
       system: 'System',

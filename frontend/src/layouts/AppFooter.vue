@@ -16,15 +16,15 @@ const formattedBuildTime = computed(() => {
 })
 
 const statusDotClass = computed(() => {
-  if (status.value === 'online') return 'bg-green-500'
-  if (status.value === 'offline' || status.value === 'error') return 'bg-red-500'
-  return 'bg-surface-400 dark:bg-surface-500'
+  if (status.value === 'online') return 'bg-success'
+  if (status.value === 'offline' || status.value === 'error') return 'bg-danger'
+  return 'bg-ink-disabled'
 })
 </script>
 
 <template>
   <footer
-    class="flex items-center justify-between gap-3 border-t border-surface-200 px-4 py-1.5 text-xs text-surface-400 dark:border-surface-700 dark:text-surface-500"
+    class="flex items-center justify-between gap-3 border-t border-line px-4 py-1.5 text-caption text-ink-muted"
   >
     <div class="flex items-center gap-3">
       <span>{{ t('app.name') }}</span>
