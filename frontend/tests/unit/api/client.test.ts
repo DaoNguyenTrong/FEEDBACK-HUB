@@ -7,6 +7,10 @@ import { server } from '../../helpers/msw/server'
 import { makeAuthResponse } from '../../helpers/msw/fixtures'
 import { setupTestPinia } from '../../helpers/pinia'
 
+const exits = vi.hoisted(() => ({ reloadTo: vi.fn(), reloadToLogin: vi.fn() }))
+
+vi.mock('@/lib/session-exit', () => exits)
+
 function isApiError(error: unknown): error is { name: string; status: number } {
   return (
     typeof error === 'object' &&
@@ -32,6 +36,8 @@ function deferred<T>() {
 describe('apiClient interceptors', () => {
   beforeEach(() => {
     vi.resetModules()
+    exits.reloadTo.mockClear()
+    exits.reloadToLogin.mockClear()
     setupTestPinia()
   })
 
@@ -198,6 +204,79 @@ describe('apiClient interceptors', () => {
 
     await expect(apiClient.get('/api/test-protected')).rejects.toBeDefined()
     expect(localStorage.getItem(KEEP_LOGIN_STORAGE_KEY)).toBeNull()
+  })
+
+  it('keeps the session when the replay after a successful refresh fails', async () => {
+    let calls = 0
+    server.use(
+      http.get('*/api/test-protected', () =>
+        ++calls === 1
+          ? HttpResponse.json(null, { status: 401 })
+          : HttpResponse.json(
+              { status: 404, title: 'Not Found' },
+              { status: 404, headers: { 'Content-Type': 'application/problem+json' } },
+            ),
+      ),
+      http.post('*/api/auth/refresh', () => HttpResponse.json(makeAuthResponse())),
+    )
+    setKeepLoginPreference(true)
+    const apiClient = await loadApiClient()
+    const auth = useAuthStore()
+    auth.setAuth(makeAuthResponse())
+
+    await expect(apiClient.get('/api/test-protected')).rejects.toMatchObject({ status: 404 })
+
+    expect(auth.account).not.toBeNull()
+    expect(auth.clearAuth).not.toHaveBeenCalled()
+    expect(localStorage.getItem(KEEP_LOGIN_STORAGE_KEY)).not.toBeNull()
+  })
+
+  it('settles a 401 that arrives while the first replay is still in flight', async () => {
+    const refreshGate = deferred<void>()
+    const lateGate = deferred<void>()
+    const replayGate = deferred<void>()
+    let firstCalls = 0
+    let refreshCalls = 0
+    let lateCalls = 0
+    server.use(
+      http.get('*/api/test-first', async () => {
+        if (++firstCalls === 1) return HttpResponse.json(null, { status: 401 })
+        await replayGate.promise
+        return HttpResponse.json({ ok: 'first' })
+      }),
+      http.get('*/api/test-late', async () => {
+        if (++lateCalls === 1) {
+          await lateGate.promise
+          return HttpResponse.json(null, { status: 401 })
+        }
+        return HttpResponse.json({ ok: 'late' })
+      }),
+      http.post('*/api/auth/refresh', async () => {
+        if (++refreshCalls === 1) await refreshGate.promise
+        return HttpResponse.json(makeAuthResponse())
+      }),
+    )
+    const apiClient = await loadApiClient()
+    useAuthStore().setAuth(makeAuthResponse())
+
+    const first = apiClient.get('/api/test-first')
+    await vi.waitFor(() => {
+      if (refreshCalls !== 1) throw new Error('refresh not started yet')
+    })
+    const late = apiClient.get('/api/test-late')
+    await vi.waitFor(() => {
+      if (lateCalls !== 1) throw new Error('late request not sent yet')
+    })
+    refreshGate.resolve()
+    await vi.waitFor(() => {
+      if (firstCalls !== 2) throw new Error('first replay not sent yet')
+    })
+    lateGate.resolve()
+
+    await expect(late).resolves.toMatchObject({ data: { ok: 'late' } })
+    replayGate.resolve()
+    await expect(first).resolves.toMatchObject({ data: { ok: 'first' } })
+    expect(refreshCalls).toBe(2)
   })
 
   it('does not refresh on auth flow 401', async () => {
@@ -454,6 +533,7 @@ describe('apiClient interceptors', () => {
           return HttpResponse.json(makeAuthResponse())
         }),
       )
+      setKeepLoginPreference(true)
       const auth = useAuthStore()
       auth.setAuth({ ...makeAuthResponse(), organizationId: 'org-1', organizationName: 'Acme' })
       const context = useOrganizationContextStore()
@@ -476,8 +556,115 @@ describe('apiClient interceptors', () => {
       expect(membersCalls).toBe(2)
       expect(refreshCalls).toBe(1)
       expect(auth.organizationId).toBeNull()
+      expect(auth.account).not.toBeNull()
+      expect(localStorage.getItem(KEEP_LOGIN_STORAGE_KEY)).not.toBeNull()
+      const [one, two] = results as PromiseRejectedResult[]
+      expect(one!.reason).not.toBe(two!.reason)
       expect(context.handleOrganizationLost).toHaveBeenCalledOnce()
       expect(context.handleOrganizationLost).toHaveBeenCalledWith('org-1')
+    })
+
+    it('replays a request that does not depend on the organization when the refresh drops it', async () => {
+      let calls = 0
+      server.use(
+        http.post('*/api/auth/switch-organization', () =>
+          ++calls === 1 ? new HttpResponse(null, { status: 401 }) : HttpResponse.json({ ok: 1 }),
+        ),
+        http.post('*/api/auth/refresh', () => HttpResponse.json(makeAuthResponse())),
+      )
+      const auth = useAuthStore()
+      auth.setAuth({ ...makeAuthResponse(), organizationId: 'org-1', organizationName: 'Acme' })
+      const context = useOrganizationContextStore()
+      const apiClient = await loadApiClient()
+
+      const response = await apiClient.post('/api/auth/switch-organization', {
+        organizationId: 'org-2',
+      })
+
+      expect(response.data).toEqual({ ok: 1 })
+      expect(calls).toBe(2)
+      expect(auth.account).not.toBeNull()
+      expect(context.handleOrganizationLost).not.toHaveBeenCalled()
+    })
+
+    it('does not replay a request sent in the organization that a later refresh already dropped', async () => {
+      const lateGate = deferred<void>()
+      let lateCalls = 0
+      let firstCalls = 0
+      server.use(
+        http.get('*/api/organization/first', () => {
+          firstCalls++
+          return HttpResponse.json(null, { status: 401 })
+        }),
+        http.get('*/api/organization/late', async () => {
+          lateCalls++
+          await lateGate.promise
+          return HttpResponse.json(null, { status: 401 })
+        }),
+        http.post('*/api/auth/refresh', () => HttpResponse.json(makeAuthResponse())),
+      )
+      const auth = useAuthStore()
+      auth.setAuth({ ...makeAuthResponse(), organizationId: 'org-1', organizationName: 'Acme' })
+      const context = useOrganizationContextStore()
+      vi.mocked(context.handleOrganizationLost).mockResolvedValue()
+      const apiClient = await loadApiClient()
+
+      const late = apiClient.get('/api/organization/late')
+      await vi.waitFor(() => {
+        if (lateCalls !== 1) throw new Error('late request not sent yet')
+      })
+      await expect(apiClient.get('/api/organization/first')).rejects.toBeDefined()
+      expect(auth.organizationId).toBeNull()
+      vi.mocked(context.handleOrganizationLost).mockClear()
+      lateGate.resolve()
+
+      await expect(late).rejects.toBeDefined()
+
+      expect(lateCalls).toBe(1)
+      expect(firstCalls).toBe(1)
+      expect(context.handleOrganizationLost).toHaveBeenCalledWith('org-1')
+    })
+
+    it('reloads instead of replaying when the refresh returns another organization', async () => {
+      const refreshGate = deferred<void>()
+      let membersCalls = 0
+      let refreshCalls = 0
+      server.use(
+        http.get('*/api/organization/members', () => {
+          membersCalls++
+          return HttpResponse.json(null, { status: 401 })
+        }),
+        http.post('*/api/auth/refresh', async () => {
+          refreshCalls++
+          await refreshGate.promise
+          return HttpResponse.json({
+            ...makeAuthResponse(),
+            organizationId: 'org-2',
+            organizationName: 'Globex',
+          })
+        }),
+      )
+      const auth = useAuthStore()
+      auth.setAuth({ ...makeAuthResponse(), organizationId: 'org-1', organizationName: 'Acme' })
+      const context = useOrganizationContextStore()
+      const apiClient = await loadApiClient()
+
+      const first = apiClient.get('/api/organization/members')
+      await vi.waitFor(() => {
+        if (refreshCalls !== 1) throw new Error('refresh not started yet')
+      })
+      const second = apiClient.get('/api/organization/members')
+      await vi.waitFor(() => {
+        if (membersCalls !== 2) throw new Error('second original 401 not received yet')
+      })
+      refreshGate.resolve()
+
+      const results = await Promise.allSettled([first, second])
+
+      expect(results.map((result) => result.status)).toEqual(['rejected', 'rejected'])
+      expect(membersCalls).toBe(2)
+      expect(exits.reloadTo).toHaveBeenCalledExactlyOnceWith('/')
+      expect(context.handleOrganizationLost).not.toHaveBeenCalled()
     })
 
     it('still replays when the refresh keeps the organization', async () => {

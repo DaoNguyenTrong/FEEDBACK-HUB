@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { AxiosHeaders } from 'axios'
-import type { AxiosRequestHeaders } from 'axios'
+import type { AxiosRequestHeaders, InternalAxiosRequestConfig } from 'axios'
 
 import type { ProblemDetails } from './types'
 import { getRuntimeConfig } from '@/lib/runtime-config'
@@ -8,14 +8,17 @@ import { getRuntimeConfig } from '@/lib/runtime-config'
 declare module 'axios' {
   interface InternalAxiosRequestConfig {
     _retry?: boolean
+    // The organization the request was sent in, so a late 401 is never replayed into another one.
+    _organizationId?: string | null
   }
 }
 
 type FailedQueueItem = {
-  resolve: () => void
-  reject: (reason?: unknown) => void
+  request: InternalAxiosRequestConfig
   // This request's own error, for when the refresh leaves the organization instead of replaying it.
   original: unknown
+  resolve: (value: unknown) => void
+  reject: (reason?: unknown) => void
 }
 
 type OrganizationAccessHandler = (problem: ProblemDetails, url: string) => void
@@ -73,22 +76,35 @@ function toProblemDetails(
   }
 }
 
-function rejectFailedQueueWithOriginals() {
-  failedQueue.forEach(({ reject, original }) => reject(original))
+function rejectFailedQueue(error: unknown) {
+  failedQueue.forEach(({ reject }) => reject(error))
   failedQueue = []
 }
 
-function processFailedQueue(error: unknown) {
-  failedQueue.forEach(({ reject, resolve }) => {
-    if (error) {
-      reject(error)
-      return
-    }
+type ReplayRefusal = { lostFrom: string } | { switched: true }
 
-    resolve()
-  })
+// A gated request sent in an organization other than the one the refreshed session is in (TECH00 6.5).
+function replayRefusal(
+  request: InternalAxiosRequestConfig,
+  currentOrganizationId: string | null,
+): ReplayRefusal | null {
+  const sentIn = request._organizationId ?? null
+  if (!isOrganizationGated(request.url ?? '') || sentIn === null) return null
+  if (sentIn === currentOrganizationId) return null
+  return currentOrganizationId === null ? { lostFrom: sentIn } : { switched: true }
+}
 
-  failedQueue = []
+function applyRefusal(refusal: ReplayRefusal, notified: { done: boolean }) {
+  if (notified.done) return
+  notified.done = true
+  if ('lostFrom' in refusal) {
+    void useOrganizationContextStore()
+      .handleOrganizationLost(refusal.lostFrom)
+      .catch(() => undefined)
+    return
+  }
+  // Another tab switched organization through the shared refresh cookie: only a reload is safe.
+  reloadTo('/')
 }
 
 function toApiError(error: unknown): ApiError | null {
@@ -202,6 +218,7 @@ apiClient.interceptors.request.use((config) => {
   const headers = applyCommonHeaders(config)
 
   config.headers = headers
+  config._organizationId = useAuthStore().organizationId
   return config
 })
 
@@ -235,45 +252,50 @@ apiClient.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({
-            resolve: () => resolve(apiClient(originalRequest)),
-            reject,
+            request: originalRequest,
             original: toApiError(error) ?? error,
+            resolve,
+            reject,
           })
         })
       }
 
       originalRequest._retry = true
       isRefreshing = true
-      const previousOrganizationId = auth.organizationId
       const originalError = toApiError(error) ?? error
 
-      return auth
-        .refreshToken()
-        .then(() => {
-          if (previousOrganizationId !== null && auth.organizationId === null) {
-            // The requests were sent for an organization the refresh does not grant any more (TECH00 6.5).
-            rejectFailedQueueWithOriginals()
-            void useOrganizationContextStore()
-              .handleOrganizationLost(previousOrganizationId)
-              .catch(() => undefined)
+      return auth.refreshToken().then(
+        () => {
+          isRefreshing = false
+          const queued = failedQueue
+          failedQueue = []
+          const notified = { done: false }
+          queued.forEach((item) => {
+            const refusal = replayRefusal(item.request, auth.organizationId)
+            if (refusal) {
+              applyRefusal(refusal, notified)
+              item.reject(item.original)
+              return
+            }
+            item.resolve(apiClient(item.request))
+          })
+
+          const refusal = replayRefusal(originalRequest, auth.organizationId)
+          if (refusal) {
+            applyRefusal(refusal, notified)
             return Promise.reject(originalError)
           }
-          processFailedQueue(null)
           return apiClient(originalRequest)
-        })
-        .catch((refreshError) => {
-          if (refreshError === originalError) {
-            return Promise.reject(originalError)
-          }
+        },
+        (refreshError: unknown) => {
+          isRefreshing = false
           const apiError = toApiError(refreshError) ?? refreshError
           clearKeepLoginPreference()
           auth.clearAuth()
-          processFailedQueue(apiError)
+          rejectFailedQueue(apiError)
           return Promise.reject(apiError)
-        })
-        .finally(() => {
-          isRefreshing = false
-        })
+        },
+      )
     }
 
     const apiError = toApiError(error)

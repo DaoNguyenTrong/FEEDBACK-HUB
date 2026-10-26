@@ -78,7 +78,7 @@ async function pick(organization: OrganizationDto) {
 
       <template v-if="!loading">
         <p
-          v-if="organizations.length === 0"
+          v-if="organizations.length === 0 && !error"
           class="text-body text-ink-muted"
           data-testid="welcome-empty"
         >

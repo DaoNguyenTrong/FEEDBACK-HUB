@@ -152,6 +152,21 @@ describe('OrgSwitcher', () => {
     expect(reloadTo).not.toHaveBeenCalled()
   })
 
+  it('shows the dimmed organization with its label after leaving the one just deactivated', async () => {
+    const { wrapper } = await render({
+      auth: { organizationId: null, organizationName: null },
+      organizations: [frozen, globex],
+    })
+
+    await open(wrapper)
+
+    const deactivated = row(wrapper, 'org-3')
+    expect(deactivated.attributes('aria-disabled')).toBe('true')
+    expect(deactivated.classes()).toContain('opacity-60')
+    expect(deactivated.text()).toContain(t('organizations.suspended'))
+    expect(row(wrapper, 'org-2').attributes('aria-disabled')).toBeUndefined()
+  })
+
   it('still opens when every organization is suspended', async () => {
     const { wrapper } = await render({ organizations: [frozen] })
     await open(wrapper)

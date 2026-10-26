@@ -34,6 +34,7 @@ export const useOrganizationContextStore = defineStore('organization-context', (
       await switchOrganizationCall(null, WELCOME_PATH)
     } catch (error) {
       clearSuspendedNotice()
+      ownExit = false
       throw error
     }
   }
@@ -66,7 +67,10 @@ export const useOrganizationContextStore = defineStore('organization-context', (
       handling = false
       return
     }
-    if (ownExit) return
+    if (ownExit) {
+      handling = false
+      return
+    }
 
     const listed = mine.find((organization) => organization.id === workingId)
     if (listed === undefined) {
@@ -91,7 +95,10 @@ export const useOrganizationContextStore = defineStore('organization-context', (
     } catch {
       // The organization is lost either way; leave without a notice.
     }
-    if (ownExit) return
+    if (ownExit) {
+      handling = false
+      return
+    }
 
     await exit(suspendedName)
   }

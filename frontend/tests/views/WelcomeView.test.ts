@@ -110,6 +110,20 @@ describe('WelcomeView', () => {
     expect(wrapper.find('[data-testid="welcome-all-suspended"]').exists()).toBe(false)
   })
 
+  it('does not say there is no organization when loading the list failed', async () => {
+    stubViewport(1280)
+    server.use(http.get('*/api/organizations', () => HttpResponse.json({}, { status: 500 })))
+    const { wrapper } = await renderComponent(WelcomeView, {
+      initialState: { auth: { account: makeAccount({ name: 'Jane Doe' }), organizationId: null } },
+      attachTo: document.body,
+      global: { stubs: { teleport: true } },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="welcome-error"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="welcome-empty"]').exists()).toBe(false)
+  })
+
   it('shows the contact line when every organization is suspended', async () => {
     const { wrapper } = await render([frozen, frozenToo])
 
