@@ -2,12 +2,12 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createTestingPinia } from '@pinia/testing'
-import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
+import { RouterView } from 'vue-router'
 import { defineComponent, onMounted, onUnmounted } from 'vue'
 import AccessProblemState from '@/components/AccessProblemState.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AppRail from '@/layouts/AppRail.vue'
-import NotFoundView from '@/views/NotFoundView.vue'
+import router from '@/router'
 import i18n from '@/plugins/i18n'
 import { apiClient } from '@/api/client'
 import { accessProblemOf } from '@/lib/access-problem'
@@ -15,6 +15,13 @@ import { server } from '../helpers/msw/server'
 import { renderComponent } from '../helpers/render'
 import { storeIn } from '../helpers/pinia'
 import { stubViewport } from '../helpers/viewport'
+import { stubView } from '../helpers/router-view-stubs'
+
+// The shell tests run on the real router; stub the lazy views they never look at. AppLayout and
+// NotFoundView stay real: the shell is under test, and so is its not-found state.
+vi.mock('@/views/HomeView.vue', () => stubView())
+vi.mock('@/views/OrganizationsView.vue', () => stubView())
+vi.mock('@/views/LoginView.vue', () => stubView())
 
 const t = i18n.global.t
 
@@ -173,34 +180,10 @@ describe('AppLayout', () => {
       template: '<AccessProblemState v-if="kind" :kind="kind" />',
     })
 
-    async function renderShell(path: string, auth: Record<string, unknown> = {}) {
-      const router = createRouter({
-        history: createMemoryHistory(),
-        routes: [
-          {
-            path: '/',
-            component: AppLayout,
-            children: [
-              { path: '', name: 'home', component: { template: '<div />' } },
-              {
-                path: 'reports',
-                component: GatedPage,
-                meta: { requiresAuth: true, permission: 'reports.view' },
-              },
-              { path: 'leaky', component: LeakyPage, meta: { requiresAuth: true } },
-              {
-                path: ':pathMatch(.*)*',
-                name: 'not-found',
-                component: NotFoundView,
-                meta: { requiresAuth: true },
-              },
-            ],
-          },
-        ],
-      })
-      await router.push(path)
-      await router.isReady()
+    let removeTestRoutes: () => void = () => {}
 
+    // The real router, plus a test-only shell whose children carry the metas under test.
+    async function renderShell(path: string, auth: Record<string, unknown> = {}) {
       const pinia = createTestingPinia({
         createSpy: vi.fn,
         stubActions: false,
@@ -208,6 +191,27 @@ describe('AppLayout', () => {
           auth: { account: { id: 'a-1' }, organizationId: 'org-1', permissions: [], ...auth },
         },
       })
+      removeTestRoutes = router.addRoute({
+        path: '/test',
+        component: AppLayout,
+        children: [
+          {
+            path: 'reports',
+            component: GatedPage,
+            meta: { requiresAuth: true, permission: 'reports.view' },
+          },
+          {
+            path: 'admin',
+            component: GatedPage,
+            meta: { requiresAuth: true, systemAdministrator: true },
+          },
+          { path: 'leaky', component: LeakyPage, meta: { requiresAuth: true } },
+        ],
+      })
+      await router.replace('/')
+      await router.push(path)
+      await router.isReady()
+
       const wrapper = mount(RouterView, {
         global: { plugins: [pinia, router], stubs: shellStubs },
       })
@@ -218,23 +222,33 @@ describe('AppLayout', () => {
 
     beforeEach(() => pageMounted.mockClear())
 
+    afterEach(() => removeTestRoutes())
+
     it('shows the forbidden state in the shell for a page whose permission the user lacks', async () => {
-      const { wrapper, router } = await renderShell('/reports')
+      const { wrapper, router } = await renderShell('/test/reports')
 
       expect(wrapper.find('[data-testid="app-shell"]').exists()).toBe(true)
       expect(wrapper.get('h1').text()).toBe(t('accessProblem.forbiddenTitle'))
-      expect(router.currentRoute.value.fullPath).toBe('/reports')
+      expect(router.currentRoute.value.fullPath).toBe('/test/reports')
     })
 
     it('does not mount the routed page behind the forbidden state', async () => {
-      const { wrapper } = await renderShell('/reports')
+      const { wrapper } = await renderShell('/test/reports')
 
       expect(wrapper.find('[data-testid="gated-page"]').exists()).toBe(false)
       expect(pageMounted).not.toHaveBeenCalled()
     })
 
+    it('shows the forbidden state, not the page, to a user who is not a system administrator', async () => {
+      const { wrapper } = await renderShell('/test/admin', { isSystemAdministrator: false })
+
+      expect(wrapper.get('h1').text()).toBe(t('accessProblem.forbiddenTitle'))
+      expect(wrapper.find('[data-testid="gated-page"]').exists()).toBe(false)
+      expect(pageMounted).not.toHaveBeenCalled()
+    })
+
     it('renders the routed page when the user holds the permission', async () => {
-      const { wrapper } = await renderShell('/reports', { permissions: ['reports.view'] })
+      const { wrapper } = await renderShell('/test/reports', { permissions: ['reports.view'] })
 
       expect(wrapper.find('[data-testid="gated-page"]').exists()).toBe(true)
       expect(wrapper.find('h1').exists()).toBe(false)
@@ -263,7 +277,7 @@ describe('AppLayout', () => {
           ),
         ),
       )
-      const { wrapper } = await renderShell('/leaky')
+      const { wrapper } = await renderShell('/test/leaky')
       await vi.waitFor(() => expect(wrapper.find('main h1').exists()).toBe(true))
 
       const main = wrapper.get('main')
@@ -274,8 +288,10 @@ describe('AppLayout', () => {
           t('accessProblem.goHome'),
         ].join(''),
       )
-      expect(main.html()).not.toContain('Sao Mai Tech')
-      expect(main.html()).not.toContain('Trưởng IT')
+      for (const html of [wrapper.html(), document.body.innerHTML]) {
+        expect(html).not.toContain('Sao Mai Tech')
+        expect(html).not.toContain('Trưởng IT')
+      }
     })
   })
 })

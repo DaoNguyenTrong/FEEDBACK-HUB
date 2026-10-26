@@ -144,7 +144,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Khung ứng dụng và design system
 
-- **PRD:** PRD00-FR-03, FR-30, FR-66: AC-73 (tổ chức tạm ngừng mờ trong bộ chọn, bấm không chuyển), AC-298 và AC-299 (trang không có quyền: mục menu ẩn, mở bằng URL thấy _Không đủ quyền_), AC-362 (mục rail theo quyền). BR-45: màn *Không tìm thấy* và *Không đủ quyền* chỉ hiện câu chung, không tên hay mã đối tượng.
+- **PRD:** PRD00-FR-03, FR-30, FR-66: AC-73 (tổ chức tạm ngừng mờ trong bộ chọn, bấm không chuyển), AC-298 và AC-299 (phần Hub không có quyền bị ẩn khỏi menu), AC-362 (mục rail theo quyền). Mở bằng URL khi thiếu quyền thấy _Không đủ quyền_ (FR-66 "vẫn từ chối mọi yêu cầu gửi trực tiếp", TECH00 §8.2). BR-45: màn *Không tìm thấy* và *Không đủ quyền* chỉ hiện câu chung, không tên hay mã đối tượng.
 - **Vào bằng:** mọi trang sau đăng nhập. Gõ một đường dẫn không có (`/#/no/such/page`) khi đã đăng nhập thì thấy _Không tìm thấy_ trong khung; khi chưa đăng nhập thì về đăng nhập rồi quay lại đúng đường dẫn đó.
 - **Frontend:**
   - Token màu, chữ, bo góc: `frontend/src/theme/tokens.ts` (khai báo trong `frontend/src/assets/styles/tailwind.css`)
