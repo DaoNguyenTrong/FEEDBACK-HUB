@@ -23,16 +23,25 @@ public class AuditCursorTests
         Assert.Equal(42, result.Id);
     }
 
-    [Fact]
-    public void Encode_IsBase64UrlWithoutPadding()
+    [Theory]
+    [InlineData(1, 10)]
+    [InlineData(10, 5)]
+    [InlineData(638_000_000_000_000_000, 420)]
+    [InlineData(638_000_000_000_000_001, 7)]
+    public void Encode_IsBase64UrlWithoutPadding(long ticks, long id)
     {
-        // Ticks and id are chosen so the standard base64 form would carry '+', '/' or '='.
-        string encoded = new AuditCursor(new DateTime(DateTime.MaxValue.Ticks, DateTimeKind.Utc), long.MaxValue).Encode();
+        AuditCursor cursor = new(new DateTime(ticks, DateTimeKind.Utc), id);
+        string standard = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ticks}:{id}"));
+        // Standard base64 pads here; digits and ':' never reach the '+' or '/' alphabet slots.
+        Assert.EndsWith("=", standard);
 
+        string encoded = cursor.Encode();
+
+        Assert.DoesNotContain('=', encoded);
         Assert.DoesNotContain('+', encoded);
         Assert.DoesNotContain('/', encoded);
-        Assert.DoesNotContain('=', encoded);
-        Assert.True(encoded.Length <= 64);
+        Assert.True(AuditCursor.TryDecode(encoded, out AuditCursor decoded));
+        Assert.Equal(cursor, decoded);
     }
 
     [Fact]
