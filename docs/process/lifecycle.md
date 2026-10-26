@@ -133,11 +133,12 @@ Người dùng yêu cầu áp dụng các cải tiến; SA (thay người dùng)
 Phương án loại: tách PR #32 thành 8 PR xếp chồng (rebase theo phase dễ hỏng, phải chạy lại CI từng phần); kiểm tra CI cho mọi tham chiếu `§` ngay bây giờ (chưa có bằng chứng tham chiếu hỏng lặp lại); giới hạn cứng 400 dòng cho PRD (dễ thành cắt phạm vi).
 
 ### 2026-10-26 — Chọn model theo việc, mặc định Sonnet
-Người dùng thấy các agent chạy ổn nhưng tốn kém. Ở module 00, gần như mọi implementer và reviewer chạy Opus, mỗi agent tốn 120–290 nghìn token. Vì vậy `implementer` và `code-reviewer` khai `model: sonnet` trong frontmatter, để một lượt gọi không ghi model cũng không thành Opus. Phiên chính đặt Opus qua tham số `model` cho:
-- task đụng tới đăng nhập, token, cookie, khoá tổ chức, kiểm quyền hoặc lọc theo tổ chức;
+Người dùng thấy các agent chạy ổn nhưng tốn kém. Ở module 00, gần như mọi implementer và reviewer chạy Opus, mỗi agent tốn 120–290 nghìn token. Vì vậy `implementer` và `code-reviewer` khai `model: sonnet` trong frontmatter, để một lượt gọi không ghi model cũng không thành Opus. Phiên chính chỉ đặt Opus qua tham số `model` cho:
+- reviewer của task đụng tới đăng nhập, token, cookie, khoá tổ chức, kiểm quyền hoặc lọc theo tổ chức; implementer của các task này vẫn chạy Sonnet;
 - review cuối mỗi phase.
 
 Ngoài ra:
+- Vòng sửa giao cho một implementer Sonnet mới, không gọi lại agent cũ, vì agent được gọi lại giữ model của nó. Chỉ khi sửa lần thứ hai vẫn chưa đạt mới chuyển sang Opus.
 - Task cơ học (export contract, feature map, tài liệu, sửa chỉ trong test) không có review riêng; phiên chính tự xem diff.
 - Chỉ task bảo mật mới cài lỗi để thử test, khoảng 5 lỗi.
 
