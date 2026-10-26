@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import router, { resolveGuardRedirect } from '@/router'
+import { routeAccess } from '@/lib/route-access'
 import { Permissions } from '@/lib/permissions'
 
 describe('organization-settings route', () => {
@@ -26,6 +27,16 @@ describe('organization-settings route', () => {
       auth,
       { isDown: false },
     )
-    expect(target).toBeDefined()
+    expect(target).toEqual({ name: 'home' })
+  })
+
+  it('is forbidden without the organization-manage permission', () => {
+    const auth = {
+      isAuthenticated: true,
+      organizationId: 'org-1',
+      isSystemAdministrator: false,
+      hasPermission: () => false,
+    }
+    expect(routeAccess(route.meta, auth)).toBe('forbidden')
   })
 })

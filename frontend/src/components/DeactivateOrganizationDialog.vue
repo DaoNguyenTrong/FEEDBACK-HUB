@@ -6,12 +6,17 @@ const props = defineProps<{
   reasonRequired: boolean
   variant: 'member' | 'system-member' | 'system'
   busy: boolean
-  // Server-side failures the parent could not show under the reason field.
+  // The organization is already deactivated: the action only retries leaving it.
+  deactivated?: boolean
+  // Server-side failures: `error` is shown as a notice, `reasonError` under the reason field.
   error?: string | null
   reasonError?: string | null
 }>()
 const show = defineModel<boolean>('show', { required: true })
-const emit = defineEmits<{ submit: [reason: string | null] }>()
+const emit = defineEmits<{
+  submit: [reason: string | null]
+  'update:reasonError': [value: null]
+}>()
 
 const { t } = useI18n()
 const controlSize = useControlSize()
@@ -46,10 +51,15 @@ const reasonInputProps: Record<string, string> = {
 function onReasonInput(value: string) {
   reason.value = value.slice(0, REASON_MAX)
   missingReason.value = false
+  if (props.reasonError) emit('update:reasonError', null)
 }
 
 function submit() {
   if (props.busy) return
+  if (props.deactivated) {
+    emit('submit', null)
+    return
+  }
   const trimmed = reason.value.trim()
   if (trimmed === '' && props.reasonRequired) {
     missingReason.value = true
@@ -140,7 +150,11 @@ function submit() {
           data-testid="deactivate-org-submit"
           @click="submit"
         >
-          {{ t('deactivateOrganization.submit') }}
+          {{
+            props.deactivated
+              ? t('organizations.backToWelcome')
+              : t('deactivateOrganization.submit')
+          }}
         </n-button>
       </div>
     </template>
