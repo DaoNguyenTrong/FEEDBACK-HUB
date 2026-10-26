@@ -1204,6 +1204,14 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
             "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? switchBody = await response.Content.ReadJsonAsync<LoginResponse>();
+        await using (AppDbContext verifyContext = CreateDbContext())
+        {
+            RefreshToken issued = await verifyContext.RefreshTokens
+                .SingleAsync(t => t.TokenHash == ComputeSha256(switchBody!.RefreshToken));
+            Assert.Equal(keepLoggedIn, issued.IsPersistent);
+        }
+
         string refreshCookie = Assert.Single(
             response.Headers.GetValues("Set-Cookie"),
             cookie => cookie.StartsWith("refresh_token=", StringComparison.Ordinal));
@@ -1216,6 +1224,36 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
             Assert.DoesNotContain("expires=", refreshCookie, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("max-age=", refreshCookie, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    // A signed-out session must not come back to life through an access token that has not expired yet.
+    [Fact]
+    public async Task SwitchOrganization_AfterLogout_Returns401AndIssuesNoToken()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (_, Organization organization) = await SeedMemberAsync("switch-after-logout", password: "correct-password");
+        HttpResponseMessage login = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("switch-after-logout", "correct-password", false));
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        LoginResponse? loginBody = await login.Content.ReadJsonAsync<LoginResponse>();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", loginBody!.AccessToken);
+        HttpResponseMessage logout = await client.PostAsJsonAsync(
+            "/api/auth/logout", new RefreshTokenRequest(loginBody.RefreshToken));
+        Assert.True(logout.IsSuccessStatusCode);
+        await using AppDbContext countContext = CreateDbContext();
+        RefreshToken original = await countContext.RefreshTokens
+            .SingleAsync(t => t.TokenHash == ComputeSha256(loginBody.RefreshToken));
+        int rowsBefore = await countContext.RefreshTokens.CountAsync(t => t.FamilyId == original.FamilyId);
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.Equal(rowsBefore, await verifyContext.RefreshTokens.CountAsync(t => t.FamilyId == original.FamilyId));
+        Assert.DoesNotContain(
+            await verifyContext.RefreshTokens.Where(t => t.FamilyId == original.FamilyId).ToListAsync(),
+            t => t.RevokedAt == null);
     }
 
     [Fact]

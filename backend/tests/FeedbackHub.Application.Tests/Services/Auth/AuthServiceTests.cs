@@ -1423,6 +1423,32 @@ public class AuthServiceTests
         AuthResult result = await f.Service.SwitchOrganizationAsync(organization.Id, null, null, CancellationToken.None);
 
         Assert.Equal(isPersistent, result.IsPersistent);
+        // Later refreshes copy the stored flag, so the saved row must carry it too.
+        await f.RefreshTokenRepo.Received(1).AddAsync(
+            Arg.Is<RefreshToken>(t => t.IsPersistent == isPersistent), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_InASession_KeepsTheEarliestSignInTime()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid sessionId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(sessionId);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        DateTime signedInAt = DateTime.UtcNow.AddDays(-3);
+        RefreshToken earliest = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "earliest-hash", DateTime.UtcNow.AddDays(1), null, null, false, signedInAt, FamilyId: sessionId));
+        RefreshToken later = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "later-hash", DateTime.UtcNow.AddDays(1), null, null, false, signedInAt.AddDays(1), FamilyId: sessionId));
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [later, earliest]);
+
+        await f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None);
+
+        await f.RefreshTokenRepo.Received(1).AddAsync(
+            Arg.Is<RefreshToken>(t => t.LoginAt == signedInAt), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1439,7 +1465,7 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task SwitchOrganizationAsync_SessionWithNoActiveToken_IssuesANonPersistentSession()
+    public async Task SwitchOrganizationAsync_SessionWithNoActiveToken_ThrowsUnauthorizedAndIssuesNothing()
     {
         Fixture f = CreateFixture();
         Account account = CreateAccount();
@@ -1448,8 +1474,11 @@ public class AuthServiceTests
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
         RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, []);
 
-        AuthResult result = await f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None);
-
-        Assert.False(result.IsPersistent);
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.AuthenticatedUserRequired,
+            () => f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None));
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+        f.RefreshTokenRepo.DidNotReceive().Update(Arg.Any<RefreshToken>());
+        await f.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }
