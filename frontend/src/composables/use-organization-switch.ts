@@ -9,8 +9,7 @@ function isUnauthorized(error: unknown) {
 
 /**
  * Full reload to home, so no store keeps the old tenant's data; the auth store is skipped on purpose.
- * Errors propagate without a reload, except 401: the shared interceptor already tried refresh-and-retry,
- * so a 401 that reaches here means the session is over and it exits to login.
+ * Errors propagate without a reload, except 401: the interceptor already tried refresh-and-retry.
  */
 export function useOrganizationSwitch() {
   const client = getAuth()
@@ -23,7 +22,7 @@ export function useOrganizationSwitch() {
     try {
       await client.authSwitchOrganization({ organizationId })
     } catch (error) {
-      // A failed refresh rejects with a bodyless AxiosError (no ProblemDetails to wrap), not an ApiError.
+      // The interceptor's clearAuth() usually lets App.vue's session-lapse exit win; this is the fallback.
       if (isUnauthorized(error)) {
         clearKeepLoginPreference()
         auth.clearAuth()

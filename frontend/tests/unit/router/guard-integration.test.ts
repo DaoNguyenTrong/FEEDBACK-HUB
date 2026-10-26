@@ -49,6 +49,61 @@ describe('router guard (wired, real router)', () => {
     expect(route.matched[0]?.path).toBe('/')
   })
 
+  describe('gated routes', () => {
+    const stub = { template: '<div />' }
+    const removers: (() => void)[] = []
+
+    beforeEach(() => {
+      removers.push(
+        router.addRoute({
+          path: '/org-only',
+          name: 'org-only',
+          component: stub,
+          meta: { requiresAuth: true, requiresOrganization: true },
+        }),
+        router.addRoute({
+          path: '/reports-only',
+          name: 'reports-only',
+          component: stub,
+          meta: { requiresAuth: true, permission: 'reports.view' },
+        }),
+      )
+    })
+
+    afterEach(() => {
+      removers.splice(0).forEach((remove) => remove())
+    })
+
+    it('sends a personal-context user on an organization route to home', async () => {
+      useAuthStore().account = { id: 'a-1' } as never
+
+      await router.push('/org-only')
+
+      expect(router.currentRoute.value.fullPath).toBe(router.resolve(useHomeRoute()).fullPath)
+    })
+
+    it('lets a user inside an organization open the organization route', async () => {
+      const auth = useAuthStore()
+      auth.account = { id: 'a-1' } as never
+      auth.organizationId = 'org-1'
+
+      await router.push('/org-only')
+
+      expect(router.currentRoute.value.name).toBe('org-only')
+    })
+
+    it('keeps the URL of a route whose permission the user lacks', async () => {
+      const auth = useAuthStore()
+      auth.account = { id: 'a-1' } as never
+      auth.organizationId = 'org-1'
+
+      await router.push('/reports-only')
+
+      expect(router.currentRoute.value.name).toBe('reports-only')
+      expect(router.currentRoute.value.fullPath).toBe('/reports-only')
+    })
+  })
+
   it('keeps an unauthenticated visitor on the intended route during an API outage', async () => {
     useHealthStore().reportOutage()
 

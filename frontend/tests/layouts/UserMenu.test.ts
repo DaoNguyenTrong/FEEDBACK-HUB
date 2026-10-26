@@ -141,6 +141,16 @@ describe('UserMenu', () => {
     expect(guide.text()).toContain(t('nav.userGuide'))
   })
 
+  it('points the user guide item at the Vietnamese guide when the locale is vi', async () => {
+    const { wrapper, pinia } = await render({ id: '1', name: 'Jane Doe', username: 'jane' })
+    storeIn(pinia, useLocaleStore).setLocale('vi')
+    await openMenu(wrapper)
+
+    expect(wrapper.get('[data-testid="app-header-user-guide"]').attributes('href')).toBe(
+      '/guide/',
+    )
+  })
+
   it('puts the user guide item directly above Log out', async () => {
     const { wrapper } = await render({ id: '1', name: 'Jane Doe', username: 'jane' })
     await openMenu(wrapper)

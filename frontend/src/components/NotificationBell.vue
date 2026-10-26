@@ -71,8 +71,8 @@ function reportError(error: unknown) {
 </script>
 
 <template>
-  <!-- Anchored to the bell's right edge, which AppHeader keeps rightmost on phones: 2rem narrower than
-       the viewport leaves a margin on both sides; 360px from ~392px up. -->
+  <!-- Anchored to the bell, which AppTopBar keeps next to the avatar at the right edge on phones: 2rem
+       narrower than the viewport leaves a margin on both sides; 360px from ~392px up. -->
   <n-popover
     v-model:show="showPopover"
     trigger="click"

@@ -17,7 +17,7 @@ export function useMenuKeyboard(
       await nextTick()
       menuItems()[0]?.focus()
     } else if (menuEl.value?.contains(document.activeElement)) {
-      // Closed by an item (profile, logout, an organization): focus would otherwise fall to <body>.
+      // Closed by an item (a profile, logout or organization): focus would otherwise fall to <body>.
       // A click elsewhere has already moved focus out, so it is left alone.
       triggerEl.value?.focus()
     }

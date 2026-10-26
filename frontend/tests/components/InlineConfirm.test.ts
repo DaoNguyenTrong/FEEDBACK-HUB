@@ -1,3 +1,4 @@
+import { defineComponent } from 'vue'
 import { describe, expect, it } from 'vitest'
 import InlineConfirm from '@/components/InlineConfirm.vue'
 import i18n from '@/plugins/i18n'
@@ -33,6 +34,32 @@ describe('InlineConfirm', () => {
 
     await wrapper.get('[data-testid="inline-confirm-cancel"]').trigger('click')
     expect(wrapper.emitted('cancel')).toHaveLength(2)
+  })
+
+  it('ignores Escape while busy', async () => {
+    const { wrapper } = await render({ busy: true })
+    await wrapper.trigger('keydown', { key: 'Escape' })
+    expect(wrapper.emitted('cancel')).toBeUndefined()
+  })
+
+  it('is labelled by its own message instead of repeating it in an aria-label', async () => {
+    const { wrapper } = await render()
+    const labelledBy = wrapper.attributes('aria-labelledby')
+    expect(labelledBy).toBeTruthy()
+    expect(wrapper.attributes('aria-label')).toBeUndefined()
+    const message = wrapper.get(`[id="${labelledBy}"]`)
+    expect(message.text()).toBe('Remove this member?')
+  })
+
+  it('gives two blocks in one page different label ids', async () => {
+    const Pair = defineComponent({
+      components: { InlineConfirm },
+      template: '<div><InlineConfirm message="One?" /><InlineConfirm message="Two?" /></div>',
+    })
+    const { wrapper } = await renderComponent(Pair)
+    const [first, second] = wrapper.findAll('[role="group"]')
+    expect(first?.attributes('aria-labelledby')).toBeTruthy()
+    expect(first?.attributes('aria-labelledby')).not.toBe(second?.attributes('aria-labelledby'))
   })
 
   it('emits confirm from the confirm button', async () => {

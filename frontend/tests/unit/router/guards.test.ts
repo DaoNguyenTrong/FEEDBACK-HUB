@@ -185,7 +185,10 @@ describe('route table', () => {
   it('allows every route that needs only a session to a signed-in user with no permissions', () => {
     const records = walk(router.options.routes).filter(
       (record) =>
-        record.meta?.requiresAuth && !record.meta.permission && !record.meta.systemAdministrator,
+        record.meta?.requiresAuth &&
+        !record.meta.permission &&
+        !record.meta.requiresOrganization &&
+        !record.meta.systemAdministrator,
     )
 
     expect(records.map((record) => record.name)).toContain('home')

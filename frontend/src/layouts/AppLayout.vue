@@ -53,7 +53,7 @@ onUnmounted(() => {
 
     <!--
       Overlays opened from the top bar (the avatar menu, "Go to…", Ctrl K); mounted once for the whole
-      shell. The profile dialog lives here, not in the avatar menu, so its unsaved form outlives the menu.
+      shell. The profile panel lives here, not in the avatar menu, so its unsaved form outlives the menu.
     -->
     <AppearanceSettings />
     <CommandPalette />

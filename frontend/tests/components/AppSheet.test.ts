@@ -44,6 +44,29 @@ describe('AppSheet', () => {
     expect(wrapper.text()).toContain('Save')
   })
 
+  it.each([1280, 390])('keeps focus inside the open sheet at %i px', async (width) => {
+    stubViewport(width)
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    const { wrapper } = await renderComponent(AppSheet, {
+      props: { show: true, title: 'Edit member' },
+      slots: { default: '<p>Body</p>', footer: '<button>Save</button>' },
+      global: { stubs: { teleport: true } },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const container = wrapper.get('.n-drawer-container').element
+
+    expect(container.contains(document.activeElement)).toBe(true)
+
+    outside.focus()
+    await flushPromises()
+    expect(document.activeElement).not.toBe(outside)
+    expect(container.contains(document.activeElement)).toBe(true)
+
+    outside.remove()
+  })
+
   it('closes from the close button', async () => {
     const { wrapper } = await openSheet(1280)
     const close = wrapper.get('[data-testid="app-sheet-close"]')
