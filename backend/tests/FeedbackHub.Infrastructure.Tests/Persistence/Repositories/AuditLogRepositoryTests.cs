@@ -23,11 +23,7 @@ public sealed class AuditLogRepositoryTests(PostgresContainerFixture fixture) : 
 
     public async Task InitializeAsync()
     {
-        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(fixture.ConnectionString)
-            .AddInterceptors(sqlCapture)
-            .Options;
-        context = new AppDbContext(options);
+        context = fixture.CreateDbContext(sqlCapture);
         transaction = await context.Database.BeginTransactionAsync();
         repository = new AuditLogRepository(context);
     }
@@ -111,6 +107,7 @@ public sealed class AuditLogRepositoryTests(PostgresContainerFixture fixture) : 
         Assert.Equal(
             (log.Id, BaseTime, "OrganizationMember", "MemberLeft", "Account"),
             (row.Id, row.Timestamp, row.EntityName, row.Action, row.ActorKind));
+        Assert.Equal(DateTimeKind.Utc, row.Timestamp.Kind);
         using JsonDocument values = JsonDocument.Parse(row.NewValues!);
         Assert.Equal("x@y.z", values.RootElement.GetProperty("email").GetString());
     }
@@ -212,39 +209,67 @@ public sealed class AuditLogRepositoryTests(PostgresContainerFixture fixture) : 
     [Fact]
     public async Task ListEventsAsync_UsesPartialEventIndex()
     {
-        // First check: the partial index can serve the keyset predicate and order. Second: EF emits that
-        // predicate with a literal kind, which the planner needs to match the index's WHERE clause.
+        // EXPLAIN of the exact command EF ran: the keyset must be an Index Cond (a seek), not a Filter that reads
+        // every newer row first. The literal kind is what lets the planner match the partial index's WHERE clause.
         Guid organizationId = Guid.NewGuid();
         await SeedAsync(EventRow(organizationId, BaseTime));
         await context.Database.ExecuteSqlRawAsync("SET LOCAL enable_seqscan = off");
-
-        string plan = await ExplainAsync($"""
-            EXPLAIN (FORMAT JSON)
-            SELECT a.id FROM audit_logs AS a
-            WHERE a.organization_id = '{organizationId}' AND a.kind = 'Event'
-              AND (a."timestamp" < '2026-10-01T08:00:00Z' OR (a."timestamp" = '2026-10-01T08:00:00Z' AND a.id < 100))
-            ORDER BY a."timestamp" DESC, a.id DESC
-            LIMIT 51
-            """);
         sqlCapture.Commands.Clear();
         await ListAsync(organizationId, new AuditCursor(BaseTime, 100));
+        CapturedCommand query = Assert.Single(sqlCapture.Commands);
 
-        Assert.Contains("IX_audit_logs_event_keyset", plan);
-        Assert.Contains(sqlCapture.Commands, sql => sql.Contains(".kind = 'Event'") && sql.Contains(".organization_id = @"));
+        string? indexCond = await KeysetIndexCondAsync(query);
+
+        Assert.Contains("\"timestamp\"", indexCond);
+        Assert.Contains("(a.timestamp, a.id) < (@", query.Text);
+        Assert.Contains("a.kind = 'Event'", query.Text);
+        Assert.Contains("a.organization_id = @", query.Text);
     }
 
-    private async Task<string> ExplainAsync(string sql)
+    private async Task<string?> KeysetIndexCondAsync(CapturedCommand query)
     {
         DbConnection connection = context.Database.GetDbConnection();
-        await using DbCommand command = connection.CreateCommand();
-        command.Transaction = transaction.GetDbTransaction();
-        command.CommandText = sql;
-        return (string)(await command.ExecuteScalarAsync())!;
+        await using DbCommand explain = connection.CreateCommand();
+        explain.Transaction = transaction.GetDbTransaction();
+        explain.CommandText = "EXPLAIN (FORMAT JSON) " + query.Text;
+        foreach ((string name, object? value) in query.Parameters)
+        {
+            DbParameter parameter = explain.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value;
+            explain.Parameters.Add(parameter);
+        }
+
+        using JsonDocument plan = JsonDocument.Parse((string)(await explain.ExecuteScalarAsync())!);
+        return FindKeysetScan(plan.RootElement[0].GetProperty("Plan"))?.GetProperty("Index Cond").GetString();
     }
+
+    private static JsonElement? FindKeysetScan(JsonElement node)
+    {
+        if (node.TryGetProperty("Index Name", out JsonElement index) && index.GetString() == "IX_audit_logs_event_keyset")
+        {
+            return node;
+        }
+
+        if (node.TryGetProperty("Plans", out JsonElement children))
+        {
+            foreach (JsonElement child in children.EnumerateArray())
+            {
+                if (FindKeysetScan(child) is JsonElement found)
+                {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private sealed record CapturedCommand(string Text, IReadOnlyList<(string Name, object? Value)> Parameters);
 
     private sealed class SqlCapture : DbCommandInterceptor
     {
-        public List<string> Commands { get; } = [];
+        public List<CapturedCommand> Commands { get; } = [];
 
         public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
             DbCommand command,
@@ -252,7 +277,9 @@ public sealed class AuditLogRepositoryTests(PostgresContainerFixture fixture) : 
             InterceptionResult<DbDataReader> result,
             CancellationToken cancellationToken = default)
         {
-            Commands.Add(command.CommandText);
+            Commands.Add(new CapturedCommand(
+                command.CommandText,
+                command.Parameters.Cast<DbParameter>().Select(p => (p.ParameterName, (object?)p.Value)).ToList()));
             return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
         }
     }

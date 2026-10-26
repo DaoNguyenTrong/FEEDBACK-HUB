@@ -105,7 +105,10 @@ public sealed class AuditLogRepository(AppDbContext dbContext) : IAuditLogReposi
         {
             DateTime timestamp = cursor.TimestampUtc;
             long id = cursor.Id;
-            query = query.Where(log => log.Timestamp < timestamp || (log.Timestamp == timestamp && log.Id < id));
+            // A row comparison, not "t < @t OR (t = @t AND id < @id)": Postgres seeks the index only on the former;
+            // the OR form scans every newer row of the organization as a Filter.
+            query = query.Where(log =>
+                EF.Functions.LessThan(ValueTuple.Create(log.Timestamp, log.Id), ValueTuple.Create(timestamp, id)));
         }
 
         return await (
