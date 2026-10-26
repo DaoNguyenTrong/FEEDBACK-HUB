@@ -10,6 +10,12 @@ function readFrontend(path: string): string {
   return readFileSync(resolve(frontendRoot, path), 'utf8')
 }
 
+const sources = import.meta.glob('/src/**/*.{vue,ts}', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+})
+
 const css = readFrontend('src/assets/styles/tailwind.css')
 const jakartaCss = readFrontend('node_modules/@fontsource-variable/plus-jakarta-sans/index.css')
 const jetbrainsCss = readFrontend('node_modules/@fontsource-variable/jetbrains-mono/index.css')
@@ -84,6 +90,17 @@ describe('tokens', () => {
       '--font-mono': tokens.font.mono,
     }
     expectDeclared(themeBlock, expected)
+  })
+
+  it('ends the radius scale at xl and no component asks for a larger step', () => {
+    const found = declarations(themeBlock)
+    for (const step of ['2xl', '3xl', '4xl']) {
+      expect(found.get(`--radius-${step}`), step).toBe('initial')
+    }
+    const offenders = Object.entries(sources)
+      .filter(([, content]) => /\brounded(?:-[a-z]+)?-(?:2|3|4)xl\b/.test(content as string))
+      .map(([path]) => path)
+    expect(offenders).toEqual([])
   })
 
   it('declares the type scale in the @theme block', () => {

@@ -52,7 +52,7 @@ watch(
     </div>
     <div class="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md items-center justify-center">
       <div
-        class="w-full overflow-hidden rounded-2xl border border-surface-200 bg-surface-0 dark:border-surface-800 dark:bg-surface-900"
+        class="w-full overflow-hidden rounded-lg border border-surface-200 bg-surface-0 dark:border-surface-800 dark:bg-surface-900"
       >
         <div class="h-1 bg-primary-500" />
 

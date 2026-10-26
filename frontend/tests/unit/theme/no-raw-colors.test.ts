@@ -30,6 +30,9 @@ const PHASE_7_FILES: string[] = [
   'layouts/UserMenu.vue',
   'layouts/AppLayout.vue',
   'components/AccessProblemState.vue',
+  'components/NotificationBell.vue',
+  'layouts/AppearanceSettings.vue',
+  'views/NotFoundView.vue',
 ]
 
 const RAW_COLOR = /#[0-9a-fA-F]{3,8}\b|(?<![a-z])(?:rgba?|hsla?)\(/
@@ -50,6 +53,13 @@ describe('no raw colours', () => {
       .filter(([, content]) => RAW_COLOR.test(content as string))
       .map(([path]) => path)
     expect(offenders).toEqual([])
+  })
+
+  it('finds a source file for every phase 7 path, so a rename cannot drop coverage', () => {
+    const matched = PHASE_7_FILES.filter((file) =>
+      Object.keys(sources).some((path) => path.endsWith(`/src/${file}`)),
+    )
+    expect(matched).toEqual(PHASE_7_FILES)
   })
 
   it('keeps the phase 7 files on role colours only', () => {

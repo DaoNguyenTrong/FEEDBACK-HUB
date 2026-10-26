@@ -39,7 +39,7 @@ async function goHome() {
     </div>
     <div class="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-2xl items-center justify-center">
       <div
-        class="relative w-full rounded-3xl border border-surface-200 bg-surface-0 px-6 py-10 text-center shadow-[0_20px_55px_var(--shadow-panel)] dark:border-surface-800 dark:bg-surface-900 sm:px-10"
+        class="relative w-full rounded-xl border border-surface-200 bg-surface-0 px-6 py-10 text-center shadow-[0_20px_55px_var(--shadow-panel)] dark:border-surface-800 dark:bg-surface-900 sm:px-10"
       >
         <template v-if="failed">
           <p class="mx-auto max-w-lg text-base leading-6 text-surface-700 dark:text-surface-200">
