@@ -248,6 +248,35 @@ describe('organization-context store', () => {
       expect(switchBodies).toHaveLength(1)
     })
 
+    it('lets a later problem through when the own exit started during the list fetch', async () => {
+      const store = useOrganizationContextStore()
+      server.use(
+        http.get('*/api/organizations', () => {
+          store.beginOwnExit()
+          return HttpResponse.json([acme])
+        }),
+      )
+
+      await store.handleAccessProblem(accessDenied)
+      store.cancelOwnExit()
+      mockSwitch()
+      await store.handleAccessProblem(suspended)
+
+      expect(switchBodies).toEqual([{ organizationId: null }])
+    })
+
+    it('clears the own exit when leaveToWelcome fails', async () => {
+      mockSwitch(500)
+      const store = useOrganizationContextStore()
+
+      store.beginOwnExit()
+      await expect(store.leaveToWelcome()).rejects.toBeDefined()
+      mockSwitch()
+      await store.handleAccessProblem(suspended)
+
+      expect(switchBodies).toHaveLength(2)
+    })
+
     it('still lets leaveToWelcome switch to the personal context without a notice', async () => {
       mockSwitch()
       const store = useOrganizationContextStore()
