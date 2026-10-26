@@ -89,7 +89,7 @@ function reportError(error: unknown) {
           :aria-label="t('notifications.title')"
           circle
           secondary
-          :color="props.tone === 'on-brand' ? '#ffffff' : undefined"
+          :color="props.tone === 'on-brand' ? 'var(--color-on-accent)' : undefined"
           class="pointer-coarse:size-10!"
         >
           <template #icon
