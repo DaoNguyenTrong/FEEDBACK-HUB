@@ -8,7 +8,7 @@ import { storeIn } from '../helpers/pinia'
 import { stubViewport } from '../helpers/viewport'
 
 const profileUnmounted = vi.fn()
-const ProfileDialogStub = defineComponent({
+const ProfilePanelStub = defineComponent({
   props: { visible: Boolean },
   setup() {
     onUnmounted(profileUnmounted)
@@ -20,7 +20,7 @@ const ProfileDialogStub = defineComponent({
 const overlayStubs = {
   AppearanceSettings: { template: '<div data-testid="settings-stub" />' },
   CommandPalette: { template: '<div data-testid="palette-stub" />' },
-  ProfileDialog: ProfileDialogStub,
+  ProfilePanel: ProfilePanelStub,
 }
 
 const shellStubs = { ...overlayStubs, AppRail: true, AppTopBar: true, AppFooter: true }

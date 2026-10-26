@@ -36,7 +36,7 @@ Mỗi tiêu chí: đạt (1) hoặc không đạt (0).
 ### S2 — Thêm field ở API và frontend
 
 - **Đề bài:** "Thêm trường `phone` vào form hồ sơ, lưu qua API và hiển thị lại sau khi tải lại trang."
-- **Kỳ vọng:** sửa DTO và service backend, re-export `openapi.json`, regenerate client, sửa `ProfileDialog.vue`, thêm chuỗi vào `locales/vi.ts` và `en.ts`, chạy e2e hoặc chứng minh bằng `profile-sessions`-style script (R7).
+- **Kỳ vọng:** sửa DTO và service backend, re-export `openapi.json`, regenerate client, sửa `ProfilePanel.vue`, thêm chuỗi vào `locales/vi.ts` và `en.ts`, chạy e2e hoặc chứng minh bằng `profile-sessions`-style script (R7).
 - **Điểm chú ý:** quên regenerate hoặc quên locale là lỗi điển hình (R6).
 
 ### S3 — Đổi contract giữa hai phía

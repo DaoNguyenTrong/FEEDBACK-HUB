@@ -20,6 +20,7 @@ const visible = defineModel<boolean>('visible', { required: true })
 const { t, locale } = useI18n()
 const profileClient = getProfile()
 const authStore = useAuthStore()
+const controlSize = useControlSize()
 
 const loading = ref(false)
 const savingProfile = ref(false)
@@ -379,13 +380,7 @@ watch(visible, (open) => {
 </script>
 
 <template>
-  <n-modal
-    v-model:show="visible"
-    preset="card"
-    :title="t('profile.title')"
-    :aria-label="t('profile.title')"
-    class="w-full max-w-2xl"
-  >
+  <AppSheet v-model:show="visible" :title="t('profile.title')">
     <div v-if="loading" class="space-y-4 pt-2">
       <n-skeleton height="2.5rem" style="border-radius: 0.5rem" />
       <n-skeleton height="2.5rem" style="border-radius: 0.5rem" />
@@ -419,7 +414,7 @@ watch(visible, (open) => {
               @change="onAvatarPicked"
             />
             <n-button
-              size="small"
+              :size="controlSize"
               :loading="avatarBusy"
               data-testid="profile-avatar-change"
               @click="avatarInputRef?.click()"
@@ -428,7 +423,7 @@ watch(visible, (open) => {
             </n-button>
             <n-button
               v-if="avatarUrl"
-              size="small"
+              :size="controlSize"
               quaternary
               :disabled="avatarBusy"
               data-testid="profile-avatar-remove"
@@ -453,7 +448,7 @@ watch(visible, (open) => {
             :validation-status="profileErrors.name ? 'error' : undefined"
           >
             <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              <label class="text-sm font-medium text-ink">
                 {{ t('profile.name') }}<RequiredMark />
               </label>
               <n-input
@@ -473,7 +468,7 @@ watch(visible, (open) => {
             :validation-status="profileErrors.email ? 'error' : undefined"
           >
             <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              <label class="text-sm font-medium text-ink">
                 {{ t('profile.email') }}<RequiredMark />
               </label>
               <n-input
@@ -486,12 +481,12 @@ watch(visible, (open) => {
               <p
                 v-if="pendingEmail"
                 data-testid="profile-pending-email"
-                class="text-xs text-surface-500 dark:text-surface-400"
+                class="text-xs text-ink-muted"
               >
                 {{ t('profile.pendingEmail', { email: pendingEmail }) }}
                 <n-button
                   text
-                  size="tiny"
+                  :size="controlSize"
                   type="primary"
                   :disabled="pendingBusy"
                   data-testid="profile-pending-email-resend"
@@ -501,7 +496,7 @@ watch(visible, (open) => {
                 </n-button>
                 <n-button
                   text
-                  size="tiny"
+                  :size="controlSize"
                   :disabled="pendingBusy"
                   data-testid="profile-pending-email-cancel"
                   @click="cancelEmailChange"
@@ -519,7 +514,7 @@ watch(visible, (open) => {
             :validation-status="profileErrors.currentpassword ? 'error' : undefined"
           >
             <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              <label class="text-sm font-medium text-ink">
                 {{ t('profile.currentPassword') }}<RequiredMark />
               </label>
               <n-input
@@ -540,7 +535,7 @@ watch(visible, (open) => {
             :validation-status="profileErrors.phone ? 'error' : undefined"
           >
             <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              <label class="text-sm font-medium text-ink">
                 {{ t('profile.phone') }}
               </label>
               <n-input
@@ -558,7 +553,7 @@ watch(visible, (open) => {
             :validation-status="profileErrors.position ? 'error' : undefined"
           >
             <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              <label class="text-sm font-medium text-ink">
                 {{ t('profile.position') }}
               </label>
               <n-input
@@ -577,7 +572,7 @@ watch(visible, (open) => {
             :validation-status="profileErrors.address ? 'error' : undefined"
           >
             <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              <label class="text-sm font-medium text-ink">
                 {{ t('profile.address') }}
               </label>
               <n-input
@@ -591,6 +586,7 @@ watch(visible, (open) => {
 
           <div class="sm:col-span-2">
             <n-button
+              :size="controlSize"
               type="primary"
               attr-type="submit"
               :loading="savingProfile"
@@ -618,7 +614,7 @@ watch(visible, (open) => {
             :validation-status="passwordErrors.currentpassword ? 'error' : undefined"
           >
             <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              <label class="text-sm font-medium text-ink">
                 {{ t('profile.currentPassword') }}<RequiredMark />
               </label>
               <n-input
@@ -640,7 +636,7 @@ watch(visible, (open) => {
             :validation-status="passwordErrors.newpassword ? 'error' : undefined"
           >
             <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-surface-700 dark:text-surface-200">
+              <label class="text-sm font-medium text-ink">
                 {{ t('profile.newPassword') }}<RequiredMark />
               </label>
               <n-input
@@ -656,6 +652,7 @@ watch(visible, (open) => {
 
           <div class="sm:col-span-2">
             <n-button
+              :size="controlSize"
               type="primary"
               attr-type="submit"
               :loading="savingPassword"
@@ -671,6 +668,7 @@ watch(visible, (open) => {
         <div class="pt-3">
           <div class="flex items-center justify-end">
             <n-button
+              :size="controlSize"
               v-if="hasOtherSessions"
               text
               type="error"
@@ -689,10 +687,7 @@ watch(visible, (open) => {
             <n-skeleton v-for="i in 2" :key="i" height="4rem" style="border-radius: 0.75rem" />
           </div>
 
-          <p
-            v-else-if="sessions.length === 0"
-            class="mt-3 text-sm text-surface-500 dark:text-surface-400"
-          >
+          <p v-else-if="sessions.length === 0" class="mt-3 text-sm text-ink-muted">
             {{ t('profile.sessionsEmpty') }}
           </p>
 
@@ -705,10 +700,10 @@ watch(visible, (open) => {
             <li
               v-for="session in sessions"
               :key="session.id"
-              class="flex items-start justify-between gap-3 rounded-xl border border-surface-200 p-3 dark:border-surface-800"
+              class="flex items-start justify-between gap-3 rounded-xl border border-line p-3"
             >
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-surface-800 dark:text-surface-100">
+                <p class="truncate text-sm font-medium text-ink">
                   {{ formatDeviceInfo(session.deviceInfo) ?? t('profile.unknownDevice') }}
                 </p>
                 <div class="mt-1.5 flex flex-wrap gap-1.5">
@@ -719,15 +714,16 @@ watch(visible, (open) => {
                     {{ t('profile.rememberLogin') }}
                   </n-tag>
                 </div>
-                <p class="mt-1.5 truncate text-xs text-surface-500 dark:text-surface-400">
+                <p class="mt-1.5 truncate text-xs text-ink-muted">
                   {{ t('profile.lastActive') }}: {{ formatDate(session.lastActiveAt) }} &middot; IP:
                   {{ session.ipAddress ?? t('profile.unknownIp') }}
                 </p>
-                <p class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+                <p class="mt-0.5 text-xs text-ink-muted">
                   {{ t('profile.sessionLoginAt') }}: {{ formatDate(session.loginAt) }}
                 </p>
               </div>
               <n-button
+                :size="controlSize"
                 v-if="!session.isCurrent"
                 text
                 circle
@@ -748,21 +744,18 @@ watch(visible, (open) => {
 
       <n-tab-pane name="notifications" :tab="t('pushNotifications.title')">
         <div class="pt-3">
-          <p v-if="!push.isSupported.value" class="text-sm text-surface-500 dark:text-surface-400">
+          <p v-if="!push.isSupported.value" class="text-sm text-ink-muted">
             {{ t('pushNotifications.notSupported') }}
           </p>
           <div v-else class="flex items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-surface-800 dark:text-surface-100">
+              <p class="text-sm font-medium text-ink">
                 {{ t('pushNotifications.enable') }}
               </p>
-              <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+              <p class="mt-1 text-xs text-ink-muted">
                 {{ t('pushNotifications.description') }}
               </p>
-              <p
-                v-if="push.permission.value === 'denied'"
-                class="mt-1 text-xs text-error-600 dark:text-error-400"
-              >
+              <p v-if="push.permission.value === 'denied'" class="mt-1 text-xs text-danger">
                 {{ t('pushNotifications.permissionDenied') }}
               </p>
             </div>
@@ -776,5 +769,5 @@ watch(visible, (open) => {
         </div>
       </n-tab-pane>
     </n-tabs>
-  </n-modal>
+  </AppSheet>
 </template>

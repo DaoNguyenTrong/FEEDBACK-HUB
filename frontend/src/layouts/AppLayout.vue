@@ -52,6 +52,6 @@ onUnmounted(() => {
     -->
     <AppearanceSettings />
     <CommandPalette />
-    <ProfileDialog v-model:visible="layout.profileOpen" />
+    <ProfilePanel v-model:visible="layout.profileOpen" />
   </div>
 </template>
