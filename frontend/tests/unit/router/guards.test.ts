@@ -6,9 +6,9 @@ import type { RouteAccessContext } from '@/lib/route-access'
 
 function route(
   meta: RouteMeta,
-  extra: { fullPath?: string; query?: Record<string, unknown> } = {},
+  extra: { fullPath?: string; query?: Record<string, unknown>; name?: string } = {},
 ) {
-  return { meta, fullPath: extra.fullPath ?? '/target', query: extra.query ?? {} }
+  return { meta, fullPath: extra.fullPath ?? '/target', query: extra.query ?? {}, name: extra.name }
 }
 
 const online = { isDown: false }
@@ -60,6 +60,36 @@ describe('resolveGuardRedirect', () => {
     )
 
     expect(result).toEqual({ name: 'home' })
+  })
+
+  it('sends a signed-in user without an organization from home to welcome', () => {
+    const result = resolveGuardRedirect(
+      route({ requiresAuth: true }, { name: 'home', fullPath: '/' }),
+      signedIn([], { organizationId: null }),
+      online,
+    )
+
+    expect(result).toEqual({ name: 'welcome' })
+  })
+
+  it('keeps a user in an organization on home', () => {
+    const result = resolveGuardRedirect(
+      route({ requiresAuth: true }, { name: 'home', fullPath: '/' }),
+      signedIn(),
+      online,
+    )
+
+    expect(result).toBeUndefined()
+  })
+
+  it('keeps a user without an organization on welcome', () => {
+    const result = resolveGuardRedirect(
+      route({ requiresAuth: true }, { name: 'welcome', fullPath: '/welcome' }),
+      signedIn([], { organizationId: null }),
+      online,
+    )
+
+    expect(result).toBeUndefined()
   })
 
   it('lets a user in an organization through an organization page', () => {

@@ -260,6 +260,20 @@ describe('OrgSwitcher', () => {
     expect(body).toEqual({ organizationId: null })
   })
 
+  it('lands on /welcome from the Back to welcome page item', async () => {
+    mockSwitch()
+    const { wrapper, router } = await render({
+      auth: { organizationId: null, organizationName: null },
+    })
+    await router.push('/guide-auth')
+    await open(wrapper)
+
+    await wrapper.get('[data-testid="org-switcher-welcome"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/welcome')
+  })
+
   it('goes home without a request when already in the personal context', async () => {
     let requests = 0
     mockSwitch(() => (requests += 1))
@@ -273,7 +287,7 @@ describe('OrgSwitcher', () => {
     await flushPromises()
 
     expect(requests).toBe(0)
-    expect(router.currentRoute.value.name).toBe('home')
+    expect(router.currentRoute.value.name).toBe('welcome')
     expect(reloadTo).not.toHaveBeenCalled()
   })
 

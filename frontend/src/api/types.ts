@@ -4,6 +4,7 @@ export interface ProblemDetails {
   detail?: string
   type?: string
   code?: string
+  organizationName?: string
   errors?: Record<string, string[]>
 }
 

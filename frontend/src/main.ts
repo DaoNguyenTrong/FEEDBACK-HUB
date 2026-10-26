@@ -41,6 +41,9 @@ async function bootstrap() {
   await restoreSession(pinia)
 
   app.use(pinia)
+  setOrganizationAccessHandler((problem) => {
+    void useOrganizationContextStore().handleAccessProblem(problem)
+  })
   app.use(router)
   app.use(i18n)
 

@@ -222,6 +222,16 @@ export interface LocaleSchema {
   roles: {
     systemKind: { Owner: string; Admin: string; Member: string }
   }
+  welcome: {
+    greeting: string
+    choose: string
+    noOrganizations: string
+    createCard: string
+    createHint: string
+    allSuspended: string
+    justSuspended: string
+    systemOrganizations: string
+  }
   organizations: {
     switcherTitle: string
     suspended: string
@@ -498,6 +508,19 @@ const en: LocaleSchema = {
   },
   roles: {
     systemKind: { Owner: 'Owner', Admin: 'Admin', Member: 'Member' },
+  },
+  welcome: {
+    greeting: 'Hi {name}',
+    choose: 'Choose an organization to continue',
+    noOrganizations:
+      'No organization yet? Create one, or ask a manager to send you an invitation by email.',
+    createCard: 'Create a new organization',
+    createHint: 'Or ask a manager to send you an invitation by email.',
+    allSuspended:
+      '{names} is suspended. Contact the FeedbackHub system administrator to reopen it.',
+    justSuspended:
+      "{name} has just been suspended. What you just did wasn't carried out. Contact the FeedbackHub system administrator to reopen it.",
+    systemOrganizations: 'Organizations',
   },
   organizations: {
     switcherTitle: 'Your organizations',

@@ -74,12 +74,12 @@ describe('router guard (wired, real router)', () => {
       removers.splice(0).forEach((remove) => remove())
     })
 
-    it('sends a personal-context user on an organization route to home', async () => {
+    it('sends a personal-context user on an organization route to the welcome page', async () => {
       useAuthStore().account = { id: 'a-1' } as never
 
       await router.push('/org-only')
 
-      expect(router.currentRoute.value.fullPath).toBe(router.resolve(useHomeRoute()).fullPath)
+      expect(router.currentRoute.value.name).toBe('welcome')
     })
 
     it('lets a user inside an organization open the organization route', async () => {

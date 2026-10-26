@@ -114,6 +114,21 @@ describe('useOrganizationSwitch', () => {
     wrapper.unmount()
   })
 
+  it('drops a stored suspended notice when the switch ends in a sign-out', async () => {
+    sessionStorage.setItem('organization-suspended-notice', 'Acme')
+    server.use(
+      http.post('*/api/auth/switch-organization', () => new HttpResponse(null, { status: 401 })),
+      http.post('*/api/auth/refresh', () => new HttpResponse(null, { status: 401 })),
+    )
+    const { api, wrapper, auth } = await setup()
+    auth.account = makeAccount()
+
+    await expect(api.switchOrganization(null)).resolves.toBe('signed-out')
+
+    expect(sessionStorage.getItem('organization-suspended-notice')).toBeNull()
+    wrapper.unmount()
+  })
+
   it('signs out when the refresh behind a bodyless 401 is refused too', async () => {
     localStorage.setItem(KEEP_LOGIN_STORAGE_KEY, 'true')
     server.use(

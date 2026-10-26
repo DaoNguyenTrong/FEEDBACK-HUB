@@ -67,7 +67,7 @@ function pick(organization: OrganizationDto) {
 function backToWelcome() {
   if (auth.organizationId === null) {
     open.value = false
-    void router.push(useHomeRoute())
+    void router.push({ name: 'welcome' })
     return
   }
   void runSwitch(null, null)

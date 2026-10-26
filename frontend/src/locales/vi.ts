@@ -238,6 +238,18 @@ const vi: LocaleSchema = {
   roles: {
     systemKind: { Owner: 'Chủ sở hữu', Admin: 'Admin', Member: 'Member' },
   },
+  welcome: {
+    greeting: 'Chào {name}',
+    choose: 'Chọn tổ chức để tiếp tục',
+    noOrganizations:
+      'Chưa có tổ chức? Tạo tổ chức mới, hoặc nhờ người quản lý gửi lời mời qua email.',
+    createCard: 'Tạo tổ chức mới',
+    createHint: 'Hoặc nhờ người quản lý gửi lời mời qua email.',
+    allSuspended: '{names} đang tạm ngừng hoạt động. Liên hệ admin hệ thống FeedbackHub để mở lại.',
+    justSuspended:
+      '{name} vừa tạm ngừng hoạt động. Việc bạn vừa làm chưa được thực hiện. Liên hệ admin hệ thống FeedbackHub để mở lại.',
+    systemOrganizations: 'Các tổ chức',
+  },
   organizations: {
     switcherTitle: 'Tổ chức của bạn',
     suspended: 'Tạm ngừng',
