@@ -214,19 +214,25 @@ public sealed class AuditLogRepositoryTests(PostgresContainerFixture fixture) : 
         Guid organizationId = Guid.NewGuid();
         await SeedAsync(EventRow(organizationId, BaseTime));
         await context.Database.ExecuteSqlRawAsync("SET LOCAL enable_seqscan = off");
+        // On near-empty tables the planner picks Hash Join + Sort (every matching row read, then sorted). Forcing a
+        // nested loop pins that the keyset index can deliver the order itself, so the Sort assertion below can bite.
+        await context.Database.ExecuteSqlRawAsync("SET LOCAL enable_hashjoin = off");
+        await context.Database.ExecuteSqlRawAsync("SET LOCAL enable_mergejoin = off");
         sqlCapture.Commands.Clear();
         await ListAsync(organizationId, new AuditCursor(BaseTime, 100));
         CapturedCommand query = Assert.Single(sqlCapture.Commands);
 
-        string? indexCond = await KeysetIndexCondAsync(query);
+        (string? indexCond, bool hasSort) = await KeysetPlanAsync(query);
 
+        // A Hash Join plus Sort would read every older row; the index must deliver the order and stop at the limit.
+        Assert.False(hasSort, "The keyset plan must not contain a Sort node.");
         Assert.Contains("\"timestamp\"", indexCond);
         Assert.Contains("(a.timestamp, a.id) < (@", query.Text);
         Assert.Contains("a.kind = 'Event'", query.Text);
         Assert.Contains("a.organization_id = @", query.Text);
     }
 
-    private async Task<string?> KeysetIndexCondAsync(CapturedCommand query)
+    private async Task<(string? IndexCond, bool HasSort)> KeysetPlanAsync(CapturedCommand query)
     {
         DbConnection connection = context.Database.GetDbConnection();
         await using DbCommand explain = connection.CreateCommand();
@@ -241,8 +247,13 @@ public sealed class AuditLogRepositoryTests(PostgresContainerFixture fixture) : 
         }
 
         using JsonDocument plan = JsonDocument.Parse((string)(await explain.ExecuteScalarAsync())!);
-        return FindKeysetScan(plan.RootElement[0].GetProperty("Plan"))?.GetProperty("Index Cond").GetString();
+        JsonElement root = plan.RootElement[0].GetProperty("Plan");
+        return (FindKeysetScan(root)?.GetProperty("Index Cond").GetString(), ContainsSort(root));
     }
+
+    private static bool ContainsSort(JsonElement node) =>
+        (node.TryGetProperty("Node Type", out JsonElement type) && type.GetString() is "Sort" or "Incremental Sort")
+        || (node.TryGetProperty("Plans", out JsonElement children) && children.EnumerateArray().Any(ContainsSort));
 
     private static JsonElement? FindKeysetScan(JsonElement node)
     {

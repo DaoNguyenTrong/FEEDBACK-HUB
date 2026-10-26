@@ -283,6 +283,24 @@ public sealed class OrganizationAuditLogTests(ApiFactoryFixture fixture) : IAsyn
         await AssertCodeAsync(response, HttpStatusCode.BadRequest, ApplicationMessages.InvalidCursor);
     }
 
+    // TECH00 §6.8 B5: ticks from DateTime.MinValue.Ticks to MaxValue.Ticks and any id above 0 are valid, so the
+    // extremes must page normally (200), never fail as an out-of-range timestamp (500).
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(long.MaxValue)]
+    public async Task AuditLog_CursorAtTimestampExtreme_Returns200(long ticksOrMax)
+    {
+        (Organization organization, Account viewer) = await SeedViewerAsync();
+        await SeedRowAsync(organization.Id, Newest);
+        long ticks = ticksOrMax == long.MaxValue ? DateTime.MaxValue.Ticks : ticksOrMax;
+        string cursor = Base64UrlEncode($"{ticks}:1");
+
+        HttpResponseMessage response = await ClientFor(viewer, organization.Id)
+            .GetAsync($"{Path}?cursor={Uri.EscapeDataString(cursor)}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     [Fact]
     public async Task AuditLog_OverlongCursor_Returns400InvalidCursor()
     {
