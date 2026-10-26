@@ -293,9 +293,9 @@ public sealed class CurrentOrganizationController(
     }
 
     /// <summary>
-    /// Lists the working organization's audit entries, newest first, a page at a time. Pass <c>nextCursor</c> as
-    /// <c>cursor</c> to read the next page; it is <c>null</c> on the last page. Only people with
-    /// <c>auditlogs.view</c> may read it; API keys never can.
+    /// Lists the working organization's audit entries, newest first; needs <c>auditlogs.view</c>, never an API key.
+    /// A page can hold fewer than <c>limit</c> items, even none, while <c>nextCursor</c> is not <c>null</c>:
+    /// pass it as <c>cursor</c> for the next page and stop only when it is <c>null</c>.
     /// </summary>
     [HttpGet("audit-log")]
     [Authorize(Policy = Permissions.AuditLogsView)]
