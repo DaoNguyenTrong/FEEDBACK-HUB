@@ -365,6 +365,7 @@ describe('OrgSwitcher', () => {
           { status: 401 },
         ),
       ),
+      http.post('*/api/auth/refresh', () => new HttpResponse(null, { status: 401 })),
     )
     const { wrapper } = await render()
     await open(wrapper)
@@ -373,6 +374,7 @@ describe('OrgSwitcher', () => {
     await flushPromises()
 
     expect(reloadToLogin).toHaveBeenCalledOnce()
+    expect(reloadToLogin).toHaveBeenCalledWith()
     expect(reloadTo).not.toHaveBeenCalled()
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
