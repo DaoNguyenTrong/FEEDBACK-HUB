@@ -1,6 +1,7 @@
 ---
 name: implementer
 description: Implements one task of an approved FeedbackHub implementation plan (or one S-size fix) in backend and/or frontend, following its Pre-Task Protocol — TDD, impact check, feature-map entry, verification gates, local commits on a feature branch. Use after the PRD, design, technical design and plan exist. Stops and returns a question on any missing business rule; never decides one.
+model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write, Skill, Artifact, mcp__codegraph__codegraph_explore, mcp__serena__find_symbol, mcp__serena__get_symbols_overview, mcp__serena__find_declaration, mcp__serena__find_referencing_symbols, mcp__serena__rename_symbol, mcp__serena__replace_symbol_body, mcp__serena__insert_after_symbol, mcp__serena__insert_before_symbol, mcp__serena__replace_content, mcp__serena__get_diagnostics_for_file
 ---
 
