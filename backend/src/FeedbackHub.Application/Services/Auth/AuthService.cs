@@ -336,10 +336,12 @@ public sealed class AuthService(
         Account account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken)
             ?? throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
 
-        // Same sign-in, different organization: the session keeps its family, its remember-me choice (none to read
-        // means not persistent) and its place in the device list. A token without a session claim starts a new one.
+        // Same sign-in, different organization: the session keeps its family, its remember-me choice, its sign-in
+        // time and its place in the device list. A token without a session claim starts a new one (not persistent). A
+        // session claim whose family has no active token was signed out or revoked: it is refused, never revived.
         Guid? sessionId = currentUserService.SessionId;
         bool isPersistent = false;
+        DateTime loginAt = DateTime.UtcNow;
         if (sessionId is { } currentSessionId)
         {
             IRepository<RefreshToken, long> refreshTokenRepository = unitOfWork.Repository<RefreshToken, long>();
@@ -347,7 +349,13 @@ public sealed class AuthService(
                 token => token.AccountId == accountId && token.FamilyId == currentSessionId && token.RevokedAt == null,
                 cancellationToken);
 
+            if (previousTokens.Count == 0)
+            {
+                throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
+            }
+
             isPersistent = previousTokens.Any(token => token.IsPersistent);
+            loginAt = previousTokens.Min(token => token.LoginAt);
 
             foreach (RefreshToken previousToken in previousTokens)
             {
@@ -356,7 +364,7 @@ public sealed class AuthService(
             }
         }
 
-        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, isPersistent, DateTime.UtcNow, familyId: sessionId, cancellationToken);
+        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, isPersistent, loginAt, familyId: sessionId, cancellationToken);
     }
 
     // The organization gate's order (TECH00 §5.1): membership first, so only a member ever learns the name.
