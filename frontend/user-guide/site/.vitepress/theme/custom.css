@@ -36,7 +36,7 @@
 }
 
 .dark .guide-brand__sub {
-  color: var(--brand-violet-200);
+  color: var(--brand-accent-on-chrome);
 }
 
 /* ---------- Top navigation bar ---------- */
@@ -64,7 +64,7 @@
   }
 
   .VPNavBar.has-sidebar .guide-brand__sub {
-    color: var(--brand-violet-200);
+    color: var(--brand-accent-on-chrome);
   }
 }
 
@@ -107,12 +107,12 @@
 /* Re-scopes VitePress's colour variables inside the sidebar instead of overriding each scoped selector. */
 .VPSidebar {
   --vp-c-text-1: #fff;
-  --vp-c-text-2: var(--brand-violet-100);
-  --vp-c-text-3: var(--brand-violet-400);
+  --vp-c-text-2: var(--brand-on-chrome);
+  --vp-c-text-3: var(--brand-on-chrome-muted);
   --vp-c-brand-1: #fff;
   --vp-c-divider: rgba(255, 255, 255, 0.09);
 
-  background-image: linear-gradient(180deg, var(--brand-violet-900), var(--brand-violet-950));
+  background-image: linear-gradient(180deg, var(--brand-chrome), var(--brand-deep));
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   scrollbar-width: thin;
 }
@@ -120,8 +120,8 @@
 .dark .VPSidebar {
   background-image: linear-gradient(
     180deg,
-    var(--brand-violet-950),
-    color-mix(in srgb, var(--brand-violet-950) 80%, black)
+    var(--brand-deep),
+    color-mix(in srgb, var(--brand-deep) 80%, black)
   );
 }
 
@@ -147,8 +147,8 @@
 
 .VPSidebar .VPSidebarItem.level-0.is-active > .item,
 .VPSidebar .VPSidebarItem.level-0.has-active > .item {
-  background: var(--brand-violet-600);
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand-violet-600) 35%, transparent);
+  background: var(--brand-accent-fill);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--brand-accent-fill) 35%, transparent);
 }
 
 .VPSidebar .VPSidebarItem.level-0.is-active > .item .caret,
@@ -195,7 +195,7 @@
   padding: 30px 34px;
   border-radius: 18px;
   background: var(--guide-hero-bg);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--brand-violet-900) 18%, transparent);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--brand-chrome) 18%, transparent);
   color: #fff;
   font-size: 30px;
   font-weight: 700;
@@ -253,7 +253,7 @@
   height: 22px;
   margin-right: 12px;
   border-radius: 3px;
-  background: linear-gradient(180deg, var(--brand-violet-600), var(--brand-violet-300));
+  background: linear-gradient(180deg, var(--brand-accent-fill), var(--brand-accent-on-chrome));
   vertical-align: -3px;
   content: '';
 }
@@ -338,13 +338,13 @@
 
 .vp-doc th {
   border: none;
-  background: var(--brand-violet-900);
+  background: var(--brand-chrome);
   color: #fff;
   font-weight: 600;
 }
 
 .dark .vp-doc th {
-  background: var(--brand-violet-800);
+  background: var(--brand-accent-soft);
 }
 
 .vp-doc td {
@@ -440,7 +440,7 @@
 }
 
 .VPDocFooter .pager-link:hover {
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--brand-violet-600) 12%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--brand-accent) 12%, transparent);
 }
 
 /* ---------- Theme additions ---------- */
@@ -452,7 +452,7 @@
   margin: 0 6px;
   padding: 0 14px;
   border-radius: 8px;
-  background: var(--brand-violet-600);
+  background: var(--brand-accent-fill);
   color: #fff;
   font-size: 14px;
   font-weight: 500;
@@ -461,7 +461,7 @@
 }
 
 .guide-app-link--nav:hover {
-  background: var(--brand-violet-700);
+  background: var(--brand-accent-fill-hover);
 }
 
 @media (max-width: 767px) {
@@ -542,7 +542,7 @@
 }
 
 .guide-hero-product {
-  background: linear-gradient(90deg, var(--brand-leaf-400), var(--brand-violet-200));
+  background: linear-gradient(90deg, var(--brand-leaf), var(--brand-accent-on-chrome));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -550,7 +550,7 @@
 
 .guide-hero-tagline {
   margin-top: 16px;
-  color: var(--brand-violet-100);
+  color: var(--brand-on-chrome);
   font-size: 18px;
   line-height: 1.6;
 }
@@ -561,9 +561,9 @@
   }
 }
 
-/* Home feature cards: violet-100 border, a slight lift and a violet-300 border on hover. */
+/* Home feature cards: soft-accent border, a slight lift and an accent border on hover. */
 .VPHome .VPFeature {
-  border: 1px solid var(--brand-violet-100);
+  border: 1px solid var(--brand-accent-soft);
   transition:
     border-color 0.2s,
     transform 0.2s,
@@ -571,7 +571,7 @@
 }
 
 .VPHome .VPFeature .icon {
-  color: var(--brand-violet-600);
+  color: var(--brand-accent);
 }
 
 .VPHome .VPFeature .icon svg {
@@ -580,7 +580,7 @@
 }
 
 .VPHome .VPFeature.link:hover {
-  border-color: var(--brand-violet-300);
+  border-color: var(--brand-accent);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgb(76 29 149 / 0.08);
 }
@@ -590,7 +590,7 @@
 }
 
 .dark .VPHome .VPFeature .icon {
-  color: var(--brand-violet-300);
+  color: var(--brand-accent);
 }
 
 /* Quick start (HomeQuickStart.vue): three numbered steps joined by a line, one column on phones. */
@@ -631,7 +631,7 @@
   height: 36px;
   margin-bottom: 12px;
   border-radius: 50%;
-  background: var(--brand-violet-600);
+  background: var(--brand-accent-fill);
   color: #fff;
   font-weight: 700;
 }
@@ -649,7 +649,7 @@
   aspect-ratio: 16 / 10;
   object-fit: cover;
   object-position: top left;
-  border: 1px solid var(--brand-violet-100);
+  border: 1px solid var(--brand-accent-soft);
   border-radius: 12px;
   transition:
     border-color 0.2s,
@@ -657,7 +657,7 @@
 }
 
 .guide-quick-start__link:hover .guide-quick-start__image {
-  border-color: var(--brand-violet-300);
+  border-color: var(--brand-accent);
   transform: translateY(-2px);
 }
 
@@ -689,6 +689,6 @@
     left: calc(50% + 18px);
     width: calc(100% + 32px - 36px);
     height: 2px;
-    background: var(--brand-violet-100);
+    background: var(--brand-accent-soft);
   }
 }
