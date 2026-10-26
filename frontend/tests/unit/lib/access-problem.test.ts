@@ -18,6 +18,7 @@ describe('accessProblemOf', () => {
     [403, 'SystemAdministratorRequired', 'forbidden'],
     [403, 'OrganizationSuspended', null],
     [403, undefined, null],
+    [401, 'OrganizationAccessDenied', null],
     [500, undefined, null],
   ])('maps %s %s to %s', (status, code, expected) => {
     expect(accessProblemOf(problem(status, code))).toBe(expected)

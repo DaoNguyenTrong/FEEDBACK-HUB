@@ -35,4 +35,18 @@ describe('AccessProblemState', () => {
     await wrapper.get('button').trigger('click')
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('home'))
   })
+
+  it('ignores caller attributes so a title or description cannot replace the generic text', async () => {
+    const { wrapper } = await renderComponent(AccessProblemState, {
+      props: { kind: 'not-found' },
+      attrs: { title: 'Sao Mai Tech', description: 'Role Trưởng IT', 'data-x': '1' },
+    })
+
+    expect(wrapper.text()).toBe(
+      [t('accessProblem.notFoundTitle'), t('accessProblem.notFoundText'), t('accessProblem.goHome')].join(''),
+    )
+    expect(wrapper.html()).not.toContain('Sao Mai Tech')
+    expect(wrapper.html()).not.toContain('Trưởng IT')
+    expect(wrapper.html()).not.toContain('data-x')
+  })
 })

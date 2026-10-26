@@ -2,6 +2,9 @@
 import { Lock, MoodSad } from '@vicons/tabler'
 import type { AccessProblem } from '@/lib/access-problem'
 
+// A caller's attrs would land on EmptyState and could replace the generic title or line (BR-45).
+defineOptions({ inheritAttrs: false })
+
 const props = defineProps<{ kind: AccessProblem }>()
 
 const router = useRouter()

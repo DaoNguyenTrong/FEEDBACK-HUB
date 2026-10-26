@@ -48,7 +48,7 @@ const example = await client.examplesGetById(id)
 ```
 
 - Never hand-roll another axios instance — every generated call already goes through `apiClient` (`api/mutator.ts`). A success side effect goes in the owning Pinia store, request/response types come from `api/types.ts` re-exports, int64 fields are normalized at the point of use: details in `api-contract.md`.
-- In components, catch errors with `error instanceof ApiError` and prefer `error.problem.detail ?? error.problem.title`, falling back to a localized generic string (`t('errors.requestFailed')`) — see `ProfilePanel.vue` for the pattern.
+- In components, show an error with `errorMessage(error, t, te)` (`lib/error-message.ts`): a localized `errorCodes.<code>` string when the locale has one, else `problem.detail`, else the generic `errors.requestFailed`. Don't read `error.problem` fields by hand.
 
 ## Runtime Configuration
 
