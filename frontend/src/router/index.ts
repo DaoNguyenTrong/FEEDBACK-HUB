@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteMeta } from 'vue-router'
-import { Building, Home } from '@vicons/tabler'
+import { Home } from '@vicons/tabler'
 import { routeAccess } from '@/lib/route-access'
 import type { RouteAccessContext } from '@/lib/route-access'
 
@@ -51,18 +51,6 @@ const router = createRouter({
             sidebar: {
               labelKey: 'nav.home',
               icon: Home,
-            },
-          },
-        },
-        {
-          path: 'organizations',
-          name: 'organizations',
-          component: () => import('@/views/OrganizationsView.vue'),
-          meta: {
-            requiresAuth: true,
-            sidebar: {
-              labelKey: 'nav.organizations',
-              icon: Building,
             },
           },
         },

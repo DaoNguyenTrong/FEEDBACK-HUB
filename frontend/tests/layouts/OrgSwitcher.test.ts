@@ -266,7 +266,7 @@ describe('OrgSwitcher', () => {
     const { wrapper, router } = await render({
       auth: { organizationId: null, organizationName: null },
     })
-    await router.push('/organizations')
+    await router.push('/guide-auth')
     await open(wrapper)
 
     await wrapper.get('[data-testid="org-switcher-welcome"]').trigger('click')

@@ -20,7 +20,6 @@ import { stubView } from '../helpers/router-view-stubs'
 // The shell tests run on the real router; stub the lazy views they never look at. AppLayout and
 // NotFoundView stay real: the shell is under test, and so is its not-found state.
 vi.mock('@/views/HomeView.vue', () => stubView())
-vi.mock('@/views/OrganizationsView.vue', () => stubView())
 vi.mock('@/views/LoginView.vue', () => stubView())
 
 const t = i18n.global.t
@@ -39,6 +38,10 @@ const overlayStubs = {
   AppearanceSettings: { template: '<div data-testid="settings-stub" />' },
   CommandPalette: { template: '<div data-testid="palette-stub" />' },
   ProfilePanel: ProfilePanelStub,
+  CreateOrganizationSheet: {
+    props: { show: Boolean },
+    template: '<div data-testid="create-org-stub" :data-show="show" />',
+  },
 }
 
 const shellStubs = { ...overlayStubs, AppRail: true, AppTopBar: true, AppFooter: true }
@@ -139,9 +142,22 @@ describe('AppLayout', () => {
     await flushPromises()
     expect(scrollTo).not.toHaveBeenCalled()
 
-    await router.push('/organizations')
+    await router.push('/guide-auth')
     await flushPromises()
     expect(scrollTo).toHaveBeenCalledWith({ top: 0 })
+  })
+
+  it('mounts the create-organization sheet on the layout flag', async () => {
+    const { wrapper, pinia } = await renderComponent(AppLayout, {
+      global: { stubs: shellStubs },
+    })
+    const stub = wrapper.get('[data-testid="create-org-stub"]')
+    expect(stub.attributes('data-show')).toBe('false')
+
+    storeIn(pinia, useLayoutStore).openCreateOrganization()
+    await flushPromises()
+
+    expect(stub.attributes('data-show')).toBe('true')
   })
 
   it('starts the notification polling and realtime connection, and stops them on unmount', async () => {

@@ -8,7 +8,7 @@ import { stubView } from '../../helpers/router-view-stubs'
 // This file checks the guards, not the views: stub every lazy view it navigates to.
 vi.mock('@/layouts/AppLayout.vue', () => stubView())
 vi.mock('@/views/HomeView.vue', () => stubView())
-vi.mock('@/views/OrganizationsView.vue', () => stubView())
+vi.mock('@/views/GuideAuthView.vue', () => stubView())
 vi.mock('@/views/LoginView.vue', () => stubView())
 vi.mock('@/views/NotFoundView.vue', () => stubView())
 
@@ -25,10 +25,10 @@ describe('router guard (wired, real router)', () => {
   })
 
   it('redirects an unauthenticated visitor on a requiresAuth route to /login, keeping the destination', async () => {
-    await router.push('/organizations')
+    await router.push('/guide-auth')
 
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe('/organizations')
+    expect(router.currentRoute.value.query.redirect).toBe('/guide-auth')
   })
 
   it('sends a signed-out visitor on an unknown path to login, keeping the path', async () => {
