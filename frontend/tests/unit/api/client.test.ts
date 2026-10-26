@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth'
+import { useOrganizationContextStore } from '@/stores/organization-context'
 import { KEEP_LOGIN_STORAGE_KEY, setKeepLoginPreference } from '@/lib/auth-session'
 import { server } from '../../helpers/msw/server'
 import { makeAuthResponse } from '../../helpers/msw/fixtures'
@@ -363,5 +364,145 @@ describe('apiClient interceptors', () => {
         expect(error.status).toBe(429)
       }
     }
+  })
+
+  describe('organization access (TECH00 6.5)', () => {
+    function problem(code: string, extra: Record<string, unknown> = {}) {
+      return HttpResponse.json(
+        { status: 403, title: 'Forbidden', code, ...extra },
+        { status: 403, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    }
+
+    it('reports 403 OrganizationSuspended with its organizationName to the handler', async () => {
+      server.use(
+        http.get('*/api/organization/members', () =>
+          problem('OrganizationSuspended', { organizationName: 'Acme' }),
+        ),
+      )
+      const handler = vi.fn()
+      const { apiClient, setOrganizationAccessHandler } = await import('@/api/client')
+      setOrganizationAccessHandler(handler)
+
+      await expect(apiClient.get('/api/organization/members')).rejects.toMatchObject({
+        status: 403,
+        problem: { code: 'OrganizationSuspended', organizationName: 'Acme' },
+      })
+
+      expect(handler).toHaveBeenCalledOnce()
+      expect(handler.mock.calls[0]?.[0]).toMatchObject({
+        code: 'OrganizationSuspended',
+        organizationName: 'Acme',
+      })
+      expect(handler.mock.calls[0]?.[1]).toBe('/api/organization/members')
+    })
+
+    it('reports 403 OrganizationAccessDenied', async () => {
+      server.use(http.get('*/api/organization/roles', () => problem('OrganizationAccessDenied')))
+      const handler = vi.fn()
+      const { apiClient, setOrganizationAccessHandler } = await import('@/api/client')
+      setOrganizationAccessHandler(handler)
+
+      await expect(apiClient.get('/api/organization/roles')).rejects.toMatchObject({ status: 403 })
+
+      expect(handler).toHaveBeenCalledOnce()
+    })
+
+    it('does not report a 403 with another code', async () => {
+      server.use(
+        http.get('*/api/organization/roles', () => problem('InsufficientRolePermissions')),
+      )
+      const handler = vi.fn()
+      const { apiClient, setOrganizationAccessHandler } = await import('@/api/client')
+      setOrganizationAccessHandler(handler)
+
+      await expect(apiClient.get('/api/organization/roles')).rejects.toMatchObject({ status: 403 })
+
+      expect(handler).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      '/api/organizations',
+      '/api/organizations/abc',
+      '/api/auth/switch-organization',
+      '/api/invitations/lookup',
+      '/api/system/organizations?page=1',
+      '/api/permissions',
+    ])('does not report a 403 from the exempt path %s', async (url) => {
+      server.use(http.all('*/api/*', () => problem('OrganizationSuspended')))
+      const handler = vi.fn()
+      const { apiClient, setOrganizationAccessHandler } = await import('@/api/client')
+      setOrganizationAccessHandler(handler)
+
+      await expect(apiClient.get(url)).rejects.toMatchObject({ status: 403 })
+
+      expect(handler).not.toHaveBeenCalled()
+    })
+
+    it('does not replay requests when a refresh drops the organization', async () => {
+      let membersCalls = 0
+      let refreshCalls = 0
+      const refreshGate = deferred<void>()
+      server.use(
+        http.get('*/api/organization/members', () => {
+          membersCalls++
+          return HttpResponse.json(null, { status: 401 })
+        }),
+        http.post('*/api/auth/refresh', async () => {
+          refreshCalls++
+          await refreshGate.promise
+          return HttpResponse.json(makeAuthResponse())
+        }),
+      )
+      const auth = useAuthStore()
+      auth.setAuth({ ...makeAuthResponse(), organizationId: 'org-1', organizationName: 'Acme' })
+      const context = useOrganizationContextStore()
+      vi.mocked(context.handleOrganizationLost).mockResolvedValue()
+      const apiClient = await loadApiClient()
+
+      const first = apiClient.get('/api/organization/members')
+      await vi.waitFor(() => {
+        if (refreshCalls !== 1) throw new Error('refresh not started yet')
+      })
+      const second = apiClient.get('/api/organization/members')
+      await vi.waitFor(() => {
+        if (membersCalls !== 2) throw new Error('second original 401 not received yet')
+      })
+      refreshGate.resolve()
+
+      const results = await Promise.allSettled([first, second])
+
+      expect(results.map((result) => result.status)).toEqual(['rejected', 'rejected'])
+      expect(membersCalls).toBe(2)
+      expect(refreshCalls).toBe(1)
+      expect(auth.organizationId).toBeNull()
+      expect(context.handleOrganizationLost).toHaveBeenCalledOnce()
+      expect(context.handleOrganizationLost).toHaveBeenCalledWith('org-1')
+    })
+
+    it('still replays when the refresh keeps the organization', async () => {
+      let calls = 0
+      server.use(
+        http.get('*/api/organization/members', () =>
+          ++calls === 1 ? HttpResponse.json(null, { status: 401 }) : HttpResponse.json({ ok: 1 }),
+        ),
+        http.post('*/api/auth/refresh', () =>
+          HttpResponse.json({
+            ...makeAuthResponse(),
+            organizationId: 'org-1',
+            organizationName: 'Acme',
+          }),
+        ),
+      )
+      const auth = useAuthStore()
+      auth.setAuth({ ...makeAuthResponse(), organizationId: 'org-1', organizationName: 'Acme' })
+      const context = useOrganizationContextStore()
+      const apiClient = await loadApiClient()
+
+      const response = await apiClient.get('/api/organization/members')
+
+      expect(response.data).toEqual({ ok: 1 })
+      expect(context.handleOrganizationLost).not.toHaveBeenCalled()
+    })
   })
 })

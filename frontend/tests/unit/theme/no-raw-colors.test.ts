@@ -34,6 +34,8 @@ const PHASE_7_FILES: string[] = [
   'components/NotificationBell.vue',
   'layouts/AppearanceSettings.vue',
   'views/NotFoundView.vue',
+  'views/WelcomeView.vue',
+  'components/OrganizationRows.vue',
 ]
 
 const RAW_COLOR = /#[0-9a-fA-F]{3,8}\b|(?<![a-z])(?:rgba?|hsla?)\(/

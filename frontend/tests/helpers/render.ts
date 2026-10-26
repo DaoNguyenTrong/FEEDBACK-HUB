@@ -50,6 +50,44 @@ export async function renderComponent<C extends Component>(
         component: { template: '<div />' },
         meta: { requiresAuth: true },
       },
+      { path: '/welcome', name: 'welcome', component: { template: '<div />' }, meta: { requiresAuth: true } },
+      { path: '/invite', name: 'invite', component: { template: '<div />' } },
+      {
+        path: '/organization/members',
+        name: 'organization-members',
+        component: { template: '<div />' },
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/organization/members/invitations',
+        name: 'organization-invitations',
+        component: { template: '<div />' },
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/organization/members/roles',
+        name: 'organization-roles',
+        component: { template: '<div />' },
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/organization/settings',
+        name: 'organization-settings',
+        component: { template: '<div />' },
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/organization/audit-log',
+        name: 'organization-audit-log',
+        component: { template: '<div />' },
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/system/organizations',
+        name: 'system-organizations',
+        component: { template: '<div />' },
+        meta: { requiresAuth: true },
+      },
     ],
   })
 

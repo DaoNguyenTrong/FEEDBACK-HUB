@@ -14,6 +14,33 @@ declare module 'axios' {
 type FailedQueueItem = {
   resolve: () => void
   reject: (reason?: unknown) => void
+  // This request's own error, for when the refresh leaves the organization instead of replaying it.
+  original: unknown
+}
+
+type OrganizationAccessHandler = (problem: ProblemDetails, url: string) => void
+
+let organizationAccessHandler: OrganizationAccessHandler | null = null
+
+export function setOrganizationAccessHandler(handler: OrganizationAccessHandler | null) {
+  organizationAccessHandler = handler
+}
+
+const ORGANIZATION_ACCESS_CODES = new Set(['OrganizationSuspended', 'OrganizationAccessDenied'])
+// Calls that don't run through the organization gate, so these codes can't describe the working one.
+const ORGANIZATION_ACCESS_EXEMPT = [
+  '/api/auth',
+  '/api/organizations',
+  '/api/invitations',
+  '/api/system',
+  '/api/permissions',
+]
+
+function isOrganizationGated(url: string) {
+  const path = url.split('?')[0] ?? url
+  return !ORGANIZATION_ACCESS_EXEMPT.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  )
 }
 
 let isRefreshing = false
@@ -28,7 +55,8 @@ function toProblemDetails(
     return null
   }
 
-  const { detail, errors, status, title, type, code } = data as Partial<ProblemDetails>
+  const { detail, errors, status, title, type, code, organizationName } =
+    data as Partial<ProblemDetails>
 
   if (typeof status !== 'number') {
     return null
@@ -40,8 +68,14 @@ function toProblemDetails(
     detail: typeof detail === 'string' && detail.length > 0 ? detail : undefined,
     type: typeof type === 'string' ? type : undefined,
     code: typeof code === 'string' ? code : undefined,
+    organizationName: typeof organizationName === 'string' ? organizationName : undefined,
     errors: errors && typeof errors === 'object' ? errors : undefined,
   }
+}
+
+function rejectFailedQueueWithOriginals() {
+  failedQueue.forEach(({ reject, original }) => reject(original))
+  failedQueue = []
 }
 
 function processFailedQueue(error: unknown) {
@@ -203,20 +237,34 @@ apiClient.interceptors.response.use(
           failedQueue.push({
             resolve: () => resolve(apiClient(originalRequest)),
             reject,
+            original: toApiError(error) ?? error,
           })
         })
       }
 
       originalRequest._retry = true
       isRefreshing = true
+      const previousOrganizationId = auth.organizationId
+      const originalError = toApiError(error) ?? error
 
       return auth
         .refreshToken()
         .then(() => {
+          if (previousOrganizationId !== null && auth.organizationId === null) {
+            // The requests were sent for an organization the refresh does not grant any more (TECH00 6.5).
+            rejectFailedQueueWithOriginals()
+            void useOrganizationContextStore()
+              .handleOrganizationLost(previousOrganizationId)
+              .catch(() => undefined)
+            return Promise.reject(originalError)
+          }
           processFailedQueue(null)
           return apiClient(originalRequest)
         })
         .catch((refreshError) => {
+          if (refreshError === originalError) {
+            return Promise.reject(originalError)
+          }
           const apiError = toApiError(refreshError) ?? refreshError
           clearKeepLoginPreference()
           auth.clearAuth()
@@ -229,6 +277,17 @@ apiClient.interceptors.response.use(
     }
 
     const apiError = toApiError(error)
+
+    if (
+      apiError &&
+      apiError.status === 403 &&
+      organizationAccessHandler &&
+      ORGANIZATION_ACCESS_CODES.has(apiError.problem.code ?? '') &&
+      originalRequest?.url &&
+      isOrganizationGated(originalRequest.url)
+    ) {
+      organizationAccessHandler(apiError.problem, originalRequest.url)
+    }
 
     if (apiError) {
       return Promise.reject(apiError)

@@ -64,6 +64,12 @@ const router = createRouter({
       ],
     },
     {
+      path: '/welcome',
+      name: 'welcome',
+      component: () => import('@/views/WelcomeView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
@@ -98,7 +104,12 @@ const router = createRouter({
 })
 
 export function resolveGuardRedirect(
-  to: { meta: RouteMeta; fullPath: string; query: Record<string, unknown> },
+  to: {
+    meta: RouteMeta
+    fullPath: string
+    query: Record<string, unknown>
+    name?: string | symbol | null
+  },
   auth: RouteAccessContext,
   health: { isDown: boolean },
 ) {
@@ -118,6 +129,11 @@ export function resolveGuardRedirect(
 
   if (access === 'no-organization') {
     return useHomeRoute()
+  }
+
+  // The rail-and-header shell has nothing to show without an organization; the picker is its home.
+  if (to.name === 'home' && auth.isAuthenticated && auth.organizationId === null) {
+    return { name: 'welcome' }
   }
 
   // 'forbidden' keeps the URL: AppLayout shows the "not enough permission" state in place.
