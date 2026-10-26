@@ -68,6 +68,7 @@ export interface LocaleSchema {
     preview: string
     emptyPreview: string
   }
+  errorCodes: Record<string, string>
   errors: {
     requestFailed: string
     networkError: string
@@ -345,6 +346,7 @@ const en: LocaleSchema = {
     preview: 'Preview',
     emptyPreview: 'Nothing to preview yet',
   },
+  errorCodes: {},
   errors: {
     requestFailed: 'Request failed',
     networkError: 'Network error',

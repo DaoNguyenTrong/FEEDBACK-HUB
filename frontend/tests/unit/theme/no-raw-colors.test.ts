@@ -15,7 +15,14 @@ const sources = import.meta.glob('/src/**/*.{vue,ts}', {
   eager: true,
 })
 
-const PHASE_7_FILES: string[] = []
+const PHASE_7_FILES: string[] = [
+  'components/InlineNotice.vue',
+  'components/InlineConfirm.vue',
+  'components/AppSheet.vue',
+  'components/EmptyState.vue',
+  'components/StatusLabel.vue',
+  'components/AmbientBackdrop.vue',
+]
 
 const RAW_COLOR = /#[0-9a-fA-F]{3,8}\b|(?<![a-z])(?:rgba?|hsla?)\(/
 const PALETTE = [

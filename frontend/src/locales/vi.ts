@@ -70,6 +70,7 @@ const vi: LocaleSchema = {
     preview: 'Xem trước',
     emptyPreview: 'Chưa có nội dung',
   },
+  errorCodes: {},
   errors: {
     requestFailed: 'Yêu cầu thất bại',
     networkError: 'Lỗi mạng',

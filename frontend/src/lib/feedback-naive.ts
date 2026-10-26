@@ -1,5 +1,5 @@
 import { createDiscreteApi, darkTheme } from 'naive-ui'
-import type { DialogOptions } from 'naive-ui'
+import type { DialogOptions, MessageOptions } from 'naive-ui'
 import naiveThemeOverrides from '@/theme/naive-theme'
 import {
   getConfirmationOverrideNaive,
@@ -49,14 +49,27 @@ export function requestConfirmationNaive(options: ConfirmationOptionsNaive) {
   dialog.warning(dialogOptions)
 }
 
+type MessageKind = 'success' | 'info' | 'error'
+
+export function messageOptions(kind: MessageKind, life?: number): MessageOptions {
+  if (kind === 'error') {
+    return { duration: life ?? 0, keepAliveOnHover: true, closable: true }
+  }
+  return { duration: life ?? 5000, keepAliveOnHover: true }
+}
+
+function formatText(summary: string, detail?: string) {
+  return detail ? `${summary}\n${detail}` : summary
+}
+
 export function showSuccessMessageNaive(summary: string, detail?: string, life?: number) {
-  message.success(detail ? `${summary}\n${detail}` : summary, { duration: life ?? 5000 })
+  message.success(formatText(summary, detail), messageOptions('success', life))
 }
 
 export function showErrorMessageNaive(summary: string, detail?: string, life?: number) {
-  message.error(detail ? `${summary}\n${detail}` : summary, { duration: life ?? 5000 })
+  message.error(formatText(summary, detail), messageOptions('error', life))
 }
 
 export function showInfoMessageNaive(summary: string, detail?: string, life?: number) {
-  message.info(detail ? `${summary}\n${detail}` : summary, { duration: life ?? 5000 })
+  message.info(formatText(summary, detail), messageOptions('info', life))
 }
