@@ -1,3 +1,9 @@
+interface DeactivateBullets {
+  widget: string
+  access: string
+  data: string
+}
+
 export interface LocaleSchema {
   common: {
     confirm: string
@@ -143,6 +149,7 @@ export interface LocaleSchema {
   nav: {
     home: string
     organizations: string
+    organizationSettings: string
     profile: string
     openMenu: string
     groups: {
@@ -253,6 +260,29 @@ export interface LocaleSchema {
     permissionSettingsManage: string
     permissionFeedbackHubAdmin: string
   }
+  organizationSettings: {
+    title: string
+    infoTitle: string
+    name: string
+    slug: string
+    slugFixed: string
+    save: string
+    renamed: string
+    deactivateTitle: string
+    deactivateText: string
+    deactivateAction: string
+  }
+  deactivateOrganization: {
+    title: string
+    intro: string
+    reason: string
+    optional: string
+    count: string
+    submit: string
+    member: DeactivateBullets
+    systemMember: DeactivateBullets
+    system: DeactivateBullets
+  }
   notifications: {
     title: string
     empty: string
@@ -328,6 +358,10 @@ const en: LocaleSchema = {
       'Use only a–z, 0–9 and "-", start and end with a letter or digit, no two "-" in a row, 3 to 50 characters.',
     OrganizationSlugAlreadyExists: 'This identifier is already taken.',
     EmailNotConfirmed: 'Verify your email before doing this.',
+    OrganizationNameRequired: 'Enter the organization name.',
+    DeactivationReasonRequired: 'Enter a reason.',
+    OwnerOnlyOperation: 'Only an Owner can do this.',
+    InsufficientRolePermissions: "You don't have enough permissions to do this.",
   },
   accessProblem: {
     notFoundTitle: 'Not found',
@@ -429,6 +463,7 @@ const en: LocaleSchema = {
   nav: {
     home: 'Home',
     organizations: 'Organizations',
+    organizationSettings: 'Organization settings',
     profile: 'Profile',
     openMenu: 'Open menu',
     groups: {
@@ -542,6 +577,44 @@ const en: LocaleSchema = {
     permissionAuditLogsView: 'View audit logs',
     permissionSettingsManage: 'Manage settings',
     permissionFeedbackHubAdmin: 'FeedbackHub administration',
+  },
+  organizationSettings: {
+    title: 'Organization settings',
+    infoTitle: 'Organization details',
+    name: 'Organization name',
+    slug: 'Short identifier',
+    slugFixed: "Can't be changed.",
+    save: 'Save',
+    renamed: 'Renamed to {name}',
+    deactivateTitle: 'Deactivate organization',
+    deactivateText: 'Suspends the whole organization at once. Data is kept.',
+    deactivateAction: 'Deactivate organization',
+  },
+  deactivateOrganization: {
+    title: 'Deactivate {name}?',
+    intro: 'The whole organization is suspended right away:',
+    reason: 'Reason',
+    optional: '(optional)',
+    count: '{n}/500',
+    submit: 'Deactivate organization',
+    member: {
+      widget:
+        "The widget of every product stops receiving feedback, and customers' private links are suspended.",
+      access: 'No one can enter the organization, including you.',
+      data: 'Data is kept. Only a FeedbackHub system administrator can reactivate it.',
+    },
+    systemMember: {
+      widget:
+        "The widget of every product stops receiving feedback, and customers' private links are suspended.",
+      access: 'No one can enter the organization, including you.',
+      data: 'Data is kept. You can reactivate it in the Organizations list.',
+    },
+    system: {
+      widget:
+        "The widget of every product stops receiving feedback, and customers' private links are suspended.",
+      access: 'Members cannot enter the organization.',
+      data: 'Data is kept. You can reactivate it at any time.',
+    },
   },
   notifications: {
     title: 'Notifications',
