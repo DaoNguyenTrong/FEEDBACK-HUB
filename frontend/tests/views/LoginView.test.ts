@@ -96,12 +96,12 @@ describe('LoginView', () => {
     server.use(http.post('*/api/auth/login', () => HttpResponse.json(makeAuthResponse())))
 
     const { wrapper, router } = await renderComponent(LoginView, {
-      initialRoute: '/login?redirect=/organizations',
+      initialRoute: '/login?redirect=/guide-auth',
     })
     await submitLogin(wrapper)
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe('/organizations')
+    expect(router.currentRoute.value.fullPath).toBe('/guide-auth')
   })
 
   it('ignores an off-origin redirect and lands on home after signing in', async () => {

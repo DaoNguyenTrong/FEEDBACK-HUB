@@ -18,6 +18,7 @@ const PHASE_7_FILES: string[] = [
   'components/InlineConfirm.vue',
   'components/AppSheet.vue',
   'components/ProfilePanel.vue',
+  'components/CreateOrganizationSheet.vue',
   'components/EmptyState.vue',
   'components/StatusLabel.vue',
   'components/AmbientBackdrop.vue',

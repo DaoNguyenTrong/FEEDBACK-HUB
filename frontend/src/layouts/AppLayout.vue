@@ -58,5 +58,6 @@ onUnmounted(() => {
     <AppearanceSettings />
     <CommandPalette />
     <ProfilePanel v-model:visible="layout.profileOpen" />
+    <CreateOrganizationSheet v-model:show="layout.createOrganizationOpen" />
   </div>
 </template>

@@ -9,7 +9,7 @@ Vue 3 + Vite + TypeScript, Pinia, naive-ui, Tailwind, vue-i18n. Package manager 
 
 ## File & Naming Conventions
 
-- Components/views: PascalCase, `*View.vue` suffix for route-level views (`frontend/src/views/OrganizationsView.vue`).
+- Components/views: PascalCase, `*View.vue` suffix for route-level views (`frontend/src/views/HomeView.vue`).
 - Composables: kebab-case file, `use*` export (`frontend/src/composables/use-sidebar-menu.ts` → `useSidebarMenu`).
 - Stores: kebab-case file, `use*Store` export via Pinia (`frontend/src/stores/auth.ts` → `useAuthStore`).
 - No hand-written per-resource API modules — call the generated client directly (see API Layer below).
@@ -48,7 +48,7 @@ const example = await client.examplesGetById(id)
 ```
 
 - Never hand-roll another axios instance — every generated call already goes through `apiClient` (`api/mutator.ts`). A success side effect goes in the owning Pinia store, request/response types come from `api/types.ts` re-exports, int64 fields are normalized at the point of use: details in `api-contract.md`.
-- In components, show an error with `errorMessage(error, t, te)` (`lib/error-message.ts`): a localized `errorCodes.<code>` string when the locale has one, else `problem.detail`, else the generic `errors.requestFailed`. Don't read `error.problem` fields by hand; `ProfilePanel`, `NotificationBell` and `OrganizationList` still do and move over when next touched.
+- In components, show an error with `errorMessage(error, t, te)` (`lib/error-message.ts`): a localized `errorCodes.<code>` string when the locale has one, else `problem.detail`, else the generic `errors.requestFailed`. Don't read `error.problem` fields by hand; `ProfilePanel` and `NotificationBell` still do and move over when next touched.
 
 ## Runtime Configuration
 

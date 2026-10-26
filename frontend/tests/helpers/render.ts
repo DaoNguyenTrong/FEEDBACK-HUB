@@ -27,12 +27,6 @@ export async function renderComponent<C extends Component>(
         meta: { requiresAuth: true },
       },
       {
-        path: '/organizations',
-        name: 'organizations',
-        component: { template: '<div />' },
-        meta: { requiresAuth: true },
-      },
-      {
         path: '/login',
         name: 'login',
         component: { template: '<div />' },

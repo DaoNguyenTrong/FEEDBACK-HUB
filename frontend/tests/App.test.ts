@@ -84,7 +84,7 @@ describe('App', () => {
     vi.mocked(reloadToLogin).mockClear()
 
     const { wrapper, pinia } = await renderComponent(App, {
-      initialRoute: '/organizations',
+      initialRoute: '/guide-auth',
       initialState: { auth: { account: makeAccount() } },
       global: { stubs },
     })
@@ -103,19 +103,19 @@ describe('App', () => {
     server.use(http.get('*/api/health', () => new Promise<Response>(() => {})))
 
     const { wrapper, router, pinia } = await renderComponent(App, {
-      initialRoute: '/organizations',
+      initialRoute: '/guide-auth',
       initialState: { auth: { account: makeAccount() } },
       global: { stubs },
     })
 
-    expect(router.currentRoute.value.name).toBe('organizations')
+    expect(router.currentRoute.value.name).toBe('guide-auth')
 
     // Mirror the client interceptor clearing auth after a failed silent refresh.
     storeIn(pinia, useAuthStore).clearAuth()
     await settle()
 
     // A full reload, not router.replace: no store may outlive the account that just lapsed.
-    expect(reloadToLogin).toHaveBeenCalledWith({ redirect: '/organizations' })
+    expect(reloadToLogin).toHaveBeenCalledWith({ redirect: '/guide-auth' })
 
     wrapper.unmount()
   })

@@ -223,30 +223,17 @@ export interface LocaleSchema {
     systemKind: { Owner: string; Admin: string; Member: string }
   }
   organizations: {
-    title: string
     switcherTitle: string
     suspended: string
     backToWelcome: string
     create: string
     personalWorkspace: string
-    switchOrganization: string
-    createNew: string
     createTitle: string
-    manage: string
     name: string
-    namePlaceholder: string
     nameRequired: string
+    resendVerification: string
     slug: string
-    slugPlaceholder: string
     slugHint: string
-    slugRequired: string
-    myRole: string
-    status: string
-    active: string
-    inactive: string
-    empty: string
-    emptyHint: string
-    created: string
     permissionOrganizationManage: string
     permissionOrganizationMembersManage: string
     permissionOrganizationRolesManage: string
@@ -326,7 +313,12 @@ const en: LocaleSchema = {
     preview: 'Preview',
     emptyPreview: 'Nothing to preview yet',
   },
-  errorCodes: {},
+  errorCodes: {
+    OrganizationSlugInvalid:
+      'Use only a–z, 0–9 and "-", start and end with a letter or digit, no two "-" in a row, 3 to 50 characters.',
+    OrganizationSlugAlreadyExists: 'This identifier is already taken.',
+    EmailNotConfirmed: 'Verify your email before doing this.',
+  },
   accessProblem: {
     notFoundTitle: 'Not found',
     notFoundText: "This content doesn't exist or you don't have access to it.",
@@ -508,30 +500,17 @@ const en: LocaleSchema = {
     systemKind: { Owner: 'Owner', Admin: 'Admin', Member: 'Member' },
   },
   organizations: {
-    title: 'Organizations',
     switcherTitle: 'Your organizations',
     suspended: 'Suspended',
     backToWelcome: 'Back to welcome page',
     create: 'Create organization',
     personalWorkspace: 'Personal workspace',
-    switchOrganization: 'Switch organization',
-    createNew: 'New organization',
     createTitle: 'Create organization',
-    manage: 'Manage organizations',
-    name: 'Name',
-    namePlaceholder: 'Enter the organization name',
-    nameRequired: 'Organization name is required.',
-    slug: 'Slug',
-    slugPlaceholder: 'e.g. acme-inc',
-    slugHint: 'A unique, URL-safe identifier. Lowercase letters, numbers, and hyphens only.',
-    slugRequired: 'Slug is required.',
-    myRole: 'Your role',
-    status: 'Status',
-    active: 'Active',
-    inactive: 'Inactive',
-    empty: 'No organizations yet',
-    emptyHint: 'Create an organization to get started.',
-    created: 'Organization created',
+    name: 'Organization name',
+    nameRequired: 'Enter the organization name.',
+    slug: 'Short identifier',
+    slugHint: "Can't be changed after creation.",
+    resendVerification: 'Resend verification email',
     permissionOrganizationManage: 'Manage organization',
     permissionOrganizationMembersManage: 'Manage members',
     permissionOrganizationRolesManage: 'Manage roles',
