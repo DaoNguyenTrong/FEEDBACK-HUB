@@ -1185,6 +1185,39 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         Assert.Null(issued.RevokedAt);
     }
 
+    // A session keeps its remember-me choice across a switch: the refresh cookie stays a session cookie unless asked.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SwitchOrganization_AfterLogin_KeepsTheRememberMeChoiceInTheRefreshCookie(bool keepLoggedIn)
+    {
+        string username = keepLoggedIn ? "switch-remembered" : "switch-not-remembered";
+        HttpClient client = fixture.CreateTestClient();
+        (_, Organization organization) = await SeedMemberAsync(username, password: "correct-password");
+        HttpResponseMessage login = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest(username, "correct-password", keepLoggedIn));
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        LoginResponse? loginBody = await login.Content.ReadJsonAsync<LoginResponse>();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", loginBody!.AccessToken);
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        string refreshCookie = Assert.Single(
+            response.Headers.GetValues("Set-Cookie"),
+            cookie => cookie.StartsWith("refresh_token=", StringComparison.Ordinal));
+        if (keepLoggedIn)
+        {
+            Assert.Contains("expires=", refreshCookie, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            Assert.DoesNotContain("expires=", refreshCookie, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("max-age=", refreshCookie, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     [Fact]
     public async Task SwitchOrganization_NullOrganization_Returns200WithoutOrganization()
     {
