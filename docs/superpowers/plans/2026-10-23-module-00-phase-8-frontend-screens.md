@@ -805,3 +805,19 @@ Expected: PASS.
 - **Đã chốt (SA, 2026-10-23):** Ẩn dòng "Gửi kèm email báo các Chủ sở hữu." dưới ô lý do cho tới khi TECH05 gửi email thật. Ô lý do vẫn có: bắt buộc với admin hệ thống (BR-54), không bắt buộc với người khác (BR-52). TECH05 đưa dòng này trở lại (Task 3, Task 8).
 - **Đã chốt (SA, 2026-10-23):** Trang chào hiện link chữ *Các tổ chức* tới `/system/organizations` mỗi khi `isSystemAdministrator`, không chỉ khi admin chưa có tổ chức nào. Máy chủ vẫn kiểm policy `SystemAdministrator` ở API-24–26; rail mở được với `org_id` rỗng và chỉ hiện mục hệ thống (Task 2, Task 8).
 - **Đã chốt (SA, 2026-10-23):** Sau khi tự vô hiệu tổ chức đang làm việc (API-05 trả 204), chuyển về trang chào, không ghi thông báo vào `sessionStorage`. Bộ chọn hiện tổ chức đó mờ có nhãn, hoặc câu giải thích BR-64 nếu mọi tổ chức đều tạm ngừng (Task 3).
+
+---
+
+### Task 11: Cập nhật hướng dẫn sử dụng theo giao diện mới (SA, 2026-10-26)
+
+Thêm sau pre-flight (P11). Phần 7 (F16) và `docs/feature-map.md` đã giao việc này cho phần 8.
+
+- **Sửa** (vi và en):
+  - `account/appearance.md`: bỏ chế độ menu;
+  - `getting-started/interface.md`: rail, thanh trên, bộ chọn tổ chức;
+  - `organizations/create.md`, `organizations/switch.md`;
+  - các trang thành viên, vai trò và vô hiệu tổ chức, theo màn hình của Task 3–6.
+- **Selector chụp ảnh:** `frontend/user-guide/tools/sections/**/getting-started.capture.ts` và các tệp capture khác dùng testid đã bị bỏ (`app-sidebar`, `app-header-title/-toggle/-settings`).
+- **Kiểm:** `bun run --cwd frontend/user-guide/site test` và `build`.
+- **Chụp lại ảnh** (`bun run --cwd frontend guide:capture`): bước cuối, chỉ khi người dùng cho chạy `scripts/dev-up.sh`. Nếu chưa được phép, PR ghi rõ ảnh còn cũ; việc này không chặn merge.
+- **Commit:** `docs(guide): describe the new app shell and organization screens`.
