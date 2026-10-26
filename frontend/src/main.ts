@@ -1,3 +1,5 @@
+import '@fontsource-variable/plus-jakarta-sans'
+import '@fontsource-variable/jetbrains-mono'
 import App from './App.vue'
 
 import './assets/styles/tailwind.css'

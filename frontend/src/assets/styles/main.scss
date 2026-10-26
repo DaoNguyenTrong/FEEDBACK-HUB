@@ -1,20 +1,11 @@
 // --- Base styles ---
 body {
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    sans-serif;
-  background-color: var(--color-surface-100);
-  color: var(--color-surface-600);
+  font-family: var(--font-sans);
+  background-color: var(--color-page);
+  color: var(--color-ink);
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
-}
-
-.dark body {
-  background-color: var(--color-surface-950);
-  color: var(--color-surface-200);
 }
 
 // --- Responsive ---
@@ -44,11 +35,7 @@ body {
 // --- Scrollbar ---
 html {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-surface-200) transparent;
-}
-
-.dark {
-  scrollbar-color: var(--color-surface-800) transparent;
+  scrollbar-color: var(--color-line) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -61,20 +48,12 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--color-surface-200);
+  background-color: var(--color-line);
   border-radius: 8px;
   transition: background-color 0.2s ease;
 
   &:hover {
-    background-color: var(--color-surface-300);
-  }
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background-color: var(--color-surface-700);
-
-  &:hover {
-    background-color: var(--color-surface-600);
+    background-color: var(--color-control);
   }
 }
 

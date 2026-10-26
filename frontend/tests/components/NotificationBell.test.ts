@@ -59,7 +59,7 @@ describe('NotificationBell', () => {
       props: { tone: 'on-brand' },
       global: { stubs: { teleport: true } },
     })
-    expect(brand.wrapper.getComponent(NButton).props('color')).toBe('#ffffff')
+    expect(brand.wrapper.getComponent(NButton).props('color')).toBe('var(--color-on-accent)')
     brand.wrapper.unmount()
 
     const plain = await renderComponent(NotificationBell, { global: { stubs: { teleport: true } } })
