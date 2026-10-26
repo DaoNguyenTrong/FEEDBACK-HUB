@@ -304,250 +304,6 @@
         }
       }
     },
-    "/api/admin/audit-logs": {
-      "get": {
-        "tags": [
-          "AuditLogs"
-        ],
-        "summary": "Returns a paginated list of audit logs.",
-        "operationId": "AuditLogs_GetAll",
-        "parameters": [
-          {
-            "name": "pageNumber",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          },
-          {
-            "name": "pageSize",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          },
-          {
-            "name": "search",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "userId",
-            "in": "query",
-            "description": "Filter to audit logs performed by this account.",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "systemOnly",
-            "in": "query",
-            "description": "When true, filter to system-generated audit logs (no associated account).",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "X-TimeZone",
-            "in": "header",
-            "description": "IANA timezone identifier used to format date/time values. Examples: Asia/Ho_Chi_Minh, UTC, America/New_York.",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "Asia/Ho_Chi_Minh"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfAuditLogDto"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfAuditLogDto"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfAuditLogDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/audit-logs/{id}": {
-      "get": {
-        "tags": [
-          "AuditLogs"
-        ],
-        "summary": "Returns the details of an audit log by ID.",
-        "operationId": "AuditLogs_GetById",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "X-TimeZone",
-            "in": "header",
-            "description": "IANA timezone identifier used to format date/time values. Examples: Asia/Ho_Chi_Minh, UTC, America/New_York.",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "Asia/Ho_Chi_Minh"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuditLogDto"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuditLogDto"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuditLogDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/auth/login": {
       "post": {
         "tags": [
@@ -3632,6 +3388,128 @@
         }
       }
     },
+    "/api/organization/audit-log": {
+      "get": {
+        "tags": [
+          "CurrentOrganization"
+        ],
+        "summary": "Lists the working organization's audit entries, newest first; needs `auditlogs.view`, never an API key.\nA page can hold fewer than `limit` items, even none, while `nextCursor` is not `null`:\npass it as `cursor` for the next page and stop only when it is `null`.",
+        "operationId": "CurrentOrganization_GetAuditLog",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "X-TimeZone",
+            "in": "header",
+            "description": "IANA timezone identifier used to format date/time values. Examples: Asia/Ho_Chi_Minh, UTC, America/New_York.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Asia/Ho_Chi_Minh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEntryPage"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEntryPage"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEntryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/files": {
       "post": {
         "tags": [
@@ -6319,6 +6197,14 @@
           }
         }
       },
+      "ActorKind": {
+        "enum": [
+          "Account",
+          "SystemAdministrator",
+          "System"
+        ],
+        "type": "string"
+      },
       "ApiKeyDto": {
         "required": [
           "id",
@@ -6344,19 +6230,14 @@
           }
         }
       },
-      "AuditLogDto": {
+      "AuditEntryDto": {
         "required": [
           "id",
-          "entityName",
-          "entityId",
-          "action",
-          "oldValues",
-          "newValues",
-          "userId",
-          "userName",
-          "ipAddress",
-          "userAgent",
-          "timestamp"
+          "occurredAt",
+          "actorKind",
+          "actorName",
+          "type",
+          "parameters"
         ],
         "type": "object",
         "properties": {
@@ -6368,56 +6249,65 @@
             ],
             "format": "int64"
           },
-          "entityName": {
-            "type": "string"
-          },
-          "entityId": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string"
-          },
-          "oldValues": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "newValues": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "userId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "userName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "ipAddress": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "userAgent": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "timestamp": {
+          "occurredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "actorKind": {
+            "$ref": "#/components/schemas/ActorKind"
+          },
+          "actorName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/AuditEventType"
+          },
+          "parameters": {
+            "type": "object"
           }
         }
+      },
+      "AuditEntryPage": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEntryDto"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AuditEventType": {
+        "enum": [
+          "InvitationSent",
+          "InvitationRevoked",
+          "InvitationDeleted",
+          "MemberJoined",
+          "MemberRolesChanged",
+          "MemberRemoved",
+          "MemberLeft",
+          "RoleCreated",
+          "RoleUpdated",
+          "RoleDeleted",
+          "OrganizationRenamed",
+          "OrganizationDeactivated",
+          "OrganizationReactivated"
+        ],
+        "type": "string"
       },
       "ChangePasswordRequest": {
         "required": [
@@ -7121,61 +7011,6 @@
                 "$ref": "#/components/schemas/RoleRefDto"
               }
             ]
-          }
-        }
-      },
-      "PagedResultOfAuditLogDto": {
-        "required": [
-          "items",
-          "totalCount",
-          "pageNumber",
-          "pageSize"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AuditLogDto"
-            }
-          },
-          "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "pageNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "totalPages": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "hasPreviousPage": {
-            "type": "boolean"
-          },
-          "hasNextPage": {
-            "type": "boolean"
           }
         }
       },
@@ -8262,9 +8097,6 @@
   "tags": [
     {
       "name": "ApiKeys"
-    },
-    {
-      "name": "AuditLogs"
     },
     {
       "name": "Auth"
