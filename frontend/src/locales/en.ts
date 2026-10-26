@@ -463,7 +463,7 @@ const en: LocaleSchema = {
   nav: {
     home: 'Home',
     organizations: 'Organizations',
-    organizationSettings: 'Organization settings',
+    organizationSettings: 'Organization management',
     profile: 'Profile',
     openMenu: 'Open menu',
     groups: {
@@ -579,7 +579,7 @@ const en: LocaleSchema = {
     permissionFeedbackHubAdmin: 'FeedbackHub administration',
   },
   organizationSettings: {
-    title: 'Organization settings',
+    title: 'Organization management',
     infoTitle: 'Organization details',
     name: 'Organization name',
     slug: 'Short identifier',

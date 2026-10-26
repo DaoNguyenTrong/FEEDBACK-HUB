@@ -11,6 +11,8 @@ type Props = {
   reasonRequired: boolean
   variant: 'member' | 'system-member' | 'system'
   busy: boolean
+  reasonError: string | null
+  deactivated: boolean
 }
 
 async function render(props: Partial<Props> = {}) {
@@ -31,7 +33,8 @@ async function render(props: Partial<Props> = {}) {
   return result
 }
 
-const find = (testid: string) => document.body.querySelector<HTMLElement>(`[data-testid="${testid}"]`)
+const find = (testid: string) =>
+  document.body.querySelector<HTMLElement>(`[data-testid="${testid}"]`)
 const reasonBox = () => new DOMWrapper(find('deactivate-org-reason') as HTMLTextAreaElement)
 
 async function press(testid: string) {
@@ -109,5 +112,26 @@ describe('DeactivateOrganizationDialog', () => {
     await press('deactivate-org-submit')
 
     expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it('asks the parent to clear the reason error when the reason is edited', async () => {
+    const { wrapper } = await render({ reasonError: 'Server says no' } as Partial<Props>)
+    expect(find('deactivate-org-reason-error')?.textContent).toContain('Server says no')
+
+    await reasonBox().setValue('x')
+
+    expect(wrapper.emitted('update:reasonError')).toEqual([[null]])
+  })
+
+  it('only offers to leave once the organization is deactivated, without asking for a reason', async () => {
+    const { wrapper } = await render({
+      reasonRequired: true,
+      deactivated: true,
+    } as Partial<Props>)
+
+    expect(find('deactivate-org-submit')?.textContent).toContain(t('organizations.backToWelcome'))
+    await press('deactivate-org-submit')
+
+    expect(wrapper.emitted('submit')).toEqual([[null]])
   })
 })

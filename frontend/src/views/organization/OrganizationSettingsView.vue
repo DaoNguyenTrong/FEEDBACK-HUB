@@ -18,7 +18,6 @@ const controlSize = useControlSize()
 const { isPhone } = useViewport()
 
 const organization = ref<CurrentOrganizationDto | null>(null)
-const loading = ref(true)
 const accessProblem = ref<AccessProblem | null>(null)
 const loadError = ref<string | null>(null)
 
@@ -29,6 +28,8 @@ const saving = ref(false)
 
 const dialogOpen = ref(false)
 const deactivating = ref(false)
+// API-05 answered 204: from then on the dialog only retries the exit and never sends it again.
+const deactivated = ref(false)
 const deactivateError = ref<string | null>(null)
 const reasonError = ref<string | null>(null)
 
@@ -40,15 +41,12 @@ const nameInputProps: Record<string, string> = {
 onMounted(load)
 
 async function load() {
-  loading.value = true
   try {
     organization.value = await client.currentOrganizationGet()
     name.value = organization.value.name
   } catch (error) {
     accessProblem.value = accessProblemOf(error)
     if (!accessProblem.value) loadError.value = errorMessage(error, t, te)
-  } finally {
-    loading.value = false
   }
 }
 
@@ -88,7 +86,9 @@ function showSaveFailure(error: unknown) {
   if (code === 'OrganizationNameRequired') {
     nameError.value = errorMessage(error, t, te)
   } else if (code === 'ValidationFailed' && error instanceof ApiError) {
-    nameError.value = mapValidationErrors(error.problem.errors).name ?? t('errors.requestFailed')
+    const fieldError = mapValidationErrors(error.problem.errors).name
+    if (fieldError) nameError.value = fieldError
+    else saveError.value = errorMessage(error, t, te)
   } else {
     saveError.value = errorMessage(error, t, te)
   }
@@ -108,20 +108,24 @@ async function deactivate(reason: string | null) {
 
   // Our own exit: the next 403 from the suspended organization must not read as "someone else did it".
   contextStore.beginOwnExit()
-  try {
-    await client.currentOrganizationDeactivate({ reason })
-  } catch (error) {
-    contextStore.cancelOwnExit()
-    showDeactivateFailure(error)
-    deactivating.value = false
-    return
+  if (!deactivated.value) {
+    try {
+      await client.currentOrganizationDeactivate({ reason })
+      deactivated.value = true
+    } catch (error) {
+      contextStore.cancelOwnExit()
+      showDeactivateFailure(error)
+      deactivating.value = false
+      return
+    }
   }
 
   try {
     await contextStore.leaveToWelcome()
   } catch (error) {
-    // Deactivated, but the switch failed: let the shared handler take over from here.
-    contextStore.cancelOwnExit()
+    // The store ends the own exit when the switch fails; the organization is already suspended and
+    // the actor is still leaving, so it is turned back on for the retry.
+    contextStore.beginOwnExit()
     deactivateError.value = errorMessage(error, t, te)
     deactivating.value = false
   }
@@ -166,6 +170,7 @@ function showDeactivateFailure(error: unknown) {
                 :value="name"
                 class="w-full"
                 :size="controlSize"
+                :maxlength="200"
                 :status="nameError ? 'error' : undefined"
                 :input-props="nameInputProps"
                 @update:value="onNameInput"
@@ -217,8 +222,10 @@ function showDeactivateFailure(error: unknown) {
         :reason-required="auth.isSystemAdministrator"
         :variant="auth.isSystemAdministrator ? 'system-member' : 'member'"
         :busy="deactivating"
+        :deactivated="deactivated"
         :error="deactivateError"
         :reason-error="reasonError"
+        @update:reason-error="reasonError = $event"
         @submit="deactivate"
       />
     </template>
