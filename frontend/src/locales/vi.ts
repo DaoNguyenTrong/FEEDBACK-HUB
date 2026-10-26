@@ -232,6 +232,10 @@ const vi: LocaleSchema = {
   },
   organizations: {
     title: 'Tổ chức',
+    switcherTitle: 'Tổ chức của bạn',
+    suspended: 'Tạm ngừng',
+    backToWelcome: 'Về trang chào',
+    create: 'Tạo tổ chức',
     personalWorkspace: 'Không gian cá nhân',
     switchOrganization: 'Chuyển tổ chức',
     createNew: 'Tạo tổ chức',

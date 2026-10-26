@@ -220,6 +220,10 @@ export interface LocaleSchema {
   }
   organizations: {
     title: string
+    switcherTitle: string
+    suspended: string
+    backToWelcome: string
+    create: string
     personalWorkspace: string
     switchOrganization: string
     createNew: string
@@ -498,6 +502,10 @@ const en: LocaleSchema = {
   },
   organizations: {
     title: 'Organizations',
+    switcherTitle: 'Your organizations',
+    suspended: 'Suspended',
+    backToWelcome: 'Back to welcome page',
+    create: 'Create organization',
     personalWorkspace: 'Personal workspace',
     switchOrganization: 'Switch organization',
     createNew: 'New organization',

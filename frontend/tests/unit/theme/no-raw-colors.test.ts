@@ -23,6 +23,8 @@ const PHASE_7_FILES: string[] = [
   'layouts/AppRail.vue',
   'layouts/AppRailNav.vue',
   'layouts/AppTopBar.vue',
+  'layouts/OrgSwitcher.vue',
+  'layouts/OrgSwitcherPanel.vue',
   'layouts/AppFooter.vue',
   'layouts/UserMenu.vue',
   'layouts/AppLayout.vue',
