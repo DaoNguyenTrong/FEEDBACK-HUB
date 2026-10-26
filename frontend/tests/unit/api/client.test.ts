@@ -241,6 +241,50 @@ describe('apiClient interceptors', () => {
     expect(switchCalls).toBe(2)
   })
 
+  it.each([
+    ['get', '/api/auth/sessions'],
+    ['delete', '/api/auth/sessions/42'],
+    ['post', '/api/auth/sessions/revoke-others'],
+  ] as const)('refreshes and retries %s %s after a bodyless 401', async (method, url) => {
+    let calls = 0
+    let refreshCalls = 0
+
+    server.use(
+      http[method](`*${url}`, () => {
+        calls++
+        return calls === 1 ? new HttpResponse(null, { status: 401 }) : HttpResponse.json({ ok: true })
+      }),
+      http.post('*/api/auth/refresh', () => {
+        refreshCalls++
+        return HttpResponse.json(makeAuthResponse())
+      }),
+    )
+
+    const apiClient = await loadApiClient()
+
+    const response = await apiClient.request({ method, url })
+    expect(response.data).toEqual({ ok: true })
+    expect(refreshCalls).toBe(1)
+    expect(calls).toBe(2)
+  })
+
+  it('does not refresh on a logout 401', async () => {
+    let refreshCalls = 0
+
+    server.use(
+      http.post('*/api/auth/logout', () => HttpResponse.json(null, { status: 401 })),
+      http.post('*/api/auth/refresh', () => {
+        refreshCalls++
+        return HttpResponse.json(makeAuthResponse())
+      }),
+    )
+
+    const apiClient = await loadApiClient()
+
+    await expect(apiClient.post('/api/auth/logout', {})).rejects.toBeDefined()
+    expect(refreshCalls).toBe(0)
+  })
+
   it('does not refresh on password change 401', async () => {
     let refreshCalls = 0
 
