@@ -75,7 +75,7 @@ onMounted(async () => {
         class="flex flex-col items-center justify-center rounded-xl border border-surface-200 bg-surface-0 px-6 py-16 dark:border-surface-800 dark:bg-surface-900"
       >
         <div
-          class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-400/10"
+          class="mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-400/10"
         >
           <n-icon class="text-2xl text-primary-500 dark:text-primary-200"><Building /></n-icon>
         </div>

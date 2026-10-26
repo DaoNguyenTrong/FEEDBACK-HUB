@@ -96,9 +96,7 @@ function reportError(error: unknown) {
     </template>
 
     <div class="flex max-h-[min(24rem,70dvh)] w-full flex-col">
-      <div
-        class="flex items-center justify-between border-b border-surface-200 px-3 py-2 dark:border-surface-800"
-      >
+      <div class="flex items-center justify-between border-b border-line px-3 py-2">
         <span class="font-medium">{{ t('notifications.title') }}</span>
         <n-button
           text
@@ -125,11 +123,11 @@ function reportError(error: unknown) {
             <div class="flex w-full items-start gap-2">
               <span
                 class="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                :class="item.isRead ? 'bg-transparent' : 'bg-primary-500'"
+                :class="item.isRead ? 'bg-transparent' : 'bg-accent'"
               />
               <div class="min-w-0 flex-1">
                 <p class="text-sm">{{ notificationText(item) }}</p>
-                <p class="text-xs text-surface-500">{{ formatDate(item.createdAt) }}</p>
+                <p class="text-xs text-ink-muted">{{ formatDate(item.createdAt) }}</p>
               </div>
               <n-button
                 v-if="!item.isRead"
