@@ -11,4 +11,6 @@ public interface IAuditLogService
         CancellationToken cancellationToken = default);
 
     Task<AuditLogDto> GetByIdAsync(long id, CancellationToken cancellationToken = default);
+
+    Task<AuditEntryPage> ListAsync(AuditLogQuery query, CancellationToken cancellationToken);
 }

@@ -264,4 +264,7 @@
   <data name="InvitationOrganizationSuspended" xml:space="preserve">
     <value>The organization is suspended, so you can't join it yet.</value>
   </data>
+  <data name="InvalidCursor" xml:space="preserve">
+    <value>The list could not continue. Reload the page.</value>
+  </data>
 </root>

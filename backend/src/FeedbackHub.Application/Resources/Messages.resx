@@ -264,4 +264,7 @@
   <data name="InvitationOrganizationSuspended" xml:space="preserve">
     <value>Tổ chức đang tạm ngừng hoạt động nên chưa vào được.</value>
   </data>
+  <data name="InvalidCursor" xml:space="preserve">
+    <value>Không tải tiếp được danh sách. Hãy tải lại trang.</value>
+  </data>
 </root>
