@@ -17,6 +17,7 @@ const PHASE_7_FILES: string[] = [
   'components/InlineNotice.vue',
   'components/InlineConfirm.vue',
   'components/AppSheet.vue',
+  'components/ProfilePanel.vue',
   'components/EmptyState.vue',
   'components/StatusLabel.vue',
   'components/AmbientBackdrop.vue',

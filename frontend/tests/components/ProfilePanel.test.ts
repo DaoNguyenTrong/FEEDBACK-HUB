@@ -1,10 +1,11 @@
 import { flushPromises } from '@vue/test-utils'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it, vi, afterEach } from 'vitest'
-import ProfileDialog from '@/components/ProfileDialog.vue'
+import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest'
+import ProfilePanel from '@/components/ProfilePanel.vue'
 import * as feedback from '@/lib/feedback'
 import { server } from '../helpers/msw/server'
 import { renderComponent } from '../helpers/render'
+import { stubViewport } from '../helpers/viewport'
 import { storeIn } from '../helpers/pinia'
 import type { ProfileDto, SessionDto } from '@/api/types'
 import en from '@/locales/en'
@@ -50,8 +51,8 @@ function problemResponse(body: Record<string, unknown>, status: number) {
   })
 }
 
-async function openDialog() {
-  const result = await renderComponent(ProfileDialog, {
+async function openPanel() {
+  const result = await renderComponent(ProfilePanel, {
     props: { visible: false },
     global: { stubs: { teleport: true } },
   })
@@ -61,25 +62,100 @@ async function openDialog() {
 }
 
 function placeholderInput(
-  wrapper: Awaited<ReturnType<typeof openDialog>>['wrapper'],
+  wrapper: Awaited<ReturnType<typeof openPanel>>['wrapper'],
   placeholder: string,
 ) {
   return wrapper.find<HTMLInputElement>(`input[placeholder="${placeholder}"]`)
 }
 
-async function openChangePasswordTab(wrapper: Awaited<ReturnType<typeof openDialog>>['wrapper']) {
+async function openChangePasswordTab(wrapper: Awaited<ReturnType<typeof openPanel>>['wrapper']) {
   await wrapper.find('[data-name="changePassword"]').trigger('click')
   await flushPromises()
 }
 
-async function openSessionsTab(wrapper: Awaited<ReturnType<typeof openDialog>>['wrapper']) {
+async function openSessionsTab(wrapper: Awaited<ReturnType<typeof openPanel>>['wrapper']) {
   await wrapper.find('[data-name="sessions"]').trigger('click')
   await flushPromises()
 }
 
-describe('ProfileDialog', () => {
+describe('ProfilePanel', () => {
+  beforeEach(() => {
+    stubViewport(1280)
+  })
+
   afterEach(() => {
+    vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('opens as a side panel on the right at 1280 px', async () => {
+    server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
+
+    const { wrapper } = await openPanel()
+
+    const sheet = wrapper.get('[data-testid="app-sheet"]')
+    expect(sheet.classes()).toContain('n-drawer--right-placement')
+    expect(sheet.attributes('aria-label')).toBe(en.profile.title)
+  })
+
+  it.each([834, 390])('opens as a bottom sheet at %i px', async (width) => {
+    stubViewport(width)
+    server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
+
+    const { wrapper } = await openPanel()
+
+    expect(wrapper.get('[data-testid="app-sheet"]').classes()).toContain(
+      'n-drawer--bottom-placement',
+    )
+  })
+
+  it('keeps the session when the current password is wrong', async () => {
+    server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
+    let refreshCalls = 0
+    server.use(
+      http.post('*/api/auth/refresh', () => {
+        refreshCalls += 1
+        return new HttpResponse(null, { status: 401 })
+      }),
+      http.put('*/api/profile', () =>
+        problemResponse({ status: 401, title: 'Err', code: 'InvalidCurrentPassword' }, 401),
+      ),
+    )
+
+    const { wrapper, pinia } = await openPanel()
+    const clearAuth = vi.spyOn(storeIn(pinia, useAuthStore), 'clearAuth')
+    await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
+    await wrapper
+      .find<HTMLInputElement>('[data-testid="profile-email-current-password"] input')
+      .setValue('wrong')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(en.profile.invalidCurrentPassword)
+    expect(refreshCalls).toBe(0)
+    expect(clearAuth).not.toHaveBeenCalled()
+  })
+
+  it('reloads the profile and clears the current password when reopened', async () => {
+    let loads = 0
+    server.use(
+      http.get('*/api/profile', () => {
+        loads += 1
+        return HttpResponse.json(makeProfile())
+      }),
+    )
+    const passwordSelector = '[data-testid="profile-email-current-password"] input'
+
+    const { wrapper } = await openPanel()
+    await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
+    await wrapper.find<HTMLInputElement>(passwordSelector).setValue('typed')
+    await wrapper.setProps({ visible: false })
+    await wrapper.setProps({ visible: true })
+    await flushPromises()
+    await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
+
+    expect(loads).toBe(2)
+    expect(wrapper.find<HTMLInputElement>(passwordSelector).element.value).toBe('')
   })
 
   it('shows a loading skeleton while the profile request is in flight', async () => {
@@ -94,7 +170,7 @@ describe('ProfileDialog', () => {
       }),
     )
 
-    const { wrapper } = await renderComponent(ProfileDialog, {
+    const { wrapper } = await renderComponent(ProfilePanel, {
       props: { visible: false },
       global: { stubs: { teleport: true } },
     })
@@ -113,7 +189,7 @@ describe('ProfileDialog', () => {
       http.get('*/api/profile', () => HttpResponse.json(makeProfile({ name: 'Jane Doe' }))),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
 
     expect(placeholderInput(wrapper, en.profile.namePlaceholder).element.value).toBe('Jane Doe')
   })
@@ -125,7 +201,7 @@ describe('ProfileDialog', () => {
       ),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
 
     expect(wrapper.text()).toContain('Server error')
     expect(placeholderInput(wrapper, en.profile.namePlaceholder).exists()).toBe(false)
@@ -141,7 +217,7 @@ describe('ProfileDialog', () => {
       }),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
 
     await placeholderInput(wrapper, en.profile.namePlaceholder).setValue('  Jane Doe  ')
     await placeholderInput(wrapper, en.profile.phonePlaceholder).setValue('  ')
@@ -165,7 +241,7 @@ describe('ProfileDialog', () => {
     )
     const successSpy = vi.spyOn(feedback, 'showSuccessMessage')
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
@@ -184,7 +260,7 @@ describe('ProfileDialog', () => {
       ),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
@@ -198,7 +274,7 @@ describe('ProfileDialog', () => {
     )
     const errorSpy = vi.spyOn(feedback, 'showErrorMessage')
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
@@ -211,7 +287,7 @@ describe('ProfileDialog', () => {
     server.use(http.put('*/api/profile/password', () => new HttpResponse(null, { status: 204 })))
     const successSpy = vi.spyOn(feedback, 'showSuccessMessage')
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openChangePasswordTab(wrapper)
     await placeholderInput(wrapper, en.profile.currentPasswordPlaceholder).setValue('old-pass')
     await placeholderInput(wrapper, en.profile.newPasswordPlaceholder).setValue('new-pass')
@@ -236,7 +312,7 @@ describe('ProfileDialog', () => {
     )
     const errorSpy = vi.spyOn(feedback, 'showErrorMessage')
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openChangePasswordTab(wrapper)
     await placeholderInput(wrapper, en.profile.currentPasswordPlaceholder).setValue('old-pass')
     await placeholderInput(wrapper, en.profile.newPasswordPlaceholder).setValue('new-pass')
@@ -263,7 +339,7 @@ describe('ProfileDialog', () => {
       ),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openChangePasswordTab(wrapper)
     await placeholderInput(wrapper, en.profile.currentPasswordPlaceholder).setValue('old-pass')
     await placeholderInput(wrapper, en.profile.newPasswordPlaceholder).setValue('new-pass')
@@ -285,7 +361,7 @@ describe('ProfileDialog', () => {
       ),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openChangePasswordTab(wrapper)
     await placeholderInput(wrapper, en.profile.currentPasswordPlaceholder).setValue('old-pass')
     await placeholderInput(wrapper, en.profile.newPasswordPlaceholder).setValue('new-pass')
@@ -304,7 +380,7 @@ describe('ProfileDialog', () => {
     )
     const errorSpy = vi.spyOn(feedback, 'showErrorMessage')
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openChangePasswordTab(wrapper)
     await placeholderInput(wrapper, en.profile.currentPasswordPlaceholder).setValue('old-pass')
     await placeholderInput(wrapper, en.profile.newPasswordPlaceholder).setValue('new-pass')
@@ -319,7 +395,7 @@ describe('ProfileDialog', () => {
       http.get('*/api/profile', () => HttpResponse.json(makeProfile({ hasPassword: false }))),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
 
     expect(wrapper.find('[data-name="changePassword"]').exists()).toBe(false)
   })
@@ -343,7 +419,7 @@ describe('ProfileDialog', () => {
       }),
     ])
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openSessionsTab(wrapper)
 
     expect(wrapper.text()).toContain('Chrome on Linux')
@@ -355,7 +431,7 @@ describe('ProfileDialog', () => {
     server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
     mockSessions([])
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openSessionsTab(wrapper)
 
     expect(wrapper.text()).toContain(en.profile.sessionsEmpty)
@@ -365,7 +441,7 @@ describe('ProfileDialog', () => {
     server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
     mockSessions([makeSession({ id: 1, isCurrent: true })])
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openSessionsTab(wrapper)
 
     expect(
@@ -392,7 +468,7 @@ describe('ProfileDialog', () => {
       }),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openSessionsTab(wrapper)
 
     const revokeButtons = wrapper.findAll(
@@ -410,7 +486,7 @@ describe('ProfileDialog', () => {
     server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
     mockSessions([makeSession({ id: 1, isCurrent: true })])
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openSessionsTab(wrapper)
 
     expect(
@@ -442,7 +518,7 @@ describe('ProfileDialog', () => {
       }),
     )
 
-    const { wrapper } = await openDialog()
+    const { wrapper } = await openPanel()
     await openSessionsTab(wrapper)
 
     const button = wrapper
@@ -460,7 +536,7 @@ describe('ProfileDialog', () => {
     const passwordSelector = '[data-testid="profile-email-current-password"] input'
 
     async function changeEmailAndSubmit(
-      wrapper: Awaited<ReturnType<typeof openDialog>>['wrapper'],
+      wrapper: Awaited<ReturnType<typeof openPanel>>['wrapper'],
       password?: string,
     ) {
       await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
@@ -478,7 +554,7 @@ describe('ProfileDialog', () => {
         ),
       )
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       const line = wrapper.find('[data-testid="profile-pending-email"]')
       expect(line.exists()).toBe(true)
@@ -490,7 +566,7 @@ describe('ProfileDialog', () => {
     it('does not show the pending line when no change is pending', async () => {
       server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       expect(wrapper.find('[data-testid="profile-pending-email"]').exists()).toBe(false)
     })
@@ -498,7 +574,7 @@ describe('ProfileDialog', () => {
     it('shows Current password only after the email field changes and hasPassword is true', async () => {
       server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
       expect(wrapper.find(passwordSelector).exists()).toBe(false)
 
       await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
@@ -513,7 +589,7 @@ describe('ProfileDialog', () => {
         http.get('*/api/profile', () => HttpResponse.json(makeProfile({ hasPassword: false }))),
       )
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
       await placeholderInput(wrapper, en.profile.emailPlaceholder).setValue('new@example.com')
 
       expect(wrapper.find(passwordSelector).exists()).toBe(false)
@@ -529,7 +605,7 @@ describe('ProfileDialog', () => {
         }),
       )
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
       await changeEmailAndSubmit(wrapper, 'secret-pass')
 
       expect(body?.currentPassword).toBe('secret-pass')
@@ -553,7 +629,7 @@ describe('ProfileDialog', () => {
         }),
       )
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
       await wrapper.find('form').trigger('submit')
       await flushPromises()
 
@@ -579,7 +655,7 @@ describe('ProfileDialog', () => {
       )
       const errorSpy = vi.spyOn(feedback, 'showErrorMessage')
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
       await changeEmailAndSubmit(wrapper, 'x')
 
       expect(wrapper.text()).toContain(expected)
@@ -600,7 +676,7 @@ describe('ProfileDialog', () => {
         }),
       )
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
       await wrapper.find('[data-testid="profile-pending-email-resend"]').trigger('click')
       await flushPromises()
 
@@ -622,7 +698,7 @@ describe('ProfileDialog', () => {
         }),
       )
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
       await wrapper.find('[data-testid="profile-pending-email-cancel"]').trigger('click')
       await flushPromises()
 
@@ -632,7 +708,7 @@ describe('ProfileDialog', () => {
   })
 
   describe('avatar', () => {
-    function pickFile(wrapper: Awaited<ReturnType<typeof openDialog>>['wrapper'], file: File) {
+    function pickFile(wrapper: Awaited<ReturnType<typeof openPanel>>['wrapper'], file: File) {
       const input = wrapper.find<HTMLInputElement>('[data-testid="profile-avatar-input"]')
       Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
       return input.trigger('change')
@@ -646,7 +722,7 @@ describe('ProfileDialog', () => {
       server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
       mockSessions([])
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       expect(wrapper.find('[data-testid="profile-avatar"]').text()).toBe('JD')
       expect(wrapper.find('[data-testid="profile-avatar-remove"]').exists()).toBe(false)
@@ -662,7 +738,7 @@ describe('ProfileDialog', () => {
       )
       mockSessions([])
 
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       expect(wrapper.find('[data-testid="profile-avatar"] img').attributes('src')).toBe(
         'http://cdn.test/feedbackhub/public/avatars/a.png',
@@ -683,7 +759,7 @@ describe('ProfileDialog', () => {
         }),
       )
       const successSpy = vi.spyOn(feedback, 'showSuccessMessage')
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       await pickFile(wrapper, pngFile())
       await flushPromises()
@@ -706,7 +782,7 @@ describe('ProfileDialog', () => {
         ),
         http.delete('*/api/profile/avatar', () => new HttpResponse(null, { status: 204 })),
       )
-      const { wrapper, pinia } = await openDialog()
+      const { wrapper, pinia } = await openPanel()
       const auth = storeIn(pinia, useAuthStore)
       auth.account = { id: '1', name: 'Jane Doe', username: 'jane' } as typeof auth.account
 
@@ -730,7 +806,7 @@ describe('ProfileDialog', () => {
         }),
       )
       const errorSpy = vi.spyOn(feedback, 'showErrorMessage')
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       await pickFile(wrapper, pngFile(2 * 1024 * 1024 + 1))
       await flushPromises()
@@ -743,7 +819,7 @@ describe('ProfileDialog', () => {
       server.use(http.get('*/api/profile', () => HttpResponse.json(makeProfile())))
       mockSessions([])
       const errorSpy = vi.spyOn(feedback, 'showErrorMessage')
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       await pickFile(wrapper, pngFile(10, 'image/gif'))
       await flushPromises()
@@ -760,7 +836,7 @@ describe('ProfileDialog', () => {
         ),
       )
       const errorSpy = vi.spyOn(feedback, 'showErrorMessage')
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       await pickFile(wrapper, pngFile())
       await flushPromises()
@@ -785,7 +861,7 @@ describe('ProfileDialog', () => {
           return HttpResponse.json(makeProfile())
         }),
       )
-      const { wrapper } = await openDialog()
+      const { wrapper } = await openPanel()
 
       await wrapper.find('[data-testid="profile-avatar-remove"]').trigger('click')
       await flushPromises()
