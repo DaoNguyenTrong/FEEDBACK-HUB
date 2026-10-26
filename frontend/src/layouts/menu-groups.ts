@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import { Building, Server } from '@vicons/tabler'
 
 export interface MenuGroup {
   id: string
@@ -7,8 +8,8 @@ export interface MenuGroup {
   order: number
 }
 
-/**
- * Sidebar menu groups. Forks add their groups here, then assign a route with
- * `meta.sidebar.group: '<id>'`. Base ships none, so every item stays a standalone top-level entry.
- */
-export const MENU_GROUPS: MenuGroup[] = []
+// Ungrouped items (order below 100) form the main section; groups follow it.
+export const MENU_GROUPS: MenuGroup[] = [
+  { id: 'organization', labelKey: 'nav.groups.organization', icon: Building, order: 100 },
+  { id: 'system', labelKey: 'nav.groups.system', icon: Server, order: 200 },
+]

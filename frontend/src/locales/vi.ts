@@ -168,6 +168,10 @@ const vi: LocaleSchema = {
     organizations: 'Tổ chức',
     profile: 'Hồ sơ cá nhân',
     toggleSidebar: 'Đóng/mở thanh bên',
+    groups: {
+      organization: 'Tổ chức',
+      system: 'Hệ thống',
+    },
     userGuide: 'Hướng dẫn sử dụng',
   },
   guideAuth: {

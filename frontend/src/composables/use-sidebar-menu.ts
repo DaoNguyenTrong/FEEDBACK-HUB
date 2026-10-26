@@ -1,6 +1,8 @@
 import type { RouteMeta, RouteRecordRaw, Router } from 'vue-router'
 import { MENU_GROUPS } from '@/layouts/menu-groups'
 import type { MenuGroup } from '@/layouts/menu-groups'
+import { routeAccess } from '@/lib/route-access'
+import type { RouteAccessContext } from '@/lib/route-access'
 import type { SidebarMenuEntry, SidebarMenuItem } from '@/layouts/sidebar-menu'
 
 type SidebarRouteMeta = NonNullable<RouteMeta['sidebar']>
@@ -37,17 +39,14 @@ function bySidebarOrder(a: RouteRecordRaw, b: RouteRecordRaw) {
   return (a.meta?.sidebar?.order ?? 0) - (b.meta?.sidebar?.order ?? 0)
 }
 
-function toSidebarItem(
-  route: RouteRecordRaw,
-  hasPermission: (code: string) => boolean,
-): SidebarMenuItem | null {
+function toSidebarItem(route: RouteRecordRaw, ctx: RouteAccessContext): SidebarMenuItem | null {
   const sidebarMeta = route.meta?.sidebar as SidebarRouteMeta | undefined
 
   if (!sidebarMeta) {
     return null
   }
 
-  const children = buildSidebarItems(route.children ?? [], hasPermission)
+  const children = buildSidebarItems(route.children ?? [], ctx)
 
   if (children.length > 0) {
     return {
@@ -70,23 +69,23 @@ function toSidebarItem(
 
 function buildSidebarItems(
   routes: readonly RouteRecordRaw[],
-  hasPermission: (code: string) => boolean,
+  ctx: RouteAccessContext,
 ): SidebarMenuItem[] {
   return (
     routes
       .filter((route) => Boolean(route.meta?.sidebar))
-      // Same gate as the router guard, so the menu never offers a page the guard would bounce.
-      .filter((route) => !route.meta?.permission || hasPermission(route.meta.permission))
+      // Same decision as the router guard, so the menu never offers a page the guard would refuse.
+      .filter((route) => routeAccess(route.meta ?? {}, ctx) === 'allowed')
       .slice()
       .sort(bySidebarOrder)
-      .map((route) => toSidebarItem(route, hasPermission))
+      .map((route) => toSidebarItem(route, ctx))
       .filter((item): item is SidebarMenuItem => item !== null)
   )
 }
 
 export function buildMenuEntries(
   routes: readonly RouteRecordRaw[],
-  hasPermission: (code: string) => boolean,
+  ctx: RouteAccessContext,
   groups: readonly MenuGroup[],
 ): SidebarMenuEntry[] {
   const knownGroups = new Map(groups.map((group) => [group.id, group]))
@@ -95,12 +94,12 @@ export function buildMenuEntries(
 
   const visible = routes
     .filter((route) => Boolean(route.meta?.sidebar))
-    .filter((route) => !route.meta?.permission || hasPermission(route.meta.permission))
+    .filter((route) => routeAccess(route.meta ?? {}, ctx) === 'allowed')
     .slice()
     .sort(bySidebarOrder)
 
   for (const route of visible) {
-    const item = toSidebarItem(route, hasPermission)
+    const item = toSidebarItem(route, ctx)
 
     if (!item) {
       continue
@@ -153,6 +152,6 @@ export function useSidebarMenu(groups: readonly MenuGroup[] = MENU_GROUPS) {
 
     const layoutRoute = router.options.routes.find((route) => route.path === '/')
 
-    return buildMenuEntries(layoutRoute?.children ?? [], auth.hasPermission, groups)
+    return buildMenuEntries(layoutRoute?.children ?? [], auth, groups)
   })
 }

@@ -1,17 +1,26 @@
 import type { Component } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
+import type { RouteMeta } from 'vue-router'
 import { Building, Home } from '@vicons/tabler'
+import { routeAccess } from '@/lib/route-access'
+import type { RouteAccessContext } from '@/lib/route-access'
 
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     guestOnly?: boolean
     /**
-     * Permission code (`lib/permissions.ts`) the active organization must grant: hides the route's
-     * sidebar item and sends a signed-in user without it to home. A UI gate only — the API still
-     * checks every request. Never put one on `home`, the fallback itself.
+     * Permission code (`lib/permissions.ts`) the active organization must grant. Hides the route's
+     * menu item; opened by URL without it, the layout shows "not enough permission" and keeps the
+     * URL. A UI gate only — the API still checks every request. Never put one on `home`.
      */
     permission?: string
+    /** The page lives inside the active organization: the personal context is sent to home. */
+    requiresOrganization?: boolean
+    /** A system administrator page. UI gate only; the API still checks `isSystemAdministrator`. */
+    systemAdministrator?: boolean
+    /** Route name of the menu item shown as open when this page has no item of its own. */
+    activeMenu?: string
     breadcrumbKey?: string
     sidebar?: {
       labelKey: string
@@ -102,12 +111,8 @@ const router = createRouter({
 })
 
 export function resolveGuardRedirect(
-  to: {
-    meta: { requiresAuth?: boolean; guestOnly?: boolean; permission?: string }
-    fullPath: string
-    query: Record<string, unknown>
-  },
-  auth: { isAuthenticated: boolean; hasPermission: (code: string) => boolean },
+  to: { meta: RouteMeta; fullPath: string; query: Record<string, unknown> },
+  auth: RouteAccessContext,
   health: { isDown: boolean },
 ) {
   // During an outage the silent refresh couldn't run, so `isAuthenticated` is unreliable: don't
@@ -116,17 +121,19 @@ export function resolveGuardRedirect(
     return undefined
   }
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+  const access = routeAccess(to.meta, auth)
+
+  if (access === 'login') {
     // Preserve the destination so LoginView can return the user there after
     // signing in, instead of always dropping them on the home page.
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  // Hiding the sidebar item isn't enough: a typed URL or a bookmark still reaches the route.
-  if (to.meta.permission && auth.isAuthenticated && !auth.hasPermission(to.meta.permission)) {
+  if (access === 'no-organization') {
     return useHomeRoute()
   }
 
+  // 'forbidden' keeps the URL: AppLayout shows the "not enough permission" state in place.
   if (to.meta.guestOnly && auth.isAuthenticated) {
     return safeRedirectTarget(to.query.redirect) ?? useHomeRoute()
   }

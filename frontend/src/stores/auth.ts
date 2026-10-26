@@ -23,6 +23,8 @@ export const useAuthStore = defineStore('auth', () => {
   // (useOrganizationSwitch). Same staleness as organizationId/organizationName. UI-only gate:
   // the server's per-request permission check is the real authorization boundary.
   const permissions = ref<string[]>([])
+  // Only shows the "System" menu group and gates its pages; the API checks every request.
+  const isSystemAdministrator = ref(false)
   const client = getAuth()
 
   const isAuthenticated = computed(() => account.value !== null)
@@ -32,6 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
     organizationId.value = response.organizationId
     organizationName.value = response.organizationName
     permissions.value = response.permissions
+    isSystemAdministrator.value = response.isSystemAdministrator
     // Breadcrumb for the next boot: a silent refresh is worth attempting.
     markSessionHint()
   }
@@ -41,6 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
     organizationId.value = null
     organizationName.value = null
     permissions.value = []
+    isSystemAdministrator.value = false
     clearSessionHint()
   }
 
@@ -117,6 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
     organizationId,
     organizationName,
     permissions,
+    isSystemAdministrator,
     isAuthenticated,
     setAuth,
     clearAuth,
