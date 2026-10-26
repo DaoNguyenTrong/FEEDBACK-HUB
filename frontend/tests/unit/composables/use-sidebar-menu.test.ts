@@ -5,6 +5,7 @@ import { useSidebarMenu } from '@/composables/use-sidebar-menu'
 import { containsRoute, flattenMenuLinks } from '@/layouts/sidebar-menu'
 import type { SidebarMenuEntry } from '@/layouts/sidebar-menu'
 import type { MenuGroup } from '@/layouts/menu-groups'
+import { MENU_GROUPS } from '@/layouts/menu-groups'
 import { useAuthStore } from '@/stores/auth'
 import { withSetup } from '../../helpers/with-setup'
 
@@ -244,6 +245,98 @@ describe('useSidebarMenu', () => {
 
     expect(result.value.map(idOf)).toEqual(['legacy'])
     expect(result.value[0]!.kind).toBe('item')
+  })
+})
+
+describe('useSidebarMenu access', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  function sections() {
+    return layoutRoutes([
+      leaf('home', { order: 0 }),
+      {
+        ...leaf('members'),
+        meta: {
+          requiresOrganization: true,
+          permission: 'organizations.members.manage',
+          sidebar: { labelKey: 'nav.members', icon: stub, group: 'organization' },
+        },
+      },
+      {
+        ...leaf('overview'),
+        meta: {
+          requiresOrganization: true,
+          sidebar: { labelKey: 'nav.overview', icon: stub, group: 'organization', order: 1 },
+        },
+      },
+      {
+        ...leaf('tenants'),
+        meta: {
+          systemAdministrator: true,
+          sidebar: { labelKey: 'nav.tenants', icon: stub, group: 'system' },
+        },
+      },
+    ])
+  }
+
+  function groupItems(entry: SidebarMenuEntry) {
+    return entry.kind === 'group' ? entry.items.map((item) => item.routeName) : []
+  }
+
+  it('shows the system group only to a system administrator', async () => {
+    const auth = useAuthStore()
+    auth.organizationId = 'org-1'
+    const { result } = await withSetup(() => useSidebarMenu(), '/', sections())
+
+    expect(result.value.map(idOf)).not.toContain('system')
+
+    auth.isSystemAdministrator = true
+
+    expect(result.value.map(idOf)).toContain('system')
+  })
+
+  it('hides organization pages in the personal context', async () => {
+    const auth = useAuthStore()
+    auth.organizationId = null
+    auth.permissions = ['organizations.members.manage']
+    const { result } = await withSetup(() => useSidebarMenu(), '/', sections())
+
+    expect(result.value.map(idOf)).toEqual(['home'])
+
+    auth.organizationId = 'org-1'
+
+    expect(result.value.map(idOf)).toEqual(['home', 'organization'])
+  })
+
+  it('hides a page whose permission the user lacks', async () => {
+    const auth = useAuthStore()
+    auth.organizationId = 'org-1'
+    const { result } = await withSetup(() => useSidebarMenu(), '/', sections())
+
+    expect(groupItems(result.value[1]!)).toEqual(['overview'])
+
+    auth.permissions = ['organizations.members.manage']
+
+    expect(groupItems(result.value[1]!)).toEqual(['members', 'overview'])
+  })
+
+  it('renders groups in the order main, organization, system', async () => {
+    const auth = useAuthStore()
+    auth.organizationId = 'org-1'
+    auth.isSystemAdministrator = true
+    auth.permissions = ['organizations.members.manage']
+    const { result } = await withSetup(() => useSidebarMenu(), '/', sections())
+
+    expect(result.value.map(idOf)).toEqual(['home', 'organization', 'system'])
+  })
+
+  it('ships the organization and system groups as text headings', () => {
+    expect(MENU_GROUPS.map((group) => [group.id, group.labelKey, group.order])).toEqual([
+      ['organization', 'nav.groups.organization', 100],
+      ['system', 'nav.groups.system', 200],
+    ])
   })
 })
 

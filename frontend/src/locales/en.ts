@@ -157,6 +157,10 @@ export interface LocaleSchema {
     organizations: string
     profile: string
     toggleSidebar: string
+    groups: {
+      organization: string
+      system: string
+    }
     userGuide: string
   }
   guideAuth: {
@@ -446,6 +450,10 @@ const en: LocaleSchema = {
     organizations: 'Organizations',
     profile: 'Profile',
     toggleSidebar: 'Toggle sidebar',
+    groups: {
+      organization: 'Organization',
+      system: 'System',
+    },
     userGuide: 'User guide',
   },
   guideAuth: {

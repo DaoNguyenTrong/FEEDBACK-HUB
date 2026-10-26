@@ -60,6 +60,21 @@ describe('useAuthStore', () => {
     expect(auth.hasPermission('organizations.manage')).toBe(false)
   })
 
+  it('sets isSystemAdministrator from the login response and clears it on clearAuth', () => {
+    const auth = useAuthStore()
+    expect(auth.isSystemAdministrator).toBe(false)
+
+    auth.setAuth({ ...makeAuthResponse(), isSystemAdministrator: true })
+    expect(auth.isSystemAdministrator).toBe(true)
+
+    auth.setAuth({ ...makeAuthResponse(), isSystemAdministrator: false })
+    expect(auth.isSystemAdministrator).toBe(false)
+
+    auth.setAuth({ ...makeAuthResponse(), isSystemAdministrator: true })
+    auth.clearAuth()
+    expect(auth.isSystemAdministrator).toBe(false)
+  })
+
   it('clearAuth empties the permission set', () => {
     const auth = useAuthStore()
     auth.setAuth({ ...makeAuthResponse(), permissions: ['organizations.manage'] })
