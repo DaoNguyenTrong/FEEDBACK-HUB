@@ -67,6 +67,13 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
             organization, owner, viewer, await AuthTestHelper.SeedSystemRolesAsync(context, organization.Id));
     }
 
+    private async Task<Role> SeedEditorRoleAsync(Scene scene)
+    {
+        await using AppDbContext context = CreateDbContext();
+        return await AuthTestHelper.SeedCustomRoleAsync(
+            context, scene.Organization.Id, "Biên tập", [Permissions.FilesManage]);
+    }
+
     private async Task<Account> SeedMemberAsync(Scene scene, SystemRoleKind role, string name)
     {
         Account account = await SeedAccountAsync(name);
@@ -191,7 +198,7 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
     // AC-367, AC-368: the log is unreadable while the organization is deactivated (F4), so a system administrator
     // reactivates it before the viewer reads both entries.
     [Fact]
-    public async Task DeactivateOrganization_ByOwner_WritesOneOrganizationDeactivatedEntry()
+    public async Task DeactivateOrganization_ByOwnerThenReactivated_LogsBothEntries()
     {
         Scene scene = await SeedSceneAsync();
         Account administrator = await SeedSystemAdministratorAsync();
@@ -342,7 +349,7 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
 
     // Entries outlive the actor's membership: the kind and name stay on the entry written before they left.
     [Fact]
-    public async Task EntryKeepsActorKindAfterActorLeavesOrganization()
+    public async Task LeaveOrganization_AfterActing_EarlierEntryKeepsActorKindAndName()
     {
         Scene scene = await SeedSceneAsync();
         Account coOwner = await SeedMemberAsync(scene, SystemRoleKind.Owner, "Chủ sở hữu thứ hai");
@@ -393,6 +400,7 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         JsonElement entry = await ReadOnlyEntryAsync(scene);
         AssertEntry(entry, "InvitationSent", "Account", scene.Owner.Name);
+        AssertParameterKeys(entry, "email", "role");
         Assert.Equal("khach@example.com", TextParameter(entry, "email"));
     }
 
@@ -410,6 +418,8 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         JsonElement entry = await ReadOnlyEntryAsync(scene);
         AssertEntry(entry, "InvitationSent", "Account", scene.Owner.Name);
+        AssertParameterKeys(entry, "email", "role");
+        Assert.Equal("khach@example.com", TextParameter(entry, "email"));
         AssertRole(Parameter(entry, "role"), scene.Roles[SystemRoleKind.Member].Id, "Member", "Member");
     }
 
@@ -447,6 +457,7 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         JsonElement entry = await ReadOnlyEntryAsync(scene);
         AssertEntry(entry, "InvitationDeleted", "Account", scene.Owner.Name);
+        AssertParameterKeys(entry, "email", "role");
         Assert.Equal("khach@example.com", TextParameter(entry, "email"));
     }
 
@@ -475,12 +486,7 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
     public async Task UpdateRole_ByOwner_WritesOneRoleUpdatedEntry()
     {
         Scene scene = await SeedSceneAsync();
-        Role role;
-        await using (AppDbContext context = CreateDbContext())
-        {
-            role = await AuthTestHelper.SeedCustomRoleAsync(
-                context, scene.Organization.Id, "Biên tập", [Permissions.FilesManage]);
-        }
+        Role role = await SeedEditorRoleAsync(scene);
 
         HttpResponseMessage response = await ClientFor(scene.Owner, scene.Organization.Id).PutAsJsonAsync(
             $"{OrganizationPath}/roles/{role.Id}",
@@ -501,12 +507,7 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
     public async Task DeleteRole_ByOwner_WritesOneRoleDeletedEntry()
     {
         Scene scene = await SeedSceneAsync();
-        Role role;
-        await using (AppDbContext context = CreateDbContext())
-        {
-            role = await AuthTestHelper.SeedCustomRoleAsync(
-                context, scene.Organization.Id, "Biên tập", [Permissions.FilesManage]);
-        }
+        Role role = await SeedEditorRoleAsync(scene);
 
         HttpResponseMessage response =
             await ClientFor(scene.Owner, scene.Organization.Id).DeleteAsync($"{OrganizationPath}/roles/{role.Id}");
@@ -556,6 +557,7 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         JsonElement entry = await ReadOnlyEntryAsync(scene);
         AssertEntry(entry, "MemberJoined", "Account", invitee.Name);
+        AssertParameterKeys(entry, "accountName", "email", "role");
         Assert.Equal(invitee.Email, TextParameter(entry, "email"));
     }
 
@@ -573,6 +575,7 @@ public sealed class AuditLogEndToEndTests(ApiFactoryFixture fixture) : IAsyncLif
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         JsonElement entry = await ReadOnlyEntryAsync(scene);
         AssertEntry(entry, "MemberJoined", "Account", "Khách mới");
+        AssertParameterKeys(entry, "accountName", "email", "role");
         Assert.Equal("Khách mới", TextParameter(entry, "accountName"));
         Assert.Equal("moi@example.com", TextParameter(entry, "email"));
     }
