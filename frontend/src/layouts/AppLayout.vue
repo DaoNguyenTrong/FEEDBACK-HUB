@@ -8,6 +8,10 @@ import CommandPalette from './CommandPalette.vue'
 const notificationsStore = useNotificationsStore()
 const route = useRoute()
 const layout = useLayoutStore()
+const auth = useAuthStore()
+
+// Replaces the routed view instead of covering it, so a forbidden page never mounts or fetches.
+const forbidden = computed(() => routeAccess(route.meta, auth) === 'forbidden')
 
 // Pages scroll inside `main`, not `window`, so the router's `scrollBehavior` never reaches it.
 // Keyed on `path` only: a query change (filters, paging) keeps the scroll position.
@@ -41,7 +45,8 @@ onUnmounted(() => {
         ref="mainEl"
         class="relative flex-1 overflow-y-auto p-4 [scrollbar-gutter:stable] desktop:p-6"
       >
-        <RouterView />
+        <AccessProblemState v-if="forbidden" kind="forbidden" />
+        <RouterView v-else />
       </main>
       <AppFooter />
     </div>

@@ -53,14 +53,18 @@ export interface LocaleSchema {
     emptyPreview: string
   }
   errorCodes: Record<string, string>
+  accessProblem: {
+    notFoundTitle: string
+    notFoundText: string
+    forbiddenTitle: string
+    forbiddenText: string
+    goHome: string
+  }
   errors: {
     requestFailed: string
     networkError: string
     unauthorized: string
     forbidden: string
-    notFound: string
-    notFoundTitle: string
-    notFoundDescription: string
     serverError: string
     serverErrorTitle: string
     serverErrorDescription: string
@@ -323,15 +327,18 @@ const en: LocaleSchema = {
     emptyPreview: 'Nothing to preview yet',
   },
   errorCodes: {},
+  accessProblem: {
+    notFoundTitle: 'Not found',
+    notFoundText: "This content doesn't exist or you don't have access to it.",
+    forbiddenTitle: 'No permission',
+    forbiddenText: "Your account doesn't have permission to open this page.",
+    goHome: 'Go to home',
+  },
   errors: {
     requestFailed: 'Request failed',
     networkError: 'Network error',
     unauthorized: 'Unauthorized',
     forbidden: 'Forbidden',
-    notFound: 'Not found',
-    notFoundTitle: 'This page is not available',
-    notFoundDescription:
-      'The link may be outdated, or the page may have been moved. Return to a valid screen to continue.',
     serverError: 'Server error',
     serverErrorTitle: 'We can’t reach the server',
     serverErrorDescription:

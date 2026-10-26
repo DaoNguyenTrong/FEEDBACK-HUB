@@ -55,15 +55,18 @@ const vi: LocaleSchema = {
     emptyPreview: 'Chưa có nội dung',
   },
   errorCodes: {},
+  accessProblem: {
+    notFoundTitle: 'Không tìm thấy',
+    notFoundText: 'Nội dung này không tồn tại hoặc bạn không có quyền xem.',
+    forbiddenTitle: 'Không đủ quyền',
+    forbiddenText: 'Tài khoản của bạn không có quyền mở trang này.',
+    goHome: 'Về trang chủ',
+  },
   errors: {
     requestFailed: 'Yêu cầu thất bại',
     networkError: 'Lỗi mạng',
     unauthorized: 'Không được ủy quyền',
     forbidden: 'Không được phép truy cập',
-    notFound: 'Không tìm thấy',
-    notFoundTitle: 'Trang bạn tìm không tồn tại',
-    notFoundDescription:
-      'Liên kết có thể đã thay đổi hoặc trang đã được di chuyển. Hãy quay lại một màn hình hợp lệ để tiếp tục.',
     serverError: 'Lỗi máy chủ',
     serverErrorTitle: 'Không kết nối được với máy chủ',
     serverErrorDescription:

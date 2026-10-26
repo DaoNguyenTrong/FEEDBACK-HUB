@@ -10,6 +10,7 @@ vi.mock('@/layouts/AppLayout.vue', () => stubView())
 vi.mock('@/views/HomeView.vue', () => stubView())
 vi.mock('@/views/OrganizationsView.vue', () => stubView())
 vi.mock('@/views/LoginView.vue', () => stubView())
+vi.mock('@/views/NotFoundView.vue', () => stubView())
 
 // Exercises the real router's `beforeEach` wiring (not just the pure
 // `resolveGuardRedirect`) — this is the seam that redirected an F5-with-BE-down
@@ -28,6 +29,24 @@ describe('router guard (wired, real router)', () => {
 
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.redirect).toBe('/organizations')
+  })
+
+  it('sends a signed-out visitor on an unknown path to login, keeping the path', async () => {
+    await router.push('/no/such/page')
+
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/no/such/page')
+  })
+
+  it('shows an unknown path to a signed-in user as not-found inside the layout', async () => {
+    useAuthStore().account = { id: 'a-1' } as never
+
+    await router.push('/no/such/page')
+
+    const route = router.currentRoute.value
+    expect(route.name).toBe('not-found')
+    expect(route.fullPath).toBe('/no/such/page')
+    expect(route.matched[0]?.path).toBe('/')
   })
 
   it('keeps an unauthenticated visitor on the intended route during an API outage', async () => {
