@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Menu2, Search } from '@vicons/tabler'
+import OrgSwitcher from './OrgSwitcher.vue'
 import UserMenu from './UserMenu.vue'
 
 const { t } = useI18n()
@@ -29,7 +30,7 @@ const targetClass = 'max-desktop:min-h-11 max-desktop:min-w-11'
     </button>
 
     <div class="flex min-w-0 flex-1 items-center">
-      <slot name="organization" />
+      <slot name="organization"><OrgSwitcher /></slot>
     </div>
 
     <button
