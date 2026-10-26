@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import {
   dialog,
+  messageOptions,
   requestConfirmationNaive,
   showErrorMessageNaive,
   showInfoMessageNaive,
@@ -151,6 +152,25 @@ describe('feedback-naive', () => {
       showInfoMessageNaive('InfoSummary000')
       await flushMessage()
       expect(document.body.innerHTML).toContain('InfoSummary000')
+    })
+  })
+
+  describe('messageOptions', () => {
+    it('keeps success toasts for 5 seconds and pauses them on hover', () => {
+      expect(messageOptions('success')).toEqual({ duration: 5000, keepAliveOnHover: true })
+    })
+
+    it('keeps error toasts until closed', () => {
+      expect(messageOptions('error')).toEqual({
+        duration: 0,
+        keepAliveOnHover: true,
+        closable: true,
+      })
+    })
+
+    it('lets an explicit life override the default duration', () => {
+      expect(messageOptions('error', 3000).duration).toBe(3000)
+      expect(messageOptions('info', 1000).duration).toBe(1000)
     })
   })
 })

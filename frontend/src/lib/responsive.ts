@@ -5,3 +5,9 @@
 
 /** Below Tailwind's `lg` (64rem): the sidebar is a drawer. */
 export const BELOW_LG_QUERY = '(max-width: 63.9999rem)'
+
+/** Below 768 px: the phone layout. */
+export const PHONE_QUERY = '(max-width: 47.9999rem)'
+
+/** From 1200 px: the desktop layout; between the two is the tablet. */
+export const DESKTOP_QUERY = '(min-width: 75rem)'
