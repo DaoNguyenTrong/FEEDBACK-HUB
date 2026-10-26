@@ -81,6 +81,8 @@ async function openSessionsTab(wrapper: Awaited<ReturnType<typeof openPanel>>['w
 describe('ProfilePanel', () => {
   beforeEach(() => {
     stubViewport(1280)
+    // A real success toast arms a 5 s timer that can fire after the file's teardown as an unhandled error.
+    vi.spyOn(feedback, 'showSuccessMessage').mockImplementation(() => {})
   })
 
   afterEach(() => {
