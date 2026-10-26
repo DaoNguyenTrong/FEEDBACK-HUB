@@ -1400,4 +1400,56 @@ public class AuthServiceTests
         f.RefreshTokenRepo.Received().Update(previous);
         f.JwtTokenService.Received(1).GenerateAccessToken(account, organization.Id, sessionId);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SwitchOrganizationAsync_InASession_KeepsTheSessionsRememberMeChoice(bool isPersistent)
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid sessionId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(sessionId);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
+        f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
+
+        RefreshToken previous = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "previous-hash", DateTime.UtcNow.AddDays(1), null, null, isPersistent, DateTime.UtcNow, FamilyId: sessionId));
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [previous]);
+
+        AuthResult result = await f.Service.SwitchOrganizationAsync(organization.Id, null, null, CancellationToken.None);
+
+        Assert.Equal(isPersistent, result.IsPersistent);
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_NoSessionId_IssuesANonPersistentSession()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        AuthResult result = await f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None);
+
+        Assert.False(result.IsPersistent);
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_SessionWithNoActiveToken_IssuesANonPersistentSession()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(Guid.NewGuid());
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, []);
+
+        AuthResult result = await f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None);
+
+        Assert.False(result.IsPersistent);
+    }
 }
