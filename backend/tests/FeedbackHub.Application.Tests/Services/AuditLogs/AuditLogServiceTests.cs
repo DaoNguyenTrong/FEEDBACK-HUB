@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
-using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.AuditLogs;
 using FeedbackHub.Application.Services.Roles;
@@ -64,90 +63,6 @@ public class AuditLogServiceTests
 
     private static Task<AuditEntryPage> List(Fixture f, string? cursor = null, int limit = 50) =>
         f.Service.ListAsync(new AuditLogQuery(cursor, limit), CancellationToken.None);
-
-    private static AuditLogDto CreateDto(long id = 1) =>
-        new(id, "Account", Guid.NewGuid().ToString(), "Create", null, null, null, null, null, null, DateTime.UtcNow);
-
-    // GetAllAsync
-
-    [Theory]
-    [InlineData(0, 0, 1, 10)]
-    [InlineData(-1, -1, 1, 10)]
-    [InlineData(3, 50, 3, 50)]
-    public async Task GetAllAsync_DefaultsInvalidPageValues(
-        int requestPage, int requestSize, int expectedPage, int expectedSize)
-    {
-        Fixture f = CreateFixture();
-        f.Repository.ListPagedAsync(
-                Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<bool?>(),
-                Arg.Any<CancellationToken>())
-            .Returns(((IReadOnlyList<AuditLogDto>)[], 0));
-
-        await f.Service.GetAllAsync(new PaginationRequest(requestPage, requestSize), null, null, CancellationToken.None);
-
-        await f.Repository.Received(1).ListPagedAsync(
-            OrganizationId, expectedPage, expectedSize, Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<bool?>(),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task GetAllAsync_TrimsSearchTerm_AndPassesUserIdAndSystemOnly()
-    {
-        Fixture f = CreateFixture();
-        Guid userId = Guid.NewGuid();
-        f.Repository.ListPagedAsync(
-                Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<bool?>(),
-                Arg.Any<CancellationToken>())
-            .Returns(((IReadOnlyList<AuditLogDto>)[], 0));
-
-        await f.Service.GetAllAsync(
-            new PaginationRequest(1, 10, "  create  "), userId, true, CancellationToken.None);
-
-        await f.Repository.Received(1).ListPagedAsync(
-            OrganizationId, 1, 10, "create", userId, true, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task GetAllAsync_WrapsRepositoryResultInPagedResult()
-    {
-        Fixture f = CreateFixture();
-        AuditLogDto dto = CreateDto();
-        f.Repository.ListPagedAsync(
-                Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<bool?>(),
-                Arg.Any<CancellationToken>())
-            .Returns(((IReadOnlyList<AuditLogDto>)[dto], 1));
-
-        PagedResult<AuditLogDto> result = await f.Service.GetAllAsync(
-            new PaginationRequest(1, 10), null, null, CancellationToken.None);
-
-        Assert.Single(result.Items);
-        Assert.Equal(dto.Id, result.Items[0].Id);
-        Assert.Equal(1, result.TotalCount);
-    }
-
-    // GetByIdAsync
-
-    [Fact]
-    public async Task GetByIdAsync_Found_ReturnsDto()
-    {
-        Fixture f = CreateFixture();
-        AuditLogDto dto = CreateDto(42);
-        f.Repository.GetByIdAsync(OrganizationId, 42, Arg.Any<CancellationToken>()).Returns(dto);
-
-        AuditLogDto result = await f.Service.GetByIdAsync(42, CancellationToken.None);
-
-        Assert.Equal(42, result.Id);
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_NotFound_ThrowsNotFoundWithAuditLogEntityName()
-    {
-        Fixture f = CreateFixture();
-        f.Repository.GetByIdAsync(OrganizationId, 99, Arg.Any<CancellationToken>()).Returns((AuditLogDto?)null);
-
-        await ApplicationAssert.AssertNotFoundAsync(
-            "AuditLog", 99L, () => f.Service.GetByIdAsync(99, CancellationToken.None));
-    }
 
     // ListAsync: prelude (F5)
 

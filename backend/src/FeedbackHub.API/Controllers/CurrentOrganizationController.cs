@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Models;
+using FeedbackHub.Application.Services.AuditLogs;
 using FeedbackHub.Application.Services.Invitations;
 using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Application.Services.Roles;
@@ -16,7 +17,8 @@ public sealed class CurrentOrganizationController(
     IOrganizationContextService organizationContextService,
     IMemberService memberService,
     IRoleService roleService,
-    IInvitationService invitationService) : ControllerBase
+    IInvitationService invitationService,
+    IAuditLogService auditLogService) : ControllerBase
 {
     /// <summary>Returns the working organization. Any active member may read it.</summary>
     [HttpGet]
@@ -288,5 +290,25 @@ public sealed class CurrentOrganizationController(
         await roleService.DeleteAsync(roleId, cancellationToken);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Lists the working organization's audit entries, newest first, a page at a time. Pass <c>nextCursor</c> as
+    /// <c>cursor</c> to read the next page; it is <c>null</c> on the last page. Only people with
+    /// <c>auditlogs.view</c> may read it; API keys never can.
+    /// </summary>
+    [HttpGet("audit-log")]
+    [Authorize(Policy = Permissions.AuditLogsView)]
+    [ProducesResponseType(typeof(AuditEntryPage), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<AuditEntryPage>> GetAuditLog(
+        [FromQuery] AuditLogQuery query,
+        CancellationToken cancellationToken)
+    {
+        AuditEntryPage page = await auditLogService.ListAsync(query, cancellationToken);
+
+        return Ok(page);
     }
 }
