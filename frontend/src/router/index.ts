@@ -71,6 +71,17 @@ const router = createRouter({
           },
         },
         {
+          path: 'organization/members/invitations',
+          name: 'organization-invitations',
+          component: () => import('@/views/organization/InvitationsView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresOrganization: true,
+            permission: Permissions.OrganizationMembersManage,
+            activeMenu: 'organization-members',
+          },
+        },
+        {
           path: 'organization/settings',
           name: 'organization-settings',
           component: () => import('@/views/organization/OrganizationSettingsView.vue'),

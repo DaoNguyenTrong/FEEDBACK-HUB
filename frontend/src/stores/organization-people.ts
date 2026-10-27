@@ -1,5 +1,5 @@
 import { getCurrentOrganization } from '@/api/generated/current-organization/current-organization'
-import type { OrganizationMemberDto, RoleOptionDto } from '@/api/types'
+import type { InvitationDto, OrganizationMemberDto, RoleOptionDto } from '@/api/types'
 import { toPagedResult } from '@/lib/paged-result'
 import { Permissions } from '@/lib/permissions'
 
@@ -70,6 +70,9 @@ export const useOrganizationPeopleStore = defineStore('organization-people', () 
     get hasMore(): boolean {
       return _hasMore.value
     },
+    get loaded(): boolean {
+      return _pageNumber.value > 0
+    },
     loadMore: _loadPage,
     reload: _reload,
   }
@@ -118,6 +121,123 @@ export const useOrganizationPeopleStore = defineStore('organization-people', () 
     await client.currentOrganizationLeave()
   }
 
+  // ── Invitations (lazy list) ───────────────────────────────────────────────
+
+  const _invItems = ref<InvitationDto[]>([])
+  const _invTotalCount = ref(0)
+  const _invPageNumber = ref(0)
+  const _invLoading = ref(false)
+  const _invLoadingMore = ref(false)
+
+  const _invHasMore = computed(() => _invItems.value.length < _invTotalCount.value)
+
+  async function _loadInvPage() {
+    if (_invLoading.value || _invLoadingMore.value) return
+    if (_invPageNumber.value > 0 && !_invHasMore.value) return
+
+    const isFirst = _invPageNumber.value === 0
+    if (isFirst) _invLoading.value = true
+    else _invLoadingMore.value = true
+
+    try {
+      const raw = await client.currentOrganizationListInvitations({
+        pageNumber: _invPageNumber.value + 1,
+        pageSize: 50,
+      })
+      const paged = toPagedResult(raw)
+
+      if (isFirst) {
+        _invItems.value = paged.items
+      } else {
+        const existingIds = new Set(_invItems.value.map((i) => i.id))
+        _invItems.value = [..._invItems.value, ...paged.items.filter((i) => !existingIds.has(i.id))]
+      }
+      _invTotalCount.value = paged.totalCount
+      _invPageNumber.value += 1
+    } finally {
+      _invLoading.value = false
+      _invLoadingMore.value = false
+    }
+  }
+
+  async function _reloadInv() {
+    _invItems.value = []
+    _invTotalCount.value = 0
+    _invPageNumber.value = 0
+    await _loadInvPage()
+  }
+
+  const invitations = {
+    get items(): InvitationDto[] {
+      return _invItems.value
+    },
+    get totalCount(): number {
+      return _invTotalCount.value
+    },
+    get loading(): boolean {
+      return _invLoading.value
+    },
+    get hasMore(): boolean {
+      return _invHasMore.value
+    },
+    get loaded(): boolean {
+      return _invPageNumber.value > 0
+    },
+    loadMore: _loadInvPage,
+    reload: _reloadInv,
+  }
+
+  // ── Invitation mutations ─────────────────────────────────────────────────
+
+  const _pendingInvite = ref(false)
+
+  async function invite(email: string, roleId: string) {
+    if (_pendingInvite.value) return
+    _pendingInvite.value = true
+    try {
+      const fresh = await client.currentOrganizationSendInvitation({ email, roleId })
+      // Remove any existing row with same email, then prepend the new one
+      _invItems.value = [fresh, ..._invItems.value.filter((i) => i.email !== email)]
+    } finally {
+      _pendingInvite.value = false
+    }
+  }
+
+  const _pendingResend = ref<Set<string>>(new Set())
+
+  async function resend(id: string) {
+    if (_pendingResend.value.has(id)) return
+    _pendingResend.value = new Set([..._pendingResend.value, id])
+    try {
+      const updated = await client.currentOrganizationResendInvitation(id)
+      _invItems.value = _invItems.value.map((i) => (i.id === id ? updated : i))
+    } finally {
+      const next = new Set(_pendingResend.value)
+      next.delete(id)
+      _pendingResend.value = next
+    }
+  }
+
+  function isResending(id: string): boolean {
+    return _pendingResend.value.has(id)
+  }
+
+  const _pendingRevoke = ref<Set<string>>(new Set())
+
+  async function revokeOrDelete(id: string) {
+    if (_pendingRevoke.value.has(id)) return
+    _pendingRevoke.value = new Set([..._pendingRevoke.value, id])
+    try {
+      await client.currentOrganizationRevokeOrDeleteInvitation(id)
+      _invItems.value = _invItems.value.filter((i) => i.id !== id)
+      _invTotalCount.value = Math.max(0, _invTotalCount.value - 1)
+    } finally {
+      const next = new Set(_pendingRevoke.value)
+      next.delete(id)
+      _pendingRevoke.value = next
+    }
+  }
+
   return {
     members,
     roleOptions,
@@ -125,5 +245,10 @@ export const useOrganizationPeopleStore = defineStore('organization-people', () 
     changeRoles,
     removeMember,
     leave,
+    invitations,
+    invite,
+    resend,
+    isResending,
+    revokeOrDelete,
   }
 })
