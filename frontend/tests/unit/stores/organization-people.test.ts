@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useOrganizationPeopleStore } from '@/stores/organization-people'
-import { makeMember, makeRoleOption } from '../../factories/organization'
+import { makeInvitation, makeMember, makeRoleOption } from '../../factories/organization'
 import { makeAccount } from '../../helpers/msw/fixtures'
 import { server } from '../../helpers/msw/server'
 import { setupTestPinia, storeIn } from '../../helpers/pinia'
@@ -158,5 +158,83 @@ describe('organization-people store — changeRoles / removeMember / leave', () 
 
     const store = storeIn(pinia, useOrganizationPeopleStore)
     await expect(store.leave()).resolves.toBeUndefined()
+  })
+})
+
+describe('organization-people store — invitations', () => {
+  let pinia: ReturnType<typeof setupTestPinia>
+
+  beforeEach(() => {
+    pinia = setupTestPinia()
+  })
+  afterEach(() => {
+    server.resetHandlers()
+  })
+
+  it('loads invitations via invitations.loadMore', async () => {
+    const inv = makeInvitation()
+    server.use(
+      http.get('*/api/organization/invitations', () =>
+        HttpResponse.json({ items: [inv], totalCount: 1, pageNumber: 1, pageSize: 50, totalPages: 1 }),
+      ),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.invitations.loadMore()
+
+    expect(store.invitations.items).toHaveLength(1)
+    expect(store.invitations.totalCount).toBe(1)
+  })
+
+  it('adds a new invitation to the top and removes an old one with the same email', async () => {
+    const old = makeInvitation({ id: 'inv-old', email: 'dup@example.com' })
+    const fresh = makeInvitation({ id: 'inv-new', email: 'dup@example.com' })
+    server.use(
+      http.get('*/api/organization/invitations', () =>
+        HttpResponse.json({ items: [old], totalCount: 1, pageNumber: 1, pageSize: 50, totalPages: 1 }),
+      ),
+      http.post('*/api/organization/invitations', () => HttpResponse.json(fresh, { status: 201 })),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.invitations.loadMore()
+    await store.invite('dup@example.com', 'role-member')
+
+    expect(store.invitations.items[0]!.id).toBe('inv-new')
+    expect(store.invitations.items.filter((i) => i.email === 'dup@example.com')).toHaveLength(1)
+  })
+
+  it('replaces the row with the new invitation after resend', async () => {
+    const old = makeInvitation({ id: 'inv-1' })
+    const updated = makeInvitation({ id: 'inv-2', email: old.email })
+    server.use(
+      http.get('*/api/organization/invitations', () =>
+        HttpResponse.json({ items: [old], totalCount: 1, pageNumber: 1, pageSize: 50, totalPages: 1 }),
+      ),
+      http.post('*/api/organization/invitations/inv-1/resend', () => HttpResponse.json(updated)),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.invitations.loadMore()
+    await store.resend('inv-1')
+
+    expect(store.invitations.items[0]!.id).toBe('inv-2')
+    expect(store.invitations.items).toHaveLength(1)
+  })
+
+  it('removes the invitation from the list after revokeOrDelete', async () => {
+    const inv = makeInvitation({ id: 'inv-1' })
+    server.use(
+      http.get('*/api/organization/invitations', () =>
+        HttpResponse.json({ items: [inv], totalCount: 1, pageNumber: 1, pageSize: 50, totalPages: 1 }),
+      ),
+      http.delete('*/api/organization/invitations/*', () => new HttpResponse(null, { status: 204 })),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.invitations.loadMore()
+    await store.revokeOrDelete('inv-1')
+
+    expect(store.invitations.items).toHaveLength(0)
   })
 })

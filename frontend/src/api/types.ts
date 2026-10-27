@@ -54,6 +54,8 @@ export type { DeactivateOrganizationRequest } from './generated/model/deactivate
 export type { RoleRefDto } from './generated/model/roleRefDto'
 export type { RoleOptionDto } from './generated/model/roleOptionDto'
 export type { InvitationDto } from './generated/model/invitationDto'
+export type { SendInvitationRequest } from './generated/model/sendInvitationRequest'
+export { InvitationStatus } from './generated/model/invitationStatus'
 export type { InvitationLookupDto } from './generated/model/invitationLookupDto'
 export type { SystemOrganizationDto } from './generated/model/systemOrganizationDto'
 export type { AuditEntryDto } from './generated/model/auditEntryDto'

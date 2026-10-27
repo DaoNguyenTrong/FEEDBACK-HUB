@@ -163,6 +163,33 @@ export interface LocaleSchema {
     }
     userGuide: string
   }
+  invitations: {
+    title: string
+    inviteMember: string
+    inviteShort: string
+    email: string
+    emailHint: string
+    role: string
+    expiry: string
+    send: string
+    sending: string
+    sent: string
+    resentToast: string
+    revoke: string
+    revokeConfirmMessage: string
+    revokeConfirmDetail: string
+    delete: string
+    resend: string
+    resending: string
+    pending: string
+    expired: string
+    expiredLabel: string
+    lockReasonOwnerOnly: string
+    lockReasonInsufficientRole: string
+    emptyTitle: string
+    emptyDescription: string
+    showingOf: string
+  }
   members: {
     self: string
     actions: string
@@ -399,6 +426,9 @@ const en: LocaleSchema = {
     CannotRemoveSelf: "You can't remove yourself. Use Leave organization.",
     LastOwnerCannotLeave:
       'You are the only owner. Give the owner role to someone else before you leave.',
+    InvitationEmailAlreadyMember: 'This person is already a member of {org}.',
+    FieldEmailAddress: 'Enter an email like name@company.com.',
+    InvitationEmailDeliveryFailed: "The invitation wasn't sent. Please try again.",
   },
   accessProblem: {
     notFoundTitle: 'Not found',
@@ -660,6 +690,34 @@ const en: LocaleSchema = {
       access: 'Members cannot enter the organization.',
       data: 'Data is kept. You can reactivate it at any time.',
     },
+  },
+  invitations: {
+    title: 'Invitations',
+    inviteMember: 'Invite member',
+    inviteShort: 'Invite',
+    email: 'Email',
+    emailHint: 'Can be sent to people who do not have a Hub account yet.',
+    role: 'Role',
+    expiry: 'Invitations expire after 7 days and can be revoked before they are used.',
+    send: 'Send invitation',
+    sending: 'Sending…',
+    sent: 'Invitation sent to {email}',
+    resentToast: 'Invitation resent. The invitation is valid until {time}',
+    revoke: 'Revoke',
+    revokeConfirmMessage: 'Revoke the invitation to {email}?',
+    revokeConfirmDetail: 'The link in the email will no longer work.',
+    delete: 'Delete',
+    resend: 'Resend',
+    resending: 'Sending…',
+    pending: 'Valid until {time}',
+    expired: 'Expired at {time}',
+    expiredLabel: 'Expired',
+    lockReasonOwnerOnly: 'Only an Owner can revoke this invitation',
+    lockReasonInsufficientRole: "You don't have every permission of the {role} role",
+    emptyTitle: 'No pending invitations',
+    emptyDescription:
+      'Invitations you send will appear here until they are used, revoked or expired.',
+    showingOf: 'Showing {shown} of {total} invitations',
   },
   members: {
     self: 'you',

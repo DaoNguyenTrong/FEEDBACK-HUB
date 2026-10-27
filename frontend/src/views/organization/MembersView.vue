@@ -4,11 +4,14 @@ import type { AccessProblem } from '@/lib/access-problem'
 import { Permissions } from '@/lib/permissions'
 import { useOrganizationPeopleStore } from '@/stores/organization-people'
 import MemberRow from '@/components/MemberRow.vue'
+import InviteMemberSheet from '@/components/InviteMemberSheet.vue'
 import OrganizationPeopleTabs from '@/components/OrganizationPeopleTabs.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
 const people = useOrganizationPeopleStore()
+const { isPhone } = useViewport()
+const showInviteSheet = ref(false)
 
 const accessProblem = ref<AccessProblem | null>(null)
 
@@ -36,14 +39,25 @@ async function loadMore() {
   <AccessProblemState v-if="accessProblem" :kind="accessProblem" />
 
   <div v-else class="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 desktop:p-6">
-    <OrganizationPeopleTabs active="members" />
+    <OrganizationPeopleTabs active="members">
+      <template v-if="auth.hasPermission(Permissions.OrganizationMembersManage)" #action>
+        <n-button
+          type="primary"
+          size="small"
+          data-testid="invite-member-btn"
+          @click="showInviteSheet = true"
+        >
+          {{ isPhone ? $t('invitations.inviteShort') : $t('invitations.inviteMember') }}
+        </n-button>
+      </template>
+    </OrganizationPeopleTabs>
 
     <div v-if="people.members.loading" class="py-8 text-center text-ink-muted">
       {{ $t('common.loading') }}
     </div>
 
     <template v-else>
-      <div class="flex flex-col gap-2">
+      <div class="rounded-lg border border-line overflow-hidden">
         <MemberRow
           v-for="member in people.members.items"
           :key="member.accountId"
@@ -62,4 +76,6 @@ async function loadMore() {
       </div>
     </template>
   </div>
+
+  <InviteMemberSheet v-model:show="showInviteSheet" />
 </template>
