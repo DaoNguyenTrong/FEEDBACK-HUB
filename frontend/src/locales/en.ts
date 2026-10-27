@@ -156,6 +156,7 @@ export interface LocaleSchema {
     members: string
     invitations: string
     roles: string
+    auditLog: string
     systemOrganizations: string
     profile: string
     openMenu: string
@@ -394,6 +395,22 @@ export interface LocaleSchema {
     systemMember: DeactivateBullets
     system: DeactivateBullets
   }
+  auditLog: {
+    title: string
+    today: string
+    yesterday: string
+    empty: string
+    loadError: string
+    retry: string
+    systemAdministrator: string
+    deletedAccount: string
+    unknownEvent: string
+    noPermissions: string
+    roleRenamed: string
+    roleAdded: string
+    roleRemoved: string
+    events: Record<string, string>
+  }
   notifications: {
     title: string
     empty: string
@@ -494,6 +511,7 @@ const en: LocaleSchema = {
     InvitationNoLongerValid: 'This invitation can no longer be used',
     InvitationWrongAccount: "This invitation isn't for the account you are using",
     InvitationOrganizationSuspended: 'The organization is suspended',
+    InvalidCursor: "Couldn't load more. Reload the page.",
   },
   accessProblem: {
     notFoundTitle: 'Not found',
@@ -600,6 +618,7 @@ const en: LocaleSchema = {
     members: 'Members',
     invitations: 'Invitations',
     roles: 'Roles',
+    auditLog: 'Audit log',
     systemOrganizations: 'Organizations',
     profile: 'Profile',
     openMenu: 'Open menu',
@@ -902,6 +921,38 @@ const en: LocaleSchema = {
     lockReasonInsufficientRoleGeneric: "You don't have enough permissions to change this row",
     ownerOnlyRoleHint: 'Only an Owner can select this role.',
     insufficientRoleHint: "You don't have every permission of this role.",
+  },
+  auditLog: {
+    title: 'Audit log',
+    today: 'Today · {date}',
+    yesterday: 'Yesterday · {date}',
+    empty: 'No entries yet',
+    loadError: "Couldn't load the audit log.",
+    retry: 'Retry',
+    systemAdministrator: 'FeedbackHub system administrator',
+    deletedAccount: 'a deleted account',
+    unknownEvent: 'performed an administrative action',
+    noPermissions: '(none)',
+    roleRenamed: ', renamed to "{nameAfter}"',
+    roleAdded: ', added permissions {permissions}',
+    roleRemoved: ', removed permissions {permissions}',
+    events: {
+      InvitationSent: 'sent an invitation to {email} (role {role})',
+      InvitationRevoked: 'revoked the invitation to {email} (role {role})',
+      InvitationDeleted: 'deleted the expired invitation to {email} (role {role})',
+      MemberJoined: '({email}) joined {organization} with the role {role}',
+      MemberRolesChanged:
+        'changed the roles of {accountName} ({email}): {rolesBefore} → {rolesAfter}',
+      MemberRemoved:
+        'removed {accountName} ({email}) from the organization, previous roles: {roles}',
+      MemberLeft: '({email}) left the organization',
+      RoleCreated: 'created the role "{role}" with permissions {permissionCodes}',
+      RoleUpdated: 'edited the role "{nameBefore}"{renamed}{added}{removed}',
+      RoleDeleted: 'deleted the role "{role}"',
+      OrganizationRenamed: 'renamed the organization: "{nameBefore}" → "{nameAfter}"',
+      OrganizationDeactivated: 'deactivated the organization',
+      OrganizationReactivated: 'reactivated the organization',
+    },
   },
   notifications: {
     title: 'Notifications',
