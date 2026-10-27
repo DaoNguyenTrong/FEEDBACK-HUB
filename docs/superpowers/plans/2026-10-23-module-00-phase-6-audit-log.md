@@ -107,7 +107,7 @@ Bảng của phần 1, cập nhật theo quyết định của người điều 
   }
   ```
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 [Fact] public void Encode_ThenTryDecode_RoundTripsUtcTimestampAndId()   // Kind == Utc sau khi giải mã
@@ -125,21 +125,21 @@ Bảng của phần 1, cập nhật theo quyết định của người điều 
 public void TryDecode_Malformed_ReturnsFalse(string value)
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~AuditCursorTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - Đọc số bằng `long.TryParse(s, NumberStyles.None, CultureInfo.InvariantCulture, …)`.
   - Mọi ngoại lệ giải mã đều thành `false`, không bao giờ ném (B5).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(audit): encode and strictly decode the audit log keyset cursor`
+- [x] **Step 5: Commit** `feat(audit): encode and strictly decode the audit log keyset cursor`
 
 ### Task 2: `AuditLogRepository.ListEventsAsync`, truy vấn keyset
 
@@ -159,7 +159,7 @@ Expected: PASS.
   - `IAuditLogRepository.ListEventsAsync(Guid organizationId, AuditCursor? before, int take, CancellationToken ct) → Task<IReadOnlyList<AuditEventRow>>`.
   - `ListPagedAsync` và `GetByIdAsync` cũ bị xoá ở Task 4, cùng lúc với nơi gọi chúng.
 
-- [ ] **Step 1: Viết test thất bại (Testcontainers)**
+- [x] **Step 1: Viết test thất bại (Testcontainers)**
 
 ```csharp
 ListEventsAsync_ReturnsOnlyEventRowsOfThatOrganization
@@ -173,23 +173,23 @@ ListEventsAsync_ReturnsRawActorKindIncludingNullAndUnknown           // "Account
 ListEventsAsync_UsesPartialEventIndex                                // EXPLAIN của câu SQL sinh ra có tên chỉ mục một phần của M9; chạy `SET LOCAL enable_seqscan = off` trong transaction của test trước `EXPLAIN`, vì với vài dòng Postgres chọn quét tuần tự
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~AuditLogRepositoryTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt theo TECH00 §6.8 bước 1**
+- [x] **Step 3: Cài đặt theo TECH00 §6.8 bước 1**
   - Điều kiện keyset viết `log.Timestamp < t || (log.Timestamp == t && log.Id < id)`.
   - `LEFT JOIN accounts` theo `user_id = account.Id::text` như truy vấn cũ.
   - `ORDER BY "timestamp" DESC, id DESC`, `Take(take)`, `AsNoTracking`.
   - `AuditLog.ActorKind` là `string?` (phần 3 Task 2), đọc thẳng; không đổi sang enum ở tầng này, để giá trị lạ trong cột không làm EF ném. Test `ReturnsRawActorKindIncludingNullAndUnknown` ghim điều này.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(audit): read an organization's semantic audit entries with a keyset query`
+- [x] **Step 5: Commit** `feat(audit): read an organization's semantic audit entries with a keyset query`
 
 ### Task 3: `AuditLogService.ListAsync` và `AuditEntryDto`
 
@@ -215,7 +215,7 @@ Expected: PASS.
   - `IAuditLogService.ListAsync(AuditLogQuery query, CancellationToken ct) → Task<AuditEntryPage>`.
   - `ApplicationMessages.InvalidCursor` (400). Chữ: vi "Không tải tiếp được danh sách. Hãy tải lại trang." / en "The list could not continue. Reload the page."
 
-- [ ] **Step 1: Viết test Application thất bại**
+- [x] **Step 1: Viết test Application thất bại**
 
 ```csharp
 ListAsync_MalformedCursor_Throws400InvalidCursorWithoutQuerying       // repository DidNotReceive
@@ -233,12 +233,12 @@ ListAsync_AccountActor_ActorNameFromRow
 ListAsync_PersonalContext_ThrowsForbiddenOrganizationAccessDenied    // lưới sau cổng
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~AuditLogServiceTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt theo TECH00 §4.10 và §6.8**
+- [x] **Step 3: Cài đặt theo TECH00 §4.10 và §6.8**
   - Tổ chức lấy từ `ICurrentTenantProvider.OrganizationId`, như `AuditLogService` hiện tại.
   - `Cursor` khác `null` mà `TryDecode` sai → `throw new DomainException(ApplicationMessages.InvalidCursor)`.
   - Gọi `ListEventsAsync(org, cursor, limit + 1)`. `NextCursor` = khoá của dòng thô thứ `limit` khi có dòng thứ `limit + 1`. Tính trên dòng thô, trước khi bỏ dòng lạ.
@@ -250,12 +250,12 @@ Expected: FAIL.
   - `Parameters`: parse `NewValues` bằng `System.Text.Json` thành JSON object; với mỗi khoá trong `AuditEventCatalog.Get(type).Parameters`, đổi giá trị theo `AuditParameterKind` sang kiểu ở Interfaces; bỏ mọi khoá khác. Không phải object, hoặc một khoá đã khai có hình dạng sai → bỏ dòng.
   - `ActorKind` và `AuditEventType` ra JSON dạng tên nhờ `StringEnumConverter` toàn cục (`ConfigureNewtonsoftJsonOptions`) và `EnumSchemaTransformer` có sẵn; không thêm thuộc tính. Test API ở Task 4 ghim chuỗi.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(audit): build audit entries with declared parameters only and skip unmappable rows`
+- [x] **Step 5: Commit** `feat(audit): build audit entries with declared parameters only and skip unmappable rows`
 
 ### Task 4: API-33, bỏ `api/admin/audit-logs`
 
@@ -273,7 +273,7 @@ Expected: PASS.
 - Consumes: Task 3.
 - Produces: `GET api/organization/audit-log`, `[Authorize(Policy = Permissions.AuditLogsView)]`, `[FromQuery] AuditLogQuery query`, trả 200 `AuditEntryPage`.
 
-- [ ] **Step 1: Viết test API thất bại**
+- [x] **Step 1: Viết test API thất bại**
 
 ```csharp
 AuditLog_Anonymous_Returns401
@@ -291,21 +291,21 @@ AuditLog_PagesNewestFirstWithNextCursor                               // AC-360
 OldAdminAuditLogsRoutes_SignedIn_Return404                            // GET api/admin/audit-logs và /{id}
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.API.Tests -m:1 --filter "FullyQualifiedName~OrganizationAuditLogTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - Thêm action. Xoá controller cũ cùng các phương thức, DTO và test chỉ phục vụ nó.
   - Kiểm không còn tham chiếu: `codegraph explore "AuditLogDto ListPagedAsync AuditLogsController"` không ra kết quả trong `backend/src`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~AuditLog"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(api): serve the audit log at api/organization/audit-log and drop api/admin/audit-logs`
+- [x] **Step 5: Commit** `feat(api): serve the audit log at api/organization/audit-log and drop api/admin/audit-logs`
 
 ### Task 5: Mỗi thao tác của danh mục ghi đúng một mục, đúng tổ chức, kiểm qua API-33
 
@@ -317,7 +317,7 @@ Expected: PASS.
 - Consumes: Task 4; mọi endpoint của phần 3–5.
 - Danh mục (13 loại, tham số, `TryResolve`) do phần 3 Task 1 khai và kiểm (`AuditEventCatalogTests`: `Get_Definitions_MatchTech00Catalogue`, `TryResolve_StoredFormOfEveryType_ReturnsSameType`). Phần này không khai lại, không thêm loại nào.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // API qua HTTP, người đọc chỉ có auditlogs.view
@@ -333,21 +333,21 @@ SystemAdministratorMember_DeactivatesThenReactivatesA_BothEntriesAccountWithName
 EntryKeepsActorKindAfterActorLeavesOrganization
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại hoặc qua**
+- [x] **Step 2: Chạy test, phải thất bại hoặc qua**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~AuditLogEndToEndTests"`
 Expected: FAIL nếu một đường ghi còn thiếu. Nếu tất cả đã qua ngay, ghi lại trong báo cáo task rằng phần 3–5 đã đủ.
 
-- [ ] **Step 3: Bổ sung phần còn thiếu**
+- [x] **Step 3: Bổ sung phần còn thiếu**
   - Test cho thấy danh mục của phần 3 lệch bảng §3.7 → dừng, báo controller; không sửa danh mục ở phần này.
   - Một endpoint chưa ghi mục → thêm lời gọi `IAuditTrail.RecordAsync(AuditEvent.For(…))` ở service của nó, trước `SaveChangesAsync`, với tổ chức lấy từ entity đã tra (C1).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `test(audit): pin the module 00 event catalogue end to end through the audit log endpoint`. Nếu Step 3 có sửa code thì dùng `fix(audit): …` và nêu service đã bổ sung.
+- [x] **Step 5: Commit** `test(audit): pin the module 00 event catalogue end to end through the audit log endpoint`. Nếu Step 3 có sửa code thì dùng `fix(audit): …` và nêu service đã bổ sung.
 
 ### Task 6: Contract, bản đồ tính năng, gate
 
@@ -357,7 +357,7 @@ Expected: PASS.
 **Interfaces:**
 - Consumes: Task 4, Task 5.
 
-- [ ] **Step 1: Export contract và sinh lại client**
+- [x] **Step 1: Export contract và sinh lại client**
 
 Run:
 - `dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true`
@@ -368,24 +368,24 @@ Expected:
 - không còn `/api/admin/audit-logs`;
 - `frontend/src/api/generated/audit-logs/` bị orval xoá (`clean: true`).
 
-- [ ] **Step 2: Frontend vẫn biên dịch**
+- [x] **Step 2: Frontend vẫn biên dịch**
 
 Run: `bun run --cwd frontend build-only`, rồi `bun run --cwd frontend type-check`, rồi `bun run --cwd frontend test:run`.
 Expected: PASS. Hiện không có code tay nào gọi client cũ; nếu type-check báo một chỗ, xoá lời gọi đó.
 
-- [ ] **Step 3: Thêm mục `## Nhật ký kiểm toán` vào `docs/feature-map.md`**
+- [x] **Step 3: Thêm mục `## Nhật ký kiểm toán` vào `docs/feature-map.md`**
   - PRD: FR-68, BR-83, BR-84.
   - Backend: `GET /api/organization/audit-log` → `CurrentOrganizationController` → `AuditLogService` → `AuditLogRepository.ListEventsAsync`; quyền `auditlogs.view`.
   - Ghi chú: route cũ `api/admin/audit-logs` đã bỏ.
   - Test của Task 1–5.
   - Dòng *Vào bằng* và *Frontend* ghi "phần 8 (`AuditLogView.vue`, route `/organization/audit-log`)".
 
-- [ ] **Step 4: Chạy gate đầy đủ**
+- [x] **Step 4: Chạy gate đầy đủ**
 
 Run: `scripts/test-gate.sh`
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `chore(contract): export the audit log endpoint and map the feature`
+- [x] **Step 5: Commit** `chore(contract): export the audit log endpoint and map the feature`
 
 ## Giả định về phần khác
 

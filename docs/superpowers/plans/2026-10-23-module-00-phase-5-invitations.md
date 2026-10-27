@@ -123,7 +123,7 @@ Bảng của phần 1, cập nhật theo quyết định của người điều 
       - `InvitationRoleRequired`: "Lời mời phải có vai trò." / "An invitation must have a role."
       - `InvitationTokenHashInvalid`: "Mã lời mời không hợp lệ." / "The invitation code is invalid."
 
-- [ ] **Step 1: Viết test Domain thất bại**
+- [x] **Step 1: Viết test Domain thất bại**
 
 ```csharp
 [Fact] public void Create_ValidParams_NormalizesEmailAndExpiresExactly168HoursLater()
@@ -137,22 +137,22 @@ public void Create_TokenHashNot64LowerHex_Throws(string hash)   // InvitationTok
 [Fact] public void IsExpiredAt_OneTickBefore_IsFalse()
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Domain.Tests -m:1 --filter "FullyQualifiedName~OrganizationInvitationTests"`
 Expected: FAIL (kiểu chưa tồn tại).
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - `Create` kiểm theo thứ tự trong test.
   - `TokenHash` phải khớp `^[0-9a-f]{64}$`.
   - `IssuedAt` lưu như được truyền; Domain không đọc đồng hồ, nên test dùng đồng hồ giả tạo được lời mời đã hết hạn.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(domain): add OrganizationInvitation with a fixed 7-day lifetime`
+- [x] **Step 5: Commit** `feat(domain): add OrganizationInvitation with a fixed 7-day lifetime`
 
 ### Task 2: Lưu trữ, M2 (`organization_invitations`)
 
@@ -174,7 +174,7 @@ Expected: PASS.
   - Chỉ mục: unique `(OrganizationId, Email)`, unique `(TokenHash)`, thường `(RoleId)`.
   - `AppDbContext.OrganizationInvitations`; `typeof(OrganizationInvitation)` trong `AuditExcludedEntityTypes` (QĐ-13).
 
-- [ ] **Step 1: Viết test thất bại (Testcontainers)**
+- [x] **Step 1: Viết test thất bại (Testcontainers)**
 
 ```csharp
 [Fact] public async Task SaveChanges_SecondInvitationSameOrganizationAndEmail_ViolatesUniqueIndex()
@@ -186,21 +186,21 @@ Expected: PASS.
 // thêm, xoá lời mời → không dòng audit_logs nào có entity_name 'OrganizationInvitation'; không dòng nào chứa TokenHash
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~OrganizationInvitationPersistenceTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - Viết cấu hình theo mẫu các `*Configuration.cs` hiện có (tên bảng snake, tên cột như entity).
   - Sinh migration. Kiểm `Up` chỉ tạo bảng và chỉ mục, không đụng bảng khác.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(persistence): add organization_invitations table (M2) kept out of the automatic audit`
+- [x] **Step 5: Commit** `feat(persistence): add organization_invitations table (M2) kept out of the automatic audit`
 
 ### Task 3: API-11 gửi lời mời và email mời
 
@@ -243,7 +243,7 @@ Expected: PASS.
     - `InvitationEmailAlreadyMember` (409): "Người này đã là thành viên của tổ chức." / "This person is already a member of the organization."
     - `InvitationEmailDeliveryFailed` (503): "Không gửi được email mời. Chưa có gì thay đổi, hãy thử lại sau." / "The invitation email could not be sent. Nothing was changed; try again later."
 
-- [ ] **Step 1: Viết test Application thất bại**
+- [x] **Step 1: Viết test Application thất bại**
 
 ```csharp
 // InvitationServiceSendTests
@@ -270,12 +270,12 @@ Render_ContainsOrganizationRoleExpiryAndLinkButNoInviter
 Render_ExpiryUsesFixedUtcPlus7AndVietnamLabel     // 2026-10-23 17:30 UTC → "24/10/2026 00:30 (giờ Việt Nam)"; không phụ thuộc múi giờ máy chạy
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~InvitationServiceSendTests|FullyQualifiedName~InvitationEmailTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt `SendAsync` theo TECH00 §6.2**
+- [x] **Step 3: Cài đặt `SendAsync` theo TECH00 §6.2**
 
 Tổ chức lấy từ `ICurrentTenantProvider.OrganizationId`, người gọi từ `ICurrentUserService.UserId`, như các service tổ chức hiện có. Mọi bước chạy trong `ExecuteInTransactionAsync`, theo đúng thứ tự:
 1. `IOrganizationLock.AcquireAsync(orgId)`.
@@ -307,12 +307,12 @@ Thư mời (TECH00 §6.2, §14 P3): mẫu tạm, chỉ tiếng Việt, viết c�
 - Vai trò hệ thống lấy tên `vi` từ `SystemRoleDisplayNames`; vai trò tự tạo dùng `Role.Name`.
 - `{hạn}` theo dạng `dd/MM/yyyy HH:mm`, đổi từ UTC bằng độ lệch cố định UTC+7, không tra cơ sở dữ liệu múi giờ (Việt Nam không có giờ mùa hè). Cùng với chữ `(giờ Việt Nam)` của mẫu, thư ghi `dd/MM/yyyy HH:mm (giờ Việt Nam)`. Mẫu chính thức do PRD05 quyết.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~RegistrationServiceTests|FullyQualifiedName~AccountServiceTests"` (sau khi đổi sang `RandomToken`).
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(invitations): send an invitation by email and replace an earlier one for the same address`
+- [x] **Step 5: Commit** `feat(invitations): send an invitation by email and replace an earlier one for the same address`
 
 ### Task 4: API-10 danh sách, API-12 mời lại, API-13 thu hồi hoặc xoá
 
@@ -337,7 +337,7 @@ Expected: PASS.
     - `IRoleQueries.ListAsync(Guid organizationId, DateTime utcNow, CancellationToken cancellationToken)`; `RoleService.ListAsync` truyền `IDateTimeProvider.UtcNow`;
     - `RoleDto` thêm `int? PendingInvitationCount` ngay sau `HolderCount`: bằng `RoleRow.PendingInvitationCount` khi `caller.Permissions` (từ `LoadCallerAsync`) có `organizations.members.manage`, ngược lại `null` (BR-75, T9).
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application
@@ -366,12 +366,12 @@ ListAsync_CallerWithMembersManage_PendingInvitationCountFromQuery
 Roles_RolesManagerWithoutMembersManage_ResponseHasNullPendingInvitationCount
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~InvitationServiceManageTests|FullyQualifiedName~InvitationListQueryTests|FullyQualifiedName~RoleServiceReadTests|FullyQualifiedName~RoleQueriesTests|FullyQualifiedName~CurrentOrganizationRolesTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - `ResendAsync` dùng lại đường của `SendAsync` với `email` và vai trò của lời mời cũ, sau bước tra lời mời theo `id` và `orgId` (404). `RoleGrantPolicy.CheckGrantAll(caller, [vai trò])` là điều kiện BR-58 duy nhất (TECH00 §5.3); không gọi `CheckTakeAwayAll` cho lời mời cũ vì vai trò không đổi.
   - Kiểm thành viên đang hoạt động cũng áp cho mời lại, theo BR-63 điểm 4, sau các kiểm BR-58: email đã là thành viên đang hoạt động → 409 `InvitationEmailAlreadyMember`, lời mời cũ giữ nguyên, không gửi email, không ghi mục. Thêm 409 này vào contract API-12 (thay đổi cộng thêm). TECH00 §4.2 không liệt kê 409 cho API-12, nên PR khai đây là lệch nhỏ.
   - `RevokeOrDeleteAsync`, theo thứ tự:
@@ -384,12 +384,12 @@ Expected: FAIL.
     - một truy vấn lời mời nối vai trò, lọc `orgId`, sắp `ExpiresAt DESC, Id DESC`;
     - cờ tính bằng cùng `RoleGrantPolicy`, đầu vào đọc từ cơ sở dữ liệu, không khoá (TECH00 §5.3): một lần `LoadCallerAsync`, một lần `LoadRolesAsync` cho các vai trò của trang; `CanResend = CanGrant(caller, role)`, `CanRevokeOrDelete = CanTakeAway(caller, role)`, `LockReason = CheckTakeAwayAll(caller, [role])?.Reason`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(invitations): list, resend, revoke and delete invitations with audit entries`
+- [x] **Step 5: Commit** `feat(invitations): list, resend, revoke and delete invitations with audit entries`
 
 ### Task 5: API-20 tra lời mời, API-21 chấp nhận
 
@@ -419,7 +419,7 @@ Expected: PASS.
     - `InvitationOrganizationSuspended`: "Tổ chức đang tạm ngừng hoạt động nên chưa vào được." / "The organization is suspended, so you can't join it yet."
   - Dùng lại `EmailNotConfirmed` (403).
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Bảng §6.3 thành một `[Theory]` cho mỗi endpoint. Mỗi dòng dựng: lời mời (có, không, hết hạn); phiên (không, đúng email, sai email, đúng email nhưng chưa xác minh); tổ chức (hoạt động, bị vô hiệu).
 
@@ -447,12 +447,12 @@ AcceptAsync_InvitationGoneAfterLockAndCallerNotMember_Throws409NoLongerValid
 AcceptAsync_RoleDeleted_Throws409NoLongerValid                    // Review Focus 5 (dòng đã bị cascade)
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~InvitationServiceAcceptTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt theo TECH00 §6.3**
+- [x] **Step 3: Cài đặt theo TECH00 §6.3**
   - `LookupAsync`:
     - tra theo `TokenHash.Compute(token)`, không khoá, không ghi;
     - kiểm đúng thứ tự bảng §6.3, dừng ở điều kiện đầu tiên không đạt;
@@ -466,12 +466,12 @@ Expected: FAIL.
     6. Ngược lại `JoinAsync`, rồi save.
   - Sau commit, xoá cache truy cập và quyền của người vào.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(invitations): look up an invitation without using it and accept it while signed in`
+- [x] **Step 5: Commit** `feat(invitations): look up an invitation without using it and accept it while signed in`
 
 ### Task 6: API-22 đăng ký qua lời mời (phiên qua `TokenIssuer`) và API-23 `accountCreated`
 
@@ -498,7 +498,7 @@ Expected: PASS.
   - `record ExternalLoginResult(AuthResult Auth, bool AccountCreated)`; `IAuthService.ExternalLoginAsync` trả kiểu này.
   - `record ExternalLoginResponse : LoginResponse`, thêm `bool AccountCreated`.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 RegisterAsync_Valid_CreatesConfirmedAccountWithInvitationEmailJoinsAndIssuesSessionThroughTokenIssuer
@@ -518,12 +518,12 @@ ExternalLoginAsync_NewAccount_AccountCreatedTrue
 ExternalLoginAsync_LinkedOrEmailMatched_AccountCreatedFalse
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~InvitationServiceRegisterTests|FullyQualifiedName~AuthServiceTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - `RegisterAsync`, trong `ExecuteInTransactionAsync`:
     1. Tra lời mời theo hash, khoá tổ chức của nó, tra lại.
     2. Không có → `NoLongerValid`. Hết hạn → `InvitationExpired`.
@@ -538,12 +538,12 @@ Expected: FAIL.
     Phát phiên sau commit để quyền đọc ra là quyền đã lưu, và cache không bị ghi từ một giao dịch có thể rollback.
   - `ExternalLoginAsync` báo `AccountCreated = true` chỉ ở nhánh tạo tài khoản mới. Hành vi khác không đổi (TECH00 §4.4 API-23).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(invitations): register through an invitation and sign in via TokenIssuer`
+- [x] **Step 5: Commit** `feat(invitations): register through an invitation and sign in via TokenIssuer`
 
 ### Task 7: Endpoint, giới hạn tần suất `invitation`, danh sách ẩn danh
 
@@ -579,7 +579,7 @@ Expected: PASS.
   - `RateLimiterSettings.InvitationPermitLimit = 30`, `InvitationWindowMinutes = 1`. Policy `"invitation"` dựng bằng `RateLimitPartitions.FixedWindow(httpContext, "invitation", …, rateLimiterStore)` như hai policy có sẵn.
   - `SentEmailCollector.FailNextSend()`: lần gửi kế tiếp ném `ServiceUnavailableException(ApplicationMessages.EmailDeliveryFailed)`, như `SmtpEmailSender`.
 
-- [ ] **Step 1: Viết test API thất bại**
+- [x] **Step 1: Viết test API thất bại**
 
 ```csharp
 // OrganizationInvitationsTests
@@ -609,23 +609,23 @@ ExternalLogin_ResponseHasAccountCreated
 // cập nhật AuthController_AnonymousActions_MatchTheDeliberateList: thêm "RegisterWithInvitation"
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.API.Tests -m:1 --filter "FullyQualifiedName~InvitationsControllerTests|FullyQualifiedName~OrganizationInvitationsTests|FullyQualifiedName~AuthControllerTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - Action mỏng, chỉ gọi service.
   - `register-with-invitation` dựng `RegisterWithInvitationResponse` từ `AuthResult` theo cùng cách `ToResponse` đang dựng `LoginResponse`.
   - `.claude/rules/authentication.md`: thêm `register-with-invitation` vào danh sách của `AuthController`. Thêm một gạch đầu dòng cho `InvitationsController`: `lookup` ẩn danh, `accept` cần `SignedInUser`, ghim bằng test controller.
   - Thêm `"InvitationPermitLimit": 30, "InvitationWindowMinutes": 1` vào `RateLimiterSettings` của `appsettings.Example.json`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi `dotnet test backend/tests/FeedbackHub.API.Tests -m:1 --filter "FullyQualifiedName~ArchitectureTests"`.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(api): expose invitation management, lookup, accept and register-with-invitation`
+- [x] **Step 5: Commit** `feat(api): expose invitation management, lookup, accept and register-with-invitation`
 
 ### Task 8: Contract, bản đồ tính năng, gate
 
@@ -635,7 +635,7 @@ Expected: PASS.
 **Interfaces:**
 - Consumes: Task 7.
 
-- [ ] **Step 1: Export contract và sinh lại client**
+- [x] **Step 1: Export contract và sinh lại client**
 
 Run:
 - `dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true`
@@ -648,23 +648,23 @@ Expected:
 - `ExternalLoginResponse` có `accountCreated`, `RegisterWithInvitationResponse` có `invitationOutcome`;
 - `RoleDto` có `pendingInvitationCount` (nullable).
 
-- [ ] **Step 2: Frontend vẫn biên dịch và qua test**
+- [x] **Step 2: Frontend vẫn biên dịch và qua test**
 
 Run: `bun run --cwd frontend build-only`, rồi `bun run --cwd frontend type-check`, rồi `bun run --cwd frontend test:run`.
 Expected: PASS. Màn hình dùng các route này thuộc phần 8.
 
-- [ ] **Step 3: Thêm mục `## Lời mời` vào `docs/feature-map.md`** theo cấu trúc mục hiện có.
+- [x] **Step 3: Thêm mục `## Lời mời` vào `docs/feature-map.md`** theo cấu trúc mục hiện có.
   - PRD: FR-25, FR-61, BR-81.
   - Backend: route, service, test của Task 3–7.
   - Link trong thư: `{FrontendBaseUrl}/#/invite?token=...`, hạn 7×24 giờ.
   - Dòng *Vào bằng* và *Frontend* ghi "phần 8".
 
-- [ ] **Step 4: Chạy gate đầy đủ**
+- [x] **Step 4: Chạy gate đầy đủ**
 
 Run: `scripts/test-gate.sh`
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `chore(contract): export the invitation endpoints and map the feature`
+- [x] **Step 5: Commit** `chore(contract): export the invitation endpoints and map the feature`
 
 Mô tả PR khai báo lệch nhỏ: API-12 thêm phản hồi 409 `InvitationEmailAlreadyMember` (BR-63 điểm 4) mà TECH00 §4.2 chưa liệt kê; thay đổi cộng thêm vào contract.
 

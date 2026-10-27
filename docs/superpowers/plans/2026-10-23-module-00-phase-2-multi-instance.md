@@ -83,7 +83,7 @@ Ràng buộc gốc: `docs/process/system-context.md` § Triển khai và vận h
   - `IdleDuration` trả `null` khi đang có request trong limiter hoặc `fallback.IdleDuration` là `null`; ngược lại trả thời gian từ lần acquire cuối. ASP.NET chỉ dọn phân vùng có `IdleDuration` khác `null`, nên trả `null` mãi sẽ giữ mọi phân vùng trong bộ nhớ.
   - `fallback` phải tự nạp lại (`AutoReplenishment = true`): limiter này không phải `ReplenishingRateLimiter` nên ASP.NET không nạp hộ; constructor từ chối fallback không tự nạp.
 
-- [ ] **Step 1: Viết test thất bại (Redis Testcontainers)**
+- [x] **Step 1: Viết test thất bại (Redis Testcontainers)**
 
 ```csharp
 AcquireAsync_WithinLimit_Grants ; AcquireAsync_OverLimit_Rejects
@@ -95,19 +95,19 @@ AcquireAsync_RedisDown_LogsAtMostOncePerMinute         // 10 lần lỗi trong 1
 AttemptAcquire_NeverCallsRedisAndIsNotAcquired
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~RedisFixedWindowRateLimiterTests|FullyQualifiedName~StackExchangeRedisStringStoreTests"`
 Expected: FAIL (lớp chưa có). Test cũ vẫn qua sau khi tách fixture.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và Global Constraints.
+- [x] **Step 3: Cài đặt** theo Interfaces và Global Constraints.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(infra): add a Redis fixed-window rate limiter with a local fallback`
+- [x] **Step 5: Commit** `feat(infra): add a Redis fixed-window rate limiter with a local fallback`
 
 ### Task 2: Cắm limiter vào các policy có sẵn
 
@@ -136,7 +136,7 @@ Expected: PASS.
   - `Program.cs` gọi `RateLimiterStore.Resolve` một lần lúc cấu hình. Khi `Store = Redis`, bảo đảm `IConnectionMultiplexer` đã đăng ký: dùng lại `CachingExtensions.EnsureRedisMultiplexer`, chuyển nó sang `public` hoặc `internal` kèm `InternalsVisibleTo` theo cách repo đang làm. Hai policy `auth` và `auth-refresh` dùng `RateLimitPartitions.FixedWindow`.
   - `TimeProvider.System` đăng ký singleton nếu chưa có.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Dựng một `WebApplication` tối giản trên `TestServer` với `AddRateLimiter` thật và một endpoint `[EnableRateLimiting("auth")]`, Redis Testcontainers:
 
@@ -147,16 +147,16 @@ FixedWindow_MemoryStore_Returns429AfterLimit
 FixedWindow_NoRemoteIp_UsesUnknownPartition              // Review Focus 5
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.API.Tests -m:1 --filter "FullyQualifiedName~RateLimitPartitionsTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
 
 Thêm `"Store": "Memory"` vào khối `RateLimiterSettings` của `appsettings.Example.json`.
 
-- [ ] **Step 4: Chạy test, phải qua**
+- [x] **Step 4: Chạy test, phải qua**
 
 Run:
 - lệnh ở Step 2;
@@ -164,7 +164,7 @@ Run:
 
 Expected: PASS. Test host vẫn ở `Memory`.
 
-- [ ] **Step 5: Commit** `feat(api): count rate limits in Redis when RateLimiterSettings:Store is Redis`
+- [x] **Step 5: Commit** `feat(api): count rate limits in Redis when RateLimiterSettings:Store is Redis`
 
 ### Task 3: `EmailSettings:SecureSocket`
 
@@ -183,7 +183,7 @@ Expected: PASS. Test host vẫn ở `Memory`.
     - `public const string SslOnConnect = "SslOnConnect"`, `StartTls = "StartTls"`, `StartTlsWhenAvailable = "StartTlsWhenAvailable"`;
     - `public static SecureSocketOptions Resolve(EmailSettings settings)`: không phân biệt hoa thường; rỗng thì suy từ `UseSsl`; giá trị lạ ném `InvalidOperationException`.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 Resolve_Empty_UseSslTrue_IsSslOnConnect ; Resolve_Empty_UseSslFalse_IsStartTlsWhenAvailable
@@ -191,21 +191,21 @@ Resolve_ExplicitValuesIgnoringCase_MapToMailKitOptions ; Resolve_Unknown_Throws
 SendAsync_SecureSocketStartTls_ConnectsWithStartTls
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~EmailSecureSocketTests|FullyQualifiedName~SmtpEmailSenderTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
 
 `SmtpEmailSender` dùng `EmailSecureSocket.Resolve` thay biểu thức `UseSsl ? … : …`. Thêm `"SecureSocket": ""` vào `appsettings.Example.json`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS. Test `SendAsync_UseSslTrue_ConnectsWithSslOnConnect` cũ vẫn qua.
 
-- [ ] **Step 5: Commit** `feat(email): choose the SMTP encryption mode with EmailSettings:SecureSocket`
+- [x] **Step 5: Commit** `feat(email): choose the SMTP encryption mode with EmailSettings:SecureSocket`
 
 ### Task 4: `ProductionTopologyValidator`
 
@@ -232,7 +232,7 @@ Expected: PASS. Test `SendAsync_UseSslTrue_ConnectsWithSslOnConnect` cũ vẫn q
   - đặt sau `CliCommands.TryRunAsync` (khi nó trả `null`) và chỉ khi `!isOpenApiExport && app.Environment.IsProduction()`;
   - danh sách khác rỗng → ném `InvalidOperationException` có tiêu đề "Production configuration is not ready for multiple API instances:" và mọi dòng lỗi.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 Validate_CompleteProductionConfig_ReturnsNoErrors
@@ -245,14 +245,14 @@ Program_CliCommandInProductionWithIncompleteConfig_IsNotBlocked   // Review Focu
 
 Test cuối dựng host qua `WebApplicationFactory` với `UseEnvironment("Production")` và một `ICliCommand` test, hoặc tách phần quyết định "có gọi validator không" thành `bool ShouldValidate(bool isOpenApiExport, bool isCliCommand, IHostEnvironment env)` rồi test hàm đó. Chọn cách thứ hai nếu cách đầu cần sửa `ApiFactoryFixture`.
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.API.Tests -m:1 --filter "FullyQualifiedName~ProductionTopologyValidatorTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run:
 - lệnh ở Step 2;
@@ -260,7 +260,7 @@ Run:
 
 Expected: PASS. Test host chạy ở `Development` nên không bị chặn.
 
-- [ ] **Step 5: Commit** `feat(api): refuse to start in production without a multi-instance-ready configuration`
+- [x] **Step 5: Commit** `feat(api): refuse to start in production without a multi-instance-ready configuration`
 
 ### Task 5: Data Protection và SignalR client không cần sticky session
 
@@ -277,7 +277,7 @@ Expected: PASS. Test host chạy ở `Development` nên không bị chặn.
   - `AddDataProtection().SetApplicationName("FeedbackHub").PersistKeysToDbContext<AppDbContext>()`.
   - `withUrl(url, { withCredentials: true, transport: signalR.HttpTransportType.WebSockets, skipNegotiation: true })`.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 DataProtection_TwoProvidersSameDatabase_UnprotectEachOthersPayload
@@ -288,7 +288,7 @@ DataProtection_TwoProvidersSameDatabase_UnprotectEachOthersPayload
 it('connects the notification hub with WebSockets only and skips negotiation')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run:
 - `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~DataProtectionTests"`
@@ -296,14 +296,14 @@ Run:
 
 Expected: FAIL. Test backend thất bại vì application name mặc định lấy theo content root.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: các lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat: share data protection across API instances and connect SignalR over WebSockets only`
+- [x] **Step 5: Commit** `feat: share data protection across API instances and connect SignalR over WebSockets only`
 
 ### Task 6: Cấu hình triển khai production và ghi quyết định
 
@@ -342,23 +342,23 @@ Expected: PASS.
   - QĐ-04: tên ứng dụng Data Protection cố định, SignalR chỉ dùng WebSockets.
   - QĐ-32: các điều kiện bảo mật trong validator.
 
-- [ ] **Step 1: Kiểm compose hợp lệ**
+- [x] **Step 1: Kiểm compose hợp lệ**
 
 Run: `docker compose -f docker-compose.prod.yml --env-file .env.prod.example config --quiet`
 Expected: không lỗi.
 
-- [ ] **Step 2: Kiểm validator nhận cấu hình compose**
+- [x] **Step 2: Kiểm validator nhận cấu hình compose**
 
 Viết test `Validate_DockerComposeProdEnvironment_OnlyMissesOperatorSecrets`. Test nạp các biến `environment:` của dịch vụ `api` từ `docker-compose.prod.yml` (đọc YAML) cộng `appsettings.Example.json`, rồi khẳng định lỗi duy nhất còn lại là `EmailSettings:SecureSocket`, vì người vận hành phải tự khai.
 
-- [ ] **Step 3: Chạy test**
+- [x] **Step 3: Chạy test**
 
 Run: `dotnet test backend/tests/FeedbackHub.API.Tests -m:1 --filter "FullyQualifiedName~ProductionTopologyValidatorTests"`
 Expected: PASS.
 
-- [ ] **Step 4: Chạy gate đầy đủ**
+- [x] **Step 4: Chạy gate đầy đủ**
 
 Run: `scripts/test-gate.sh`
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `chore(deploy): run production with Redis, shared storage and a one-shot migrate service`
+- [x] **Step 5: Commit** `chore(deploy): run production with Redis, shared storage and a one-shot migrate service`

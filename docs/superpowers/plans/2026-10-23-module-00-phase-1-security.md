@@ -107,7 +107,7 @@ Bảng của phần 1, cập nhật theo quyết định của người điều 
     - `bool IsActiveAt(DateTime utcNow)`, thay `IsActive`. Mọi chỗ đang gọi `IsActive` truyền `IDateTimeProvider.UtcNow`.
   - `DomainMessages.EmailChangeSameAsCurrent`, `DomainMessages.EmailChangeNotPending`.
 
-- [ ] **Step 1: Viết test Domain thất bại**
+- [x] **Step 1: Viết test Domain thất bại**
 
 ```csharp
 [Fact] public void RequestEmailChange_NewAddress_SetsNormalizedPendingAndKeepsEmail()
@@ -125,12 +125,12 @@ Bảng của phần 1, cập nhật theo quyết định của người điều 
 [Fact] public void IsActiveAt_Consumed_IsFalse()
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Domain.Tests -m:1 --filter "FullyQualifiedName~AccountTests|FullyQualifiedName~EmailVerificationTokenTests"`
 Expected: FAIL (các thành viên chưa tồn tại).
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - `RequestEmailChange`:
     - chuẩn hoá bằng `NormalizeEmail`;
     - nếu bằng `Email` thì ném `EmailChangeSameAsCurrent`;
@@ -139,12 +139,12 @@ Expected: FAIL (các thành viên chưa tồn tại).
   - `Update(AccountParams)` giữ nguyên chữ ký. Service từ nay luôn truyền `account.Email` hiện tại ở Task 3.
   - `EmailVerificationToken.Create`: giữ các kiểm tra hiện có, thêm kiểm `Email` không rỗng; lưu `NormalizeEmail` của `Email`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(domain): add pending email change to Account and purpose to verification tokens`
+- [x] **Step 5: Commit** `feat(domain): add pending email change to Account and purpose to verification tokens`
 
 ### Task 2: Lưu trữ, M7, bộ đếm `EmailChange`, audit loại cột nhạy cảm
 
@@ -170,7 +170,7 @@ Expected: PASS.
     - `email_verification_tokens.Email` varchar(200) null.
   - `AppDbContext.AuditExcludedProperties`: tập `(Type, string)`, gồm `Account.PasswordHash` và chín cột khoá (Login ×3, PasswordChange ×3, EmailChange ×3).
 
-- [ ] **Step 1: Viết test thất bại (Testcontainers)**
+- [x] **Step 1: Viết test thất bại (Testcontainers)**
 
 ```csharp
 [Fact] public async Task ReserveAttemptAsync_EmailChange_UsesOwnCounter()
@@ -183,23 +183,23 @@ Expected: PASS.
 // thêm, sửa, xoá Account → old_values/new_values không có khoá "PasswordHash", "FailedLoginCount", … "EmailChangeLockedUntil"; có "Email", "PendingEmail"
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~PasswordAttemptStoreTests|FullyQualifiedName~AuditExcludedPropertiesTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - Ba cột `EmailChange` cấu hình `SetAfterSaveBehavior(PropertySaveBehavior.Ignore)`, giống sáu cột hiện có.
   - `Columns(PasswordAttemptPurpose)` và hai `switch` của `LockAsync`/`ClearAsync` thêm nhánh `EmailChange`.
   - `CaptureAuditEntries` bỏ qua thuộc tính có trong `AuditExcludedProperties`, cho cả `Added`, `Modified` và `Deleted`.
   - Sinh migration. Kiểm `Up` chỉ thêm cột, không đụng dữ liệu.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(persistence): add email change columns, its attempt counter and audit property exclusions`
+- [x] **Step 5: Commit** `feat(persistence): add email change columns, its attempt counter and audit property exclusions`
 
 ### Task 3: API-29, lưu hồ sơ đổi email chờ xác nhận, hỏi mật khẩu hiện tại
 
@@ -226,7 +226,7 @@ Expected: PASS.
   - `ProfileDto` thêm tham số cuối `string? PendingEmail = null`.
   - `ApplicationMessages.EmailChangeTemporarilyLocked`. Chữ: vi "Tạm khoá đổi email, thử lại sau.", en "Email change is temporarily locked. Try again later."
 
-- [ ] **Step 1: Viết test Application thất bại**
+- [x] **Step 1: Viết test Application thất bại**
 
 ```csharp
 UpdateCurrentProfileAsync_EmailChangedWithCorrectPassword_SetsPendingSendsLinkKeepsEmail
@@ -251,12 +251,12 @@ UpdateCurrentProfileAsync_SendFails_StillSavesPendingAndLogsOnlyAccountId       
 UpdateCurrentProfileAsync_LoginAndPasswordChangeCountersUntouched
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~AccountServiceTests|FullyQualifiedName~EmailChangeLinkTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt `UpdateCurrentProfileAsync` theo TECH00 §6.7 bước 0–1**
+- [x] **Step 3: Cài đặt `UpdateCurrentProfileAsync` theo TECH00 §6.7 bước 0–1**
 
 Thứ tự trong `UpdateCurrentProfileAsync` là bắt buộc:
 1. Chuẩn hoá `request.Email`. `emailChanges` = địa chỉ khác cả `Email` lẫn `PendingEmail`.
@@ -274,12 +274,12 @@ Thư đổi email:
 
 `AccountMapper` thêm `PendingEmail`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `fix(profile): require a confirmed link and the current password to change the email`
+- [x] **Step 5: Commit** `fix(profile): require a confirmed link and the current password to change the email`
 
 ### Task 4: API-30 *Gửi lại*, API-31 *Huỷ*, giới hạn tần suất
 
@@ -302,7 +302,7 @@ Expected: PASS.
     - `PUT api/profile` thêm `[EnableRateLimiting("auth")]`.
   - `ApplicationMessages.EmailChangeNotPending`. Chữ: vi "Không có email nào đang chờ xác nhận.", en "There is no email change waiting for confirmation."
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 ResendEmailChangeAsync_Pending_ConsumesOldIssuesNew_NoPasswordAsked
@@ -315,19 +315,19 @@ Update_WrongCurrentPassword_Returns401WithCode   // body.code == "InvalidCurrent
 Update_MissingCurrentPassword_Returns400
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests backend/tests/FeedbackHub.API.Tests -m:1 --filter "FullyQualifiedName~AccountServiceTests|FullyQualifiedName~ProfileControllerTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** hai action và hai phương thức service.
+- [x] **Step 3: Cài đặt** hai action và hai phương thức service.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(profile): resend or cancel a pending email change`
+- [x] **Step 5: Commit** `feat(profile): resend or cancel a pending email change`
 
 ### Task 5: API-32 xác nhận đổi email, siết `verify-email` và `resend-verification`
 
@@ -356,7 +356,7 @@ Expected: PASS.
   - `ApplicationMessages.EmailChangeLinkNoLongerValid`. Chữ: vi "Liên kết đổi email không còn hiệu lực.", en "This email change link is no longer valid."
   - `IssueVerificationTokenAsync` ghi `Purpose = VerifyEmail`, `Email = account.Email`.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 ConfirmEmailChangeAsync_ValidLink_AppliesChangeAndConsumesAllTokens
@@ -378,12 +378,12 @@ ConfirmEmailChange_IsTheOnlyNewAnonymousAction   // khẳng định theo cùng c
 ConfirmEmailChange_TwoAccountsSameAddressConcurrently_OneSucceedsOtherConflict // Review Focus 3
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~RegistrationServiceTests|FullyQualifiedName~AuthControllerTests|FullyQualifiedName~EmailChangeConcurrencyTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt theo TECH00 §6.7 bước 2 và §4.9**
+- [x] **Step 3: Cài đặt theo TECH00 §6.7 bước 2 và §4.9**
   - Không thấy token, token đã dùng, hết hạn (`IsActiveAt(clock.UtcNow)`), `Purpose != ChangeEmail`, `Email == null` hoặc `PendingEmail != token.Email` → cùng một `ConflictException(EmailChangeLinkNoLongerValid)`.
   - Kiểm trùng `Email` → `ConflictException(AccountEmailAlreadyExists)`.
   - Rồi `ApplyEmailChange()`, `ConsumeAllAsync(id, null)`, save.
@@ -395,12 +395,12 @@ Expected: FAIL.
   - `resend-verification`: tài khoản `PasswordHash == null` thì return như email không tồn tại.
   - Thêm `POST api/auth/confirm-email-change` vào danh sách `[AllowAnonymous]` của `.claude/rules/authentication.md` (TECH00 §10.2, nghĩa vụ N-new-3).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `fix(auth): confirm email changes by link and bind verification tokens to their address`
+- [x] **Step 5: Commit** `fix(auth): confirm email changes by link and bind verification tokens to their address`
 
 ### Task 6: `TokenIssuer` kiểm `Status` một chỗ (N-new-4)
 
@@ -411,7 +411,7 @@ Expected: PASS.
 **Interfaces:**
 - Produces: khi `account.Status == false`, `IssueTokensAsync` ném `UnauthorizedException(ApplicationMessages.InvalidUsernameOrPassword)`. Đây là đúng key mà `LoginAsync` (L39) đang dùng, nên không lộ thêm trạng thái tài khoản. Kiểm trước khi tạo refresh token.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 IssueTokensAsync_LockedAccount_Throws401AndCreatesNoRefreshToken
@@ -420,21 +420,21 @@ Login_LockedAccount_Returns401 ; Refresh_LockedAccount_Returns401 ; VerifyEmail_
 ExternalLogin_LinkedLockedAccount_Returns401 ; SwitchOrganization_LockedAccount_Returns401
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~TokenIssuerTests|FullyQualifiedName~AuthControllerTests"`
 Expected: FAIL (verify-email, external).
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
 
 Thêm kiểm `Status` vào `IssueTokensAsync`. Kiểm `Status` riêng ở `LoginAsync` và refresh giữ nguyên làm lưới. `register-with-invitation` (phần 5) sẽ tự đi qua `TokenIssuer`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `fix(auth): refuse every session for a locked account in TokenIssuer`
+- [x] **Step 5: Commit** `fix(auth): refuse every session for a locked account in TokenIssuer`
 
 ### Task 7: Đọc token Microsoft bằng claim thô (B2)
 
@@ -448,7 +448,7 @@ Expected: PASS.
   - `MicrosoftAuthProvider` trả `ExternalUserInfo(payload.Subject, email, payload.Name, EmailVerified: payload.TenantId == "9188040d-6c67-4c5b-b112-36a304b66dad" || payload.EmailDomainOwnerVerified)`.
   - Để test tiêm được khoá ký và cấu hình OIDC thật, validator nhận chúng qua một seam: overload hoặc constructor nhận `OpenIdConnectConfiguration`. Không mock bộ kiểm.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Ký token cục bộ bằng khoá RSA của test, rồi gọi `ValidateAsync` thật:
 
@@ -463,23 +463,23 @@ ValidateAsync_MissingSubEvenWithOid_Throws ; ValidateAsync_HasOidAndSub_SubjectI
 ValidateAsync_PersonalTenant_EmailVerifiedTrue ; ValidateAsync_WorkTenantWithoutXmsEdov_EmailVerifiedFalse
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~Microsoft"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt theo TECH00 §6.6 bước 1–2**
+- [x] **Step 3: Cài đặt theo TECH00 §6.6 bước 1–2**
   - Đặt `MapInboundClaims = false`, hoặc dùng `JsonWebTokenHandler`.
   - Đọc `sub`, `email`, `tid`, `xms_edov` theo tên thô. Bỏ `oid`, `preferred_username`, `ClaimTypes.NameIdentifier`.
   - Thiếu `sub` hoặc `tid` → `SecurityTokenException`.
   - Phần tenant của `iss` phải bằng `tid`: kiểm sau `IssuerValidator`, so chuỗi không phân biệt hoa thường.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `fix(auth): read raw Microsoft claims and trust only verified emails`
+- [x] **Step 5: Commit** `fix(auth): read raw Microsoft claims and trust only verified emails`
 
 ### Task 8: `ExternalLoginAsync` chuyển kiểm xác minh xuống đúng nhánh, xác minh lại tài khoản M8
 
@@ -490,7 +490,7 @@ Expected: PASS.
 **Interfaces:**
 - Consumes: Task 6 (`TokenIssuer` kiểm `Status`), Task 7 (`EmailVerified`).
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 ExternalLoginAsync_LinkedBySub_UnverifiedToken_SignsIn
@@ -504,12 +504,12 @@ ExternalLoginAsync_TokenEmailEqualsSomeonesPendingEmail_DoesNotMatchThatAccount 
 ExternalLoginAsync_Google_KeepsEmailVerifiedRuleOnBothBranches
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~AuthServiceTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt theo TECH00 §6.6 bước 3–4**
+- [x] **Step 3: Cài đặt theo TECH00 §6.6 bước 3–4**
   - Bỏ kiểm ở đầu hàm (L214).
   - Nhánh đã liên kết: không kiểm `EmailVerified`. Nếu `!EmailConfirmed && EmailVerified` và email của token bằng `Account.Email` (đã chuẩn hoá) thì gọi `ConfirmEmail()`.
   - Nhánh khớp email, theo thứ tự:
@@ -521,12 +521,12 @@ Expected: FAIL.
   - Nhánh tạo mới: token chưa xác minh → `ExternalLoginEmailNotVerifiedByProvider`.
   - Thêm vào `.claude/decisions.md` một mục mới có `Supersedes:` mục 2026-07-25 *Microsoft external login: multi-tenant issuer validated by regex, no email_verified check*.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `fix(auth): check provider email verification only where an email is matched or an account is created`
+- [x] **Step 5: Commit** `fix(auth): check provider email verification only where an email is matched or an account is created`
 
 ### Task 9: M8, đánh dấu chưa xác minh các tài khoản chỉ có email Microsoft theo cách đọc cũ
 
@@ -554,7 +554,7 @@ END $$;
 
 Trước khi chép, kiểm lại tên cột thật của `external_logins` và `accounts` trong snapshot model (`account_id`, `provider`, `"Id"`, `"EmailConfirmed"`, `"PasswordHash"`).
 
-- [ ] **Step 1: Viết test thất bại (Testcontainers)**
+- [x] **Step 1: Viết test thất bại (Testcontainers)**
 
 ```csharp
 UpSql_MarksOnlyPasswordlessMicrosoftWithoutGoogle
@@ -564,21 +564,21 @@ UpSql_Notice_ContainsNoEmailOrUsername
 ReviewQueries_Section10_2Step6_RunOnNewSchemaAndReturnSeededRows
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~ReverifyMicrosoftOnlyAccountsTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt migration**
+- [x] **Step 3: Cài đặt migration**
 
 Đặt các câu truy vấn §10.2 bước 6 làm hằng trong lớp test để ghim chúng.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `fix(persistence): mark Microsoft-only accounts unverified after the claim fix (M8)`
+- [x] **Step 5: Commit** `fix(persistence): mark Microsoft-only accounts unverified after the claim fix (M8)`
 
 ### Task 10: `SmtpEmailSender` không ghi người nhận, một hạn 15 giây
 
@@ -589,7 +589,7 @@ Expected: PASS.
 **Interfaces:**
 - Produces: `EmailSettings.SendTimeoutSeconds` (int, mặc định 15).
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 Dùng `ISmtpClientFactory` giả. Client treo bằng `Task.Delay(Timeout.Infinite, ct)` ở từng bước. Đặt `SendTimeoutSeconds = 1`.
 
@@ -601,24 +601,24 @@ SendAsync_HangsAtSend_StopsWithinTotalTimeout
 SendAsync_HangsAcrossSteps_TotalNotPerStep         // connect 0.6 s + auth 0.6 s → hết hạn ở auth
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~SmtpEmailSenderTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - Tạo một `CancellationTokenSource.CreateLinkedTokenSource(ct)` và gọi `CancelAfter(TimeSpan.FromSeconds(SendTimeoutSeconds))`.
   - Truyền token đó cho `ConnectAsync`, `AuthenticateAsync`, `SendAsync`.
   - `DisconnectAsync` trong `finally` dùng `CancellationToken.None` với hạn ngắn riêng.
   - Dòng log đổi thành `"Failed to send email"`, không có tham số người nhận.
   - Thêm `"SendTimeoutSeconds": 15` vào `appsettings.Example.json`. Không mở các `appsettings*.json` khác.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `fix(email): drop recipients from SMTP logs and bound each send to one timeout`
+- [x] **Step 5: Commit** `fix(email): drop recipients from SMTP logs and bound each send to one timeout`
 
 ### Task 11: Contract và frontend (hồ sơ, trang xác nhận đổi email)
 
@@ -651,7 +651,7 @@ Expected: PASS.
       - en "This email change link is no longer valid."
     - `confirmEmailChange.alreadyTaken`: dùng lại chữ của `AccountEmailAlreadyExists` nếu locale đã có, nếu chưa có thì thêm.
 
-- [ ] **Step 1: Export contract và sinh lại client**
+- [x] **Step 1: Export contract và sinh lại client**
 
 Run:
 - `dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true`
@@ -659,7 +659,7 @@ Run:
 
 Expected: `openapi.json` có `currentPassword`, `pendingEmail`, ba route mới.
 
-- [ ] **Step 2: Viết test frontend thất bại (vitest + MSW)**
+- [x] **Step 2: Viết test frontend thất bại (vitest + MSW)**
 
 ```ts
 it('shows the pending line with Resend and Cancel when pendingEmail is set')
@@ -673,17 +673,17 @@ it('shows success on 204, noLongerValid on EmailChangeLinkNoLongerValid, already
 it('reloads the profile when signed in')
 ```
 
-- [ ] **Step 3: Chạy test, phải thất bại**
+- [x] **Step 3: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- ProfileDialog ConfirmEmailChangeView`
 Expected: FAIL.
 
-- [ ] **Step 4: Cài đặt**
+- [x] **Step 4: Cài đặt**
   - Dòng chờ xác nhận là chữ thường, kèm hai nút chữ. Không mở hộp thoại.
   - Ô *Mật khẩu hiện tại* nằm ngay trong form.
   - Mã lỗi so bằng `error.problem.code`, như cách `ProfileDialog.vue` đang làm ở L225.
 
-- [ ] **Step 5: Chạy test, type-check, phải qua**
+- [x] **Step 5: Chạy test, type-check, phải qua**
 
 Run:
 - `bun run --cwd frontend test:run`
@@ -692,9 +692,9 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 6: Chạy gate đầy đủ**
+- [x] **Step 6: Chạy gate đầy đủ**
 
 Run: `scripts/test-gate.sh`
 Expected: PASS.
 
-- [ ] **Step 7: Commit** `feat(profile): show pending email changes and confirm them by link`
+- [x] **Step 7: Commit** `feat(profile): show pending email changes and confirm them by link`

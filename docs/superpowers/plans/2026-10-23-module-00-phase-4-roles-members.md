@@ -121,7 +121,7 @@ Bảng của phần 1, cập nhật theo quyết định của người điều 
     - `organizations.permissionFeedbackhubAdmin`: vi "Quản trị FeedbackHub", en "FeedbackHub administration";
     - `lib/permissions.ts` thêm `FeedbackHubAdmin: 'feedbackhub.admin'`, `permission-label.ts` ánh xạ nó.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Domain
@@ -138,19 +138,19 @@ AdminDefaults_ContainMembersManageAndFeedbackHubAdmin            // FR-23, BR-60
 PermissionsAll_ContainsFeedbackHubAdmin
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~RoleTests|FullyQualifiedName~SystemRoleDisplayNamesTests|FullyQualifiedName~SystemRoleDefaultsTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces.
+- [x] **Step 3: Cài đặt** theo Interfaces.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi `bun run --cwd frontend build-only`, `bun run --cwd frontend type-check`, `bun run --cwd frontend test:run`.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(roles): add the FeedbackHub admin permission and normalize role names`
+- [x] **Step 5: Commit** `feat(roles): add the FeedbackHub admin permission and normalize role names`
 
 ### Task 2: Migration M3–M5 và 409 cho tên vai trò trùng đồng thời
 
@@ -187,7 +187,7 @@ Expected: PASS.
   - `RoleConfiguration` bỏ `HasIndex(OrganizationId, Name)`. Chỉ mục biểu thức chỉ sống trong SQL của M3, vì EF không mô tả được `lower("Name")`. Ghi một dòng comment chỉ tới M3.
   - `UnitOfWork.SaveChangesAsync`: vi phạm unique `IX_roles_OrganizationId_lower_Name` → `ConflictException(OrganizationRoleNameAlreadyExists)`, cạnh hai nhánh có sẵn.
 
-- [ ] **Step 1: Viết test thất bại (Testcontainers)**
+- [x] **Step 1: Viết test thất bại (Testcontainers)**
 
 ```csharp
 M3_DuplicatesIgnoringCaseAndNfc_RenamedWithSuffix
@@ -202,19 +202,19 @@ M5_AddsFeedbackHubAdminToEveryAdminRole_RunTwiceAddsNothing
 SaveChanges_ConcurrentSameNameDifferentCase_SecondThrowsConflict    // hai context (AC-290, AC-326)
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~RoleMigrationsTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** ba migration và nhánh ánh xạ. Test chạy `UpSql` trên dữ liệu gieo sẵn như test M8 hiện có. Test M3 phải đưa schema về đúng trước M3 rồi mới gieo dữ liệu trùng tên và chạy `UpSql` của M3: hoặc migrate tới migration đứng ngay trước M3, hoặc tạo lại chỉ mục cũ `IX_roles_OrganizationId_Name` và bỏ chỉ mục `lower("Name")` mới. Nếu không, trên schema đã migrate đủ `DROP INDEX` lỗi và chỉ mục mới chặn dữ liệu gieo trùng tên.
+- [x] **Step 3: Cài đặt** ba migration và nhánh ánh xạ. Test chạy `UpSql` trên dữ liệu gieo sẵn như test M8 hiện có. Test M3 phải đưa schema về đúng trước M3 rồi mới gieo dữ liệu trùng tên và chạy `UpSql` của M3: hoặc migrate tới migration đứng ngay trước M3, hoặc tạo lại chỉ mục cũ `IX_roles_OrganizationId_Name` và bỏ chỉ mục `lower("Name")` mới. Nếu không, trên schema đã migrate đủ `DROP INDEX` lỗi và chỉ mục mới chặn dữ liệu gieo trùng tên.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(persistence): make role names unique ignoring case and clean up member roles (M3-M5)`
+- [x] **Step 5: Commit** `feat(persistence): make role names unique ignoring case and clean up member roles (M3-M5)`
 
 ### Task 3: `IOrganizationLock`
 
@@ -232,7 +232,7 @@ Expected: PASS.
     - chạy `SELECT 1 FROM organizations WHERE "Id" = {organizationId} FOR UPDATE` qua `ExecuteSqlInterpolatedAsync`;
     - gọi ngoài giao dịch (`dbContext.Database.CurrentTransaction is null`) → `InvalidOperationException`, vì khoá nhả ngay.
 
-- [ ] **Step 1: Viết test thất bại (Testcontainers)**
+- [x] **Step 1: Viết test thất bại (Testcontainers)**
 
 ```csharp
 AcquireAsync_SecondTransactionWaitsUntilFirstCommits
@@ -241,19 +241,19 @@ AcquireAsync_DifferentOrganizations_DoNotBlock
 AcquireAsync_OutsideTransaction_Throws
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~OrganizationLockTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces.
+- [x] **Step 3: Cài đặt** theo Interfaces.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(organizations): lock the organization row for membership and role changes`
+- [x] **Step 5: Commit** `feat(organizations): lock the organization row for membership and role changes`
 
 ### Task 4: `RoleGrantPolicy` và `RoleGrantReader`
 
@@ -301,7 +301,7 @@ Expected: PASS.
     - `OwnerOnlyOperation`: vi "Chỉ Chủ sở hữu làm được thao tác này.", en "Only an Owner can do this."
     - `InsufficientRolePermissions`: vi "Bạn không có đủ quyền của vai trò này.", en "You don't have every permission of this role."
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // RoleGrantPolicyTests
@@ -321,19 +321,19 @@ LoadRolesOfMembersAsync_ReturnsDisplayOrder                        // Owner, Adm
 RoleGrantReader_Constructor_DoesNotTakePermissionResolver
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Application.Tests -m:1 --filter "FullyQualifiedName~RoleGrant"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces.
+- [x] **Step 3: Cài đặt** theo Interfaces.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(roles): compute privilege-escalation rules in one RoleGrantPolicy`
+- [x] **Step 5: Commit** `feat(roles): compute privilege-escalation rules in one RoleGrantPolicy`
 
 ### Task 5: Bỏ route `api/organizations/{id}/...`, mọi mã quyền qua cổng tổ chức
 
@@ -364,7 +364,7 @@ Expected: PASS.
   - `OrganizationPermissionPolicyProvider`: mọi mã trong `Permissions.All` dựng `OrganizationContextRequirement(code, DenyMode.Forbidden)`; tên khác rơi về provider mặc định.
   - Hằng `NotificationTypes.OrganizationMemberAdded` và mẫu hiển thị của nó giữ nguyên, để thông báo cũ trong cơ sở dữ liệu vẫn hiện (QĐ-17); không còn chỗ nào phát nó.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 [Theory] GetPolicyAsync_EveryPermissionCode_BuildsGateRequirementForbidden
@@ -375,22 +375,22 @@ AddMemberDirectly_OldRoute_DoesNotCreateMembership                 // AC-260
 NoController_HasOrganizationIdRouteParameter                       // không route nào mẫu "api/organizations/{id"
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~OrganizationPermissionPolicyProviderTests|FullyQualifiedName~OrganizationsControllerTests|FullyQualifiedName~ArchitectureTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt.** Xoá theo danh sách. Sửa đoạn policy trong `authentication.md`:
+- [x] **Step 3: Cài đặt.** Xoá theo danh sách. Sửa đoạn policy trong `authentication.md`:
   - bỏ `OrganizationMember`;
   - ghi mọi mã `Permissions` qua cổng tổ chức;
   - ghi không còn route nào nhận id tổ chức (QĐ-06).
 
-- [ ] **Step 4: Chạy lại toàn bộ backend, phải qua**
+- [x] **Step 4: Chạy lại toàn bộ backend, phải qua**
 
 Run: `backend/scripts/test.sh`
 Expected: PASS (test của route cũ đã xoá cùng route).
 
-- [ ] **Step 5: Commit** `refactor(api)!: remove organization-id routes and direct member adds`
+- [x] **Step 5: Commit** `refactor(api)!: remove organization-id routes and direct member adds`
 
 ### Task 6: API-06 danh sách thành viên
 
@@ -428,7 +428,7 @@ Expected: PASS (test của route cũ đã xoá cùng route).
     - người gọi có quyền, dòng khác: `denial = CheckTakeAwayAll(caller, roles)`; `CanChangeRoles = CanRemove = denial is null`; `LockReason`, `LockRole` lấy từ `denial`.
   - Route `GET api/organization/members`, `[Authorize(Policy = AuthorizationPolicies.ActiveOrganizationMemberOrNotFound)]`, `[FromQuery] PageRequest`, 200 `PagedResult<OrganizationMemberDto>`.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application
@@ -448,19 +448,19 @@ Members_PageSize101_Returns400
 Members_PlainMemberResponse_HasNoOtherEmails                        // AC-262
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~MemberServiceListTests|FullyQualifiedName~OrganizationMemberQueriesTests|FullyQualifiedName~CurrentOrganizationMembersTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Vai trò của cả trang lấy bằng một lần `LoadRolesOfMembersAsync`, không truy vấn theo từng dòng (TECH00 §9).
+- [x] **Step 3: Cài đặt** theo Interfaces. Vai trò của cả trang lấy bằng một lần `LoadRolesOfMembersAsync`, không truy vấn theo từng dòng (TECH00 §9).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(members): list members with email privacy and per-row permissions`
+- [x] **Step 5: Commit** `feat(members): list members with email privacy and per-row permissions`
 
 ### Task 7: API-07 đổi vai trò, API-08 gỡ, API-09 tự rời
 
@@ -521,7 +521,7 @@ Expected: PASS.
     - `CannotRemoveSelf`: vi "Bạn không thể tự gỡ mình khỏi tổ chức. Hãy dùng Rời tổ chức.", en "You can't remove yourself from the organization. Use Leave organization instead."
     - `LastOwnerCannotLeave`: vi "Tổ chức cần ít nhất một Chủ sở hữu. Hãy gán vai trò Chủ sở hữu cho người khác trước khi rời.", en "The organization needs at least one Owner. Make someone else an Owner before you leave."
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application (MemberServiceWriteTests)
@@ -561,19 +561,19 @@ Leave_ThenNextRequestWithOldToken_Returns403AccessDenied                        
 RemoveThenRefresh_ReturnsNullOrganization                                           // phiên của người bị gỡ (T6)
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~MemberServiceWriteTests|FullyQualifiedName~MemberConcurrencyTests|FullyQualifiedName~CurrentOrganizationMembersTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces.
+- [x] **Step 3: Cài đặt** theo Interfaces.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(members): change roles, remove and leave under BR-58 with audit entries`
+- [x] **Step 5: Commit** `feat(members): change roles, remove and leave under BR-58 with audit entries`
 
 ### Task 8: API-14 danh sách chọn vai trò, API-15 phần Vai trò
 
@@ -608,7 +608,7 @@ Expected: PASS.
 
     Cả hai lấy tổ chức từ `org_id`.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application
@@ -626,19 +626,19 @@ RoleOptions_Response_HasNoPermissionCodes                                       
 Roles_PersonalContext_Returns403AccessDenied
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~RoleServiceReadTests|FullyQualifiedName~RoleQueriesTests|FullyQualifiedName~CurrentOrganizationRolesTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces.
+- [x] **Step 3: Cài đặt** theo Interfaces.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(roles): list roles with holder counts and grant options for the working organization`
+- [x] **Step 5: Commit** `feat(roles): list roles with holder counts and grant options for the working organization`
 
 ### Task 9: API-16 tạo, API-17 sửa, API-18 xoá vai trò tự tạo
 
@@ -692,7 +692,7 @@ Expected: PASS.
     - `RoleHasHolders`: vi "Vai trò này còn người giữ. Hãy đổi vai trò của họ trước khi xoá.", en "Someone still has this role. Change their roles before deleting it."
     - `RoleNameReservedForSystemRole`: vi "Tên này trùng tên một vai trò hệ thống.", en "This name is taken by a system role."
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application (RoleServiceWriteTests)
@@ -725,19 +725,19 @@ CreateRole_101CharName_Returns400                                         // AC-
 UpdateRole_OldPatchVerb_Returns405Or404
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~RoleServiceWriteTests|FullyQualifiedName~CurrentOrganizationRolesTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Tên đã chuẩn hoá (qua `Role.Update`) mới đem so với tập dành riêng và với vai trò khác.
+- [x] **Step 3: Cài đặt** theo Interfaces. Tên đã chuẩn hoá (qua `Role.Update`) mới đem so với tập dành riêng và với vai trò khác.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(roles): create, edit and delete custom roles under BR-58 and BR-79`
+- [x] **Step 5: Commit** `feat(roles): create, edit and delete custom roles under BR-58 and BR-79`
 
 ### Task 10: Contract, frontend tối thiểu, feature map, gate
 
@@ -768,7 +768,7 @@ Expected: PASS.
     `- Removed: every api/organizations/{id}/... route, adding a member directly, and DELETE api/organizations/{id}; members and roles are now managed at api/organization/..., and members join by invitation.`
     (TECH00 §10.2 bước 3; cùng cách phần 6 xử lý `api/admin/audit-logs`.)
 
-- [ ] **Step 1: Export contract và sinh lại client**
+- [x] **Step 1: Export contract và sinh lại client**
 
 Run:
 - `dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true`
@@ -776,21 +776,21 @@ Run:
 
 Expected: `openapi.json` có các route `api/organization/members…`, `leave`, `role-options`, `roles…`; không còn `api/organizations/{id}`; `AddMemberRequest` biến mất.
 
-- [ ] **Step 2: Sửa frontend cho biên dịch được**, rồi chạy:
+- [x] **Step 2: Sửa frontend cho biên dịch được**, rồi chạy:
 - `bun run --cwd frontend build-only`
 - `bun run --cwd frontend type-check`
 - `bun run --cwd frontend test:run`
 
 Expected: PASS.
 
-- [ ] **Step 3: Ghi feature map** theo Interfaces. Quyết định API của module chỉ nằm ở TECH00 §12 (`AGENTS.md` § Decision Log), không ghi vào `.claude/decisions.md`.
+- [x] **Step 3: Ghi feature map** theo Interfaces. Quyết định API của module chỉ nằm ở TECH00 §12 (`AGENTS.md` § Decision Log), không ghi vào `.claude/decisions.md`.
 
-- [ ] **Step 4: Chạy gate đầy đủ**
+- [x] **Step 4: Chạy gate đầy đủ**
 
 Run: `scripts/test-gate.sh`
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `chore(contract): export the member and role management contract`
+- [x] **Step 5: Commit** `chore(contract): export the member and role management contract`
 
 Mô tả PR khai báo lệch nhỏ: thứ tự vai trò của một dòng thành viên (`Owner`, `Admin`, `Member`, rồi vai trò tự tạo theo `COLLATE "und-x-icu"`, rồi `Id`, sắp trong truy vấn) là định nghĩa mà TECH00 §4.6 chưa nêu; ghi định nghĩa này vào TECH00 §4.6.
 
