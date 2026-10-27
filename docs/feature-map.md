@@ -50,7 +50,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Tổ chức đang làm việc và admin hệ thống
 
-- **PRD:** PRD00-FR-42, FR-44, FR-46, FR-53, FR-63, FR-38. Đối chiếu AC cụ thể (đổi tên API-04 AC-226 (slug không đổi), tạo tổ chức không ghi nhật ký AC-364) theo test trong mục Test.
+- **PRD:** PRD00-FR-42, FR-44, FR-46, FR-53, FR-63, FR-38: bước 2 AC-126 (người không phải admin hệ thống bị từ chối xem danh sách mọi tổ chức); bước 3 AC-105 (vô hiệu), AC-106 (kích hoạt lại); bước 4 AC-185 (đổi tên), AC-226 (định danh không đổi), AC-367 (một mục nhật ký cho mỗi thao tác); tạo tổ chức không ghi nhật ký AC-364. Bước 1 (cấp admin hệ thống chỉ qua CLI, FR-38) không có AC riêng: AC-51 và AC-52 chỉ nói Hub không có thao tác cấp quyền.
 - **Vào bằng:** màn hình nằm ở các mục _Tổ chức: tạo, chuyển, trang chào, tạm ngừng_, _Quản lý tổ chức_ và _Admin hệ thống: các tổ chức_ bên dưới; mục này chỉ ghi phần API. Gọi API bằng token của thành viên tổ chức, hoặc của admin hệ thống cho `api/system/*`. Cấp và thu hồi admin hệ thống chỉ qua CLI trên server: `dotnet run --project backend/src/FeedbackHub.API -- grant-system-admin --email <email>` và `revoke-system-admin --email <email>` (mã thoát 0 xong hoặc không có gì để làm, 1 sai cú pháp, 2 không có tài khoản, 3 email chưa xác minh).
 - **Frontend:** xem ba mục _Tổ chức: tạo, chuyển, trang chào, tạm ngừng_, _Quản lý tổ chức_, _Admin hệ thống: các tổ chức_.
 - **Backend:**
@@ -75,7 +75,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Thành viên và vai trò của tổ chức
 
-- **PRD:** PRD00-FR-23, FR-29, FR-52, FR-59, FR-60, FR-62, FR-64, FR-66.
+- **PRD:** PRD00-FR-23, FR-29, FR-52, FR-59, FR-60, FR-62, FR-64, FR-66: bước 1 AC-263 (người có quyền quản lý thành viên thấy danh sách đầy đủ), AC-339 (dòng của chính mình không có *Gỡ*); bước 3 AC-277 (Chủ sở hữu duy nhất không rời được); bước 4 AC-290 (tên vai trò trùng không phân biệt hoa thường), AC-248 (vai trò còn người giữ không xoá được). Bước 2 (`roleIds` rỗng, Admin thêm Owner) chưa gắn AC: BR-58 không có AC khớp trọn từng mã lỗi.
 - **Vào bằng:** màn hình nằm ở các mục _Thành viên và lời mời_ và _Vai trò tự tạo_ bên dưới. Trang _Tổ chức_ cũ cùng hai hộp thoại thành viên, vai trò cũ đã bỏ cùng route `api/organizations/{id}/...`. Gọi API bằng token của thành viên tổ chức đang làm việc.
 - **Backend:**
   - API-06 đến API-09: `GET /api/organization/members`, `PUT /api/organization/members/{accountId}/roles`, `DELETE /api/organization/members/{accountId}`, `POST /api/organization/leave` → `CurrentOrganizationController` → `IMemberService`
@@ -96,7 +96,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Lời mời
 
-- **PRD:** PRD00-FR-25, FR-61, BR-81.
+- **PRD:** PRD00-FR-25, FR-61, BR-81: bước 1 AC-273 (mời lại thay lời mời cũ); bước 2 AC-59, AC-117 (lời mời đã thu hồi báo không còn hiệu lực); bước 3 AC-57 (vào thẳng với vai trò đã mời), AC-182 (email coi là đã xác minh); bước 4 AC-306 (sai tài khoản), AC-351 (email chưa xác minh).
 - **Vào bằng:** gửi và quản lý lời mời ở mục _Thành viên và lời mời_; người được mời mở link trong thư ở mục _Nhận lời mời_. Gọi API bằng token của thành viên tổ chức đang làm việc có quyền `organizations.members.manage`; hai API công khai (lookup, register-with-invitation) và accept (cần đăng nhập) do trang `#/invite?token=...` gọi.
 - **Backend:**
   - API-10 đến API-13: `GET/POST /api/organization/invitations`, `POST /api/organization/invitations/{id}/resend`, `DELETE /api/organization/invitations/{id}` → `CurrentOrganizationController` → `IInvitationService`
@@ -119,7 +119,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Nhật ký kiểm toán
 
-- **PRD:** PRD00-FR-68, BR-83, BR-84.
+- **PRD:** PRD00-FR-68, BR-83, BR-84: bước 1 AC-359 (mới nhất trước), AC-371 (không IP hay thông tin trình duyệt); bước 2 và cách kiểm tra giao diện AC-372 (mục gửi lời mời); bước 3 AC-360 (*Xem thêm* tải trang kế); bước 4 AC-362 (không quyền xem nhật ký thì bị từ chối).
 - **Vào bằng:** rail → nhóm **Organization** → **Audit log** (`/#/organization/audit-log`), chỉ hiện với người có quyền `auditlogs.view`; mở bằng URL khi thiếu quyền thấy _No permission_. API: token của thành viên tổ chức đang làm việc có quyền `auditlogs.view`; khoá API bị cổng từ chối 403.
 - **Backend:**
   - API-33: `GET /api/organization/audit-log?cursor=&limit=` → `CurrentOrganizationController` → `AuditLogService` → `AuditLogRepository.ListEventsAsync`
@@ -252,7 +252,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Vai trò tự tạo
 
-- **PRD:** PRD00-FR-52, FR-64, FR-65, FR-66.
+- **PRD:** PRD00-FR-52, FR-64, FR-65, FR-66: bước 1 AC-55 (vai trò hệ thống không sửa được); bước 2 AC-290 (tên trùng không phân biệt hoa thường); bước 3 AC-248 (vai trò còn người giữ không xoá được).
 - **Vào bằng:** **Members** → tab **Roles** (`tab-roles`, `/#/organization/members/roles`), chỉ hiện với người có `organizations.roles.manage`; mở bằng URL khi thiếu quyền thấy _No permission_.
 - **Frontend:**
   - `frontend/src/views/organization/RolesView.vue` (route `organization-roles`, `activeMenu = organization-members`), nút `create-role-btn`
@@ -269,7 +269,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Admin hệ thống: các tổ chức
 
-- **PRD:** PRD00-FR-44 (danh sách mọi tổ chức), FR-46 (lý do khi vô hiệu), FR-38 (cấp admin hệ thống chỉ qua CLI).
+- **PRD:** PRD00-FR-44 (danh sách mọi tổ chức), FR-46 (lý do khi vô hiệu), FR-38 (cấp admin hệ thống chỉ qua CLI): bước 1 AC-124 (tên, số thành viên, nhãn đã vô hiệu); bước 2 AC-138 (bỏ trống lý do thì không vô hiệu được), AC-105 (vô hiệu); bước 3 AC-106 (kích hoạt lại); bước 4 AC-126 (người không phải admin hệ thống bị từ chối).
 - **Vào bằng:** rail → nhóm **System** → **Organizations** (`/#/system/organizations`), chỉ hiện với tài khoản `isSystemAdministrator`; admin vào được cả khi chưa làm việc ở tổ chức nào (từ link _Organizations_ ở trang chào). Tài khoản khác mở bằng URL thấy _No permission_. Cấp quyền admin hệ thống chỉ qua CLI (`grant-system-admin`, xem _Tổ chức đang làm việc và admin hệ thống_).
 - **Frontend:** `frontend/src/views/system/SystemOrganizationsView.vue` (route `system-organizations`, `meta.systemAdministrator`, không `requiresOrganization`): danh sách phân trang (`system-orgs-show-more`), dòng `system-org-row-<id>`, menu `system-org-actions-<id>`, `system-org-deactivate-<id>` / `system-org-reactivate-<id>` (khổ điện thoại dùng `system-org-sheet-deactivate` / `system-org-sheet-reactivate`), lỗi tải `system-orgs-error`; hộp thoại vô hiệu dùng `DeactivateOrganizationDialog.vue` với lý do bắt buộc
 - **Backend:** API-24 đến API-26 → `SystemOrganizationsController` (policy `SystemAdministrator`); xem _Tổ chức đang làm việc và admin hệ thống_.
