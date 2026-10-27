@@ -5,6 +5,8 @@ import type {
   InvitationLookupDto,
   OrganizationDto,
   OrganizationMemberDto,
+  PermissionDto,
+  RoleDto,
   RoleOptionDto,
   RoleRefDto,
   SystemOrganizationDto,
@@ -46,6 +48,26 @@ export function makeRoleOption(overrides: Partial<RoleOptionDto> = {}): RoleOpti
     canGrant: true,
     ...overrides,
   }
+}
+
+export function makeRole(overrides: Partial<RoleDto> = {}): RoleDto {
+  return {
+    id: 'role-custom',
+    name: 'Support',
+    systemKind: null,
+    isSystem: false,
+    permissionCodes: ['organizations.members.manage'],
+    holderCount: 0,
+    pendingInvitationCount: 0,
+    canEdit: true,
+    canDelete: true,
+    deleteBlockedReason: null,
+    ...overrides,
+  }
+}
+
+export function makePermission(code: string): PermissionDto {
+  return { code }
 }
 
 export function makeMember(overrides: Partial<OrganizationMemberDto> = {}): OrganizationMemberDto {

@@ -15,6 +15,10 @@ describe('Permissions', () => {
     })
   })
 
+  it('includes feedbackhub.admin in Permissions', () => {
+    expect(Object.values(Permissions)).toContain('feedbackhub.admin')
+  })
+
   it('has no duplicate codes', () => {
     const codes = Object.values(Permissions)
 
