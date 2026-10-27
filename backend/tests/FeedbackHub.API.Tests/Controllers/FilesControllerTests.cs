@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
 using FeedbackHub.Application.Common.Models;
+using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Files;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
@@ -168,5 +170,74 @@ public sealed class FilesControllerTests(ApiFactoryFixture fixture) : IAsyncLife
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         PagedResult<FileDto>? result = await response.Content.ReadJsonAsync<PagedResult<FileDto>>();
         Assert.DoesNotContain(result!.Items, f => f.FileName == "other-org.txt");
+    }
+
+    // Organization gate
+
+    [Theory]
+    [InlineData("GET", "/api/files")]
+    [InlineData("GET", "/api/files/00000000-0000-0000-0000-000000000001")]
+    [InlineData("GET", "/api/files/00000000-0000-0000-0000-000000000001/download")]
+    [InlineData("DELETE", "/api/files/00000000-0000-0000-0000-000000000001")]
+    public async Task AnyEndpoint_Unauthenticated_ReturnsUnauthorized(string method, string path)
+    {
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), path));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // AC-298: the personal context has no organization to reach files in.
+    [Theory]
+    [InlineData("POST", "/api/files")]
+    [InlineData("GET", "/api/files")]
+    [InlineData("GET", "/api/files/00000000-0000-0000-0000-000000000001")]
+    [InlineData("GET", "/api/files/00000000-0000-0000-0000-000000000001/download")]
+    [InlineData("DELETE", "/api/files/00000000-0000-0000-0000-000000000001")]
+    public async Task AnyEndpoint_PersonalContext_Returns403AccessDenied(string method, string path)
+    {
+        HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
+            fixture, SystemRoleKind.Owner, personalContext: true);
+        HttpRequestMessage request = new(new HttpMethod(method), path);
+        if (method == "POST")
+        {
+            request.Content = CreateUploadContent("hello"u8.ToArray());
+        }
+
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Delete_MemberWithoutFilesManage_Returns403AccessDenied()
+    {
+        HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
+            fixture, SystemRoleKind.Member);
+
+        HttpResponseMessage response = await client.DeleteAsync($"/api/files/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
+    }
+
+    // AC-301: the policy itself answers a suspended organization, before the middleware net.
+    [Fact]
+    public async Task GetAll_SuspendedOrganizationMember_Returns403SuspendedWithName()
+    {
+        HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
+            fixture, SystemRoleKind.Owner, organizationSuspended: true);
+
+        HttpResponseMessage response = await client.GetAsync("/api/files");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(403, body.GetProperty("status").GetInt32());
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, body.GetProperty("code").GetString());
+        Assert.Equal(AuthTestHelper.GateOrganizationName, body.GetProperty("organizationName").GetString());
     }
 }

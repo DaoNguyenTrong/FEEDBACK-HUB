@@ -4,6 +4,7 @@ export interface ProblemDetails {
   detail?: string
   type?: string
   code?: string
+  organizationName?: string
   errors?: Record<string, string[]>
 }
 
@@ -40,6 +41,10 @@ export type { RegisterResult } from './generated/model/registerResult'
 export type { VerifyEmailRequest } from './generated/model/verifyEmailRequest'
 export type { ResendVerificationRequest } from './generated/model/resendVerificationRequest'
 export type { ExternalLoginRequest } from './generated/model/externalLoginRequest'
+export type { ExternalLoginResponse } from './generated/model/externalLoginResponse'
+export type { RegisterWithInvitationRequest } from './generated/model/registerWithInvitationRequest'
+export type { RegisterWithInvitationResponse } from './generated/model/registerWithInvitationResponse'
+export type { InvitationLookupStatus } from './generated/model/invitationLookupStatus'
 export type { RefreshTokenRequest } from './generated/model/refreshTokenRequest'
 export type { RefreshTokenRequest as LogoutRequest } from './generated/model/refreshTokenRequest'
 export type { ProfileDto } from './generated/model/profileDto'
@@ -47,8 +52,18 @@ export type { UpdateProfileRequest as ProfileUpdateRequest } from './generated/m
 export type { ChangePasswordRequest } from './generated/model/changePasswordRequest'
 export type { OrganizationDto } from './generated/model/organizationDto'
 export type { OrganizationMemberDto } from './generated/model/organizationMemberDto'
+export type { CurrentOrganizationDto } from './generated/model/currentOrganizationDto'
+export type { RenameOrganizationRequest } from './generated/model/renameOrganizationRequest'
+export type { DeactivateOrganizationRequest } from './generated/model/deactivateOrganizationRequest'
+export type { RoleRefDto } from './generated/model/roleRefDto'
+export type { RoleOptionDto } from './generated/model/roleOptionDto'
+export type { InvitationDto } from './generated/model/invitationDto'
+export type { SendInvitationRequest } from './generated/model/sendInvitationRequest'
+export { InvitationStatus } from './generated/model/invitationStatus'
+export type { InvitationLookupDto } from './generated/model/invitationLookupDto'
+export type { SystemOrganizationDto } from './generated/model/systemOrganizationDto'
+export type { AuditEntryDto } from './generated/model/auditEntryDto'
 export type { CreateOrganizationRequest } from './generated/model/createOrganizationRequest'
-export type { AddMemberRequest } from './generated/model/addMemberRequest'
 export type { UpdateMemberRolesRequest } from './generated/model/updateMemberRolesRequest'
 export type { SwitchOrganizationRequest } from './generated/model/switchOrganizationRequest'
 export type { RoleDto } from './generated/model/roleDto'

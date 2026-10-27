@@ -1,6 +1,5 @@
 using Amazon.S3;
 using Amazon.S3.Model;
-using Amazon.S3.Util;
 using Hangfire;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Infrastructure.Services.Auth;
+using FeedbackHub.Infrastructure.Services.RateLimiting;
 
 namespace FeedbackHub.Infrastructure;
 
@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddSecurity();
         services.AddContext();
         services.AddCaching(configuration);
+        services.AddRateLimiterStore(configuration);
         services.AddJwtAuthentication(configuration);
         services.AddStorage(configuration);
         services.AddEmail(configuration);
@@ -54,43 +55,50 @@ public static class DependencyInjection
             cronExpression);
     }
 
-    // Bucket must exist before the first upload — the S3 gateways of SeaweedFS and MinIO do not auto-create
-    // buckets on PutObject the way some S3-compatible stores do. No-op for any other provider.
-    public static async Task UseStorageAsync(this IApplicationBuilder app)
+    // The MinIO bucket must exist before the first upload: its S3 API does not create one on PutObject.
+    // No-op for Local storage.
+    public static Task UseStorageAsync(this IApplicationBuilder app) =>
+        EnsureStorageAsync(app.ApplicationServices, CancellationToken.None);
+
+    /// <summary>Whether <c>StorageSettings:Provider</c> names Local storage, in any case; throws for an unknown provider.</summary>
+    public static bool IsLocalStorage(string provider) =>
+        StorageExtensions.ResolveProviderKey(provider) == StorageExtensions.LocalProvider;
+
+    internal static async Task EnsureStorageAsync(IServiceProvider services, CancellationToken cancellationToken)
     {
-        using IServiceScope scope = app.ApplicationServices.CreateScope();
+        using IServiceScope scope = services.CreateScope();
         StorageSettings storageSettings = scope.ServiceProvider
             .GetRequiredService<IOptions<StorageSettings>>().Value;
 
-        switch (storageSettings.Provider)
+        if (StorageExtensions.ResolveProviderKey(storageSettings.Provider) == StorageExtensions.MinioProvider)
         {
-            case "SeaweedFS":
-                await EnsureBucketAsync(
-                    scope.ServiceProvider.GetRequiredService<IAmazonS3>(),
-                    scope.ServiceProvider.GetRequiredService<IOptions<SeaweedFsSettings>>().Value.BucketName);
-                break;
-            case StorageExtensions.MinioProvider:
-                await EnsureBucketAsync(
-                    scope.ServiceProvider.GetRequiredKeyedService<IAmazonS3>(StorageExtensions.MinioProvider),
-                    scope.ServiceProvider.GetRequiredService<IOptions<MinioSettings>>().Value.BucketName);
-                break;
+            await EnsureBucketAsync(
+                scope.ServiceProvider.GetRequiredKeyedService<IAmazonS3>(StorageExtensions.MinioProvider),
+                scope.ServiceProvider.GetRequiredService<IOptions<MinioSettings>>().Value.BucketName,
+                cancellationToken);
         }
     }
 
-    private static async Task EnsureBucketAsync(IAmazonS3 s3Client, string bucketName)
+    internal static async Task EnsureBucketAsync(IAmazonS3 s3Client, string bucketName, CancellationToken cancellationToken)
     {
-        if (!await AmazonS3Util.DoesS3BucketExistV2Async(s3Client, bucketName))
+        try
         {
-            await s3Client.PutBucketAsync(bucketName);
+            await s3Client.PutBucketAsync(new PutBucketRequest { BucketName = bucketName }, cancellationToken);
+        }
+        catch (AmazonS3Exception exception) when (exception.ErrorCode == "BucketAlreadyOwnedByYou")
+        {
+            // Already ours: an earlier start, or another instance that won the race to create it.
         }
 
         // Only public/ is readable without credentials; every other key stays reachable through the API alone.
-        await s3Client.PutBucketPolicyAsync(new PutBucketPolicyRequest
-        {
-            BucketName = bucketName,
-            Policy = $$"""
-                {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::{{bucketName}}/public/*"]}]}
-                """
-        });
+        await s3Client.PutBucketPolicyAsync(
+            new PutBucketPolicyRequest
+            {
+                BucketName = bucketName,
+                Policy = $$"""
+                    {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::{{bucketName}}/public/*"]}]}
+                    """
+            },
+            cancellationToken);
     }
 }

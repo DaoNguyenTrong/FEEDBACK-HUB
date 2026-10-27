@@ -26,5 +26,6 @@ export function makeAuthResponse(overrides: Partial<Account> = {}): AuthResponse
     organizationId: null,
     organizationName: null,
     permissions: [],
+    isSystemAdministrator: false,
   }
 }

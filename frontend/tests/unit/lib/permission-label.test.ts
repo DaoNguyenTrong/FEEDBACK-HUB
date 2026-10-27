@@ -1,45 +1,54 @@
 import { describe, expect, it, vi } from 'vitest'
 import i18n from '@/plugins/i18n'
-import { permissionLabel } from '@/lib/permission-label'
+import { permissionDescription, permissionName } from '@/lib/permission-label'
 import { Permissions } from '@/lib/permissions'
 
 const translate = (key: string) => i18n.global.t(key)
 
-describe('permissionLabel', () => {
-  it('looks up the translation key mapped to a known permission', () => {
+describe('permission names', () => {
+  it('reads permissions.<code with underscores>.name and .description', () => {
     const t = vi.fn((key: string) => `translated:${key}`)
 
-    expect(permissionLabel(Permissions.OrganizationManage, t)).toBe(
-      'translated:organizations.permissionOrganizationManage',
+    expect(permissionName(Permissions.OrganizationMembersManage, t)).toBe(
+      'translated:permissions.organizations_members_manage.name',
     )
-    expect(permissionLabel(Permissions.OrganizationMembersManage, t)).toBe(
-      'translated:organizations.permissionOrganizationMembersManage',
-    )
-    expect(permissionLabel(Permissions.OrganizationRolesManage, t)).toBe(
-      'translated:organizations.permissionOrganizationRolesManage',
+    expect(permissionDescription(Permissions.OrganizationMembersManage, t)).toBe(
+      'translated:permissions.organizations_members_manage.description',
     )
   })
 
-  it('returns the raw code for an unknown permission without calling t', () => {
+  it('returns the code as the name and an empty description for an unknown code, without calling t', () => {
     const t = vi.fn((key: string) => key)
 
-    expect(permissionLabel('billing.manage', t)).toBe('billing.manage')
-    expect(permissionLabel('', t)).toBe('')
+    expect(permissionName('billing.manage', t)).toBe('billing.manage')
+    expect(permissionDescription('billing.manage', t)).toBe('')
     expect(t).not.toHaveBeenCalled()
   })
 
-  it.each(['en', 'vi'] as const)(
-    'resolves every known permission to a translated label in %s',
+  // AC-294, AC-327
+  it.each(['vi', 'en'] as const)(
+    'gives every permission code a %s name and a description of 1 to 120 characters',
     (locale) => {
       i18n.global.locale.value = locale
 
       for (const code of Object.values(Permissions)) {
-        const label = permissionLabel(code, translate)
+        const name = permissionName(code, translate)
+        const description = permissionDescription(code, translate)
 
-        expect(label).not.toBe(code)
-        expect(label).not.toMatch(/^organizations\.permission/)
-        expect(label.trim()).not.toBe('')
+        expect(name).not.toBe(code)
+        expect(name.trim()).not.toBe('')
+        expect(description.length).toBeGreaterThanOrEqual(1)
+        expect(description.length).toBeLessThanOrEqual(120)
       }
     },
   )
+
+  it('uses the approved vi wording for the roles permission', () => {
+    i18n.global.locale.value = 'vi'
+
+    expect(permissionName(Permissions.OrganizationRolesManage, translate)).toBe('Quản lý vai trò')
+    expect(permissionDescription(Permissions.OrganizationRolesManage, translate)).toBe(
+      'Tạo, sửa và xoá các vai trò tự tạo.',
+    )
+  })
 })

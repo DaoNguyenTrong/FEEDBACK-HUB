@@ -7,7 +7,9 @@ using FeedbackHub.API.Common;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Settings;
+using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.Auth;
+using FeedbackHub.Application.Services.Invitations;
 using FeedbackHub.Domain.Exceptions;
 
 namespace FeedbackHub.API.Controllers;
@@ -18,6 +20,7 @@ public sealed class AuthController(
     IAuthService authService,
     IRegistrationService registrationService,
     ISessionService sessionService,
+    IInvitationService invitationService,
     IOptions<JwtSettings> jwtOptions,
     IOptions<AuthCookieSettings> authCookieOptions) : ControllerBase
 {
@@ -102,30 +105,75 @@ public sealed class AuthController(
         return NoContent();
     }
 
+    /// <summary>Confirms a pending profile email change with the token from the mailed link. Opens no session and sets no cookie.</summary>
+    /// <remarks>Fails with 409 if the link is unknown, used, expired, replaced, or the address was taken meanwhile.</remarks>
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("confirm-email-change")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ConfirmEmailChange(
+        ConfirmEmailChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        await registrationService.ConfirmEmailChangeAsync(request, cancellationToken);
+
+        return NoContent();
+    }
+
     /// <summary>Authenticates (or registers, on first use) with a credential issued by an external provider (currently: google). Returns an access token and refresh token.</summary>
     /// <remarks>Tokens are also set as HttpOnly cookies (`access_token` and `refresh_token`) for browser client support.</remarks>
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     [HttpPost("external/{provider}")]
-    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ExternalLoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<LoginResponse>> ExternalLogin(
+    public async Task<ActionResult<ExternalLoginResponse>> ExternalLogin(
         string provider,
         ExternalLoginRequest request,
         CancellationToken cancellationToken)
     {
-        AuthResult result = await authService.ExternalLoginAsync(
+        ExternalLoginResult result = await authService.ExternalLoginAsync(
             provider,
             request,
             Request.Headers.UserAgent.ToString(),
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             cancellationToken);
 
-        SetAuthCookies(result);
+        SetAuthCookies(result.Auth);
 
-        return Ok(ToResponse(result));
+        return Ok(ToResponse(result.Auth, (token, refresh, expiry, account, orgId, orgName, permissions, admin) =>
+            new ExternalLoginResponse(
+                token, refresh, expiry, account, orgId, orgName, permissions, admin, result.AccountCreated)));
+    }
+
+    /// <summary>Creates an account with the invitation's email, already verified, joins it to the organization and signs it in. The request has no email: one sent anyway is ignored.</summary>
+    /// <remarks>Tokens are also set as HttpOnly cookies (`access_token` and `refresh_token`); the session is not remembered, so the refresh cookie ends with the browser session. A suspended organization still gets the account created and signed in without an organization (`invitationOutcome` `OrganizationSuspended`) and keeps the invitation. Fails with 409 `InvitationNoLongerValid`, `InvitationExpired`, `AccountUsernameAlreadyExists` or `AccountEmailAlreadyExists`, creating nothing.</remarks>
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("register-with-invitation")]
+    [ProducesResponseType(typeof(RegisterWithInvitationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<RegisterWithInvitationResponse>> RegisterWithInvitation(
+        RegisterWithInvitationRequest request,
+        CancellationToken cancellationToken)
+    {
+        RegisterWithInvitationResult result = await invitationService.RegisterAsync(
+            request,
+            Request.Headers.UserAgent.ToString(),
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            cancellationToken);
+
+        SetAuthCookies(result.Auth);
+
+        return Ok(ToResponse(result.Auth, (token, refresh, expiry, account, orgId, orgName, permissions, admin) =>
+            new RegisterWithInvitationResponse(
+                token, refresh, expiry, account, orgId, orgName, permissions, admin, result.Outcome)));
     }
 
     /// <summary>Refreshes the access token using a refresh token. The refresh token can be sent in the request body or via cookie.</summary>
@@ -266,15 +314,31 @@ public sealed class AuthController(
 
     private void ClearAuthCookies() => AuthCookies.Clear(Response, authCookieSettings);
 
-    private static LoginResponse ToResponse(AuthResult result)
-    {
-        return new LoginResponse(
+    private static LoginResponse ToResponse(AuthResult result) =>
+        ToResponse(result, (token, refresh, expiry, account, orgId, orgName, permissions, admin) =>
+            new LoginResponse(token, refresh, expiry, account, orgId, orgName, permissions, admin));
+
+    // The only place an AuthResult is read into a response: a field added to LoginResponse breaks every factory
+    // passed here until this delegate passes it on.
+    private static TResponse ToResponse<TResponse>(AuthResult result, LoginResponseFactory<TResponse> create)
+        where TResponse : LoginResponse =>
+        create(
             result.AccessToken,
             result.RefreshToken,
             result.AccessTokenExpiry,
             result.Account,
             result.OrganizationId,
             result.OrganizationName,
-            result.Permissions);
-    }
+            result.Permissions,
+            result.IsSystemAdministrator);
+
+    private delegate TResponse LoginResponseFactory<out TResponse>(
+        string accessToken,
+        string refreshToken,
+        DateTime accessTokenExpiry,
+        AccountDto account,
+        Guid? organizationId,
+        string? organizationName,
+        IReadOnlyList<string> permissions,
+        bool isSystemAdministrator);
 }

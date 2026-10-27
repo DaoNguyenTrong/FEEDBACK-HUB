@@ -5,8 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.AuditLogs;
+using FeedbackHub.Application.Services.AuditTrail;
+using FeedbackHub.Application.Services.Invitations;
+using FeedbackHub.Application.Services.OrganizationLocking;
+using FeedbackHub.Application.Services.Organizations;
+using FeedbackHub.Application.Services.Roles;
+using FeedbackHub.Application.Services.SystemOrganizations;
 using FeedbackHub.Domain.Interfaces;
 using FeedbackHub.Infrastructure.Persistence;
+using FeedbackHub.Infrastructure.Persistence.Queries;
 using FeedbackHub.Infrastructure.Persistence.Repositories;
 
 namespace FeedbackHub.Infrastructure;
@@ -27,11 +34,19 @@ internal static class PersistenceExtensions
         });
 
         services.AddDataProtection()
+            .SetApplicationName("FeedbackHub")
             .PersistKeysToDbContext<AppDbContext>();
 
         services.AddScoped(typeof(IRepository<,>), typeof(GenericRepository<,>));
         services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<IAuditTrail, AuditTrail>();
+        services.AddScoped<ISystemOrganizationQueries, SystemOrganizationQueries>();
+        services.AddScoped<IOrganizationLock, OrganizationLock>();
+        services.AddScoped<IRoleGrantReader, RoleGrantReader>();
+        services.AddScoped<IRoleQueries, RoleQueries>();
+        services.AddScoped<IOrganizationMemberQueries, OrganizationMemberQueries>();
+        services.AddScoped<IInvitationQueries, InvitationQueries>();
         services.AddScoped<IPasswordAttemptStore, PasswordAttemptStore>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();

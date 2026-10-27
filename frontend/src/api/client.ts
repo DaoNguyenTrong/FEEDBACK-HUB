@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { AxiosHeaders } from 'axios'
-import type { AxiosRequestHeaders } from 'axios'
+import type { AxiosRequestHeaders, InternalAxiosRequestConfig } from 'axios'
 
 import type { ProblemDetails } from './types'
 import { getRuntimeConfig } from '@/lib/runtime-config'
@@ -8,12 +8,42 @@ import { getRuntimeConfig } from '@/lib/runtime-config'
 declare module 'axios' {
   interface InternalAxiosRequestConfig {
     _retry?: boolean
+    // The organization the request was sent in, so a late 401 is never replayed into another one.
+    _organizationId?: string | null
   }
 }
 
 type FailedQueueItem = {
-  resolve: () => void
+  request: InternalAxiosRequestConfig
+  // This request's own error, for when the refresh leaves the organization instead of replaying it.
+  original: unknown
+  resolve: (value: unknown) => void
   reject: (reason?: unknown) => void
+}
+
+type OrganizationAccessHandler = (problem: ProblemDetails, url: string) => void
+
+let organizationAccessHandler: OrganizationAccessHandler | null = null
+
+export function setOrganizationAccessHandler(handler: OrganizationAccessHandler | null) {
+  organizationAccessHandler = handler
+}
+
+const ORGANIZATION_ACCESS_CODES = new Set(['OrganizationSuspended', 'OrganizationAccessDenied'])
+// Calls that don't run through the organization gate, so these codes can't describe the working one.
+const ORGANIZATION_ACCESS_EXEMPT = [
+  '/api/auth',
+  '/api/organizations',
+  '/api/invitations',
+  '/api/system',
+  '/api/permissions',
+]
+
+function isOrganizationGated(url: string) {
+  const path = url.split('?')[0] ?? url
+  return !ORGANIZATION_ACCESS_EXEMPT.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  )
 }
 
 let isRefreshing = false
@@ -28,7 +58,8 @@ function toProblemDetails(
     return null
   }
 
-  const { detail, errors, status, title, type, code } = data as Partial<ProblemDetails>
+  const { detail, errors, status, title, type, code, organizationName } =
+    data as Partial<ProblemDetails>
 
   if (typeof status !== 'number') {
     return null
@@ -40,21 +71,40 @@ function toProblemDetails(
     detail: typeof detail === 'string' && detail.length > 0 ? detail : undefined,
     type: typeof type === 'string' ? type : undefined,
     code: typeof code === 'string' ? code : undefined,
+    organizationName: typeof organizationName === 'string' ? organizationName : undefined,
     errors: errors && typeof errors === 'object' ? errors : undefined,
   }
 }
 
-function processFailedQueue(error: unknown) {
-  failedQueue.forEach(({ reject, resolve }) => {
-    if (error) {
-      reject(error)
-      return
-    }
-
-    resolve()
-  })
-
+function rejectFailedQueue(error: unknown) {
+  failedQueue.forEach(({ reject }) => reject(error))
   failedQueue = []
+}
+
+type ReplayRefusal = { lostFrom: string } | { switched: true }
+
+// A gated request sent in an organization other than the one the refreshed session is in (TECH00 6.5).
+function replayRefusal(
+  request: InternalAxiosRequestConfig,
+  currentOrganizationId: string | null,
+): ReplayRefusal | null {
+  const sentIn = request._organizationId ?? null
+  if (!isOrganizationGated(request.url ?? '') || sentIn === null) return null
+  if (sentIn === currentOrganizationId) return null
+  return currentOrganizationId === null ? { lostFrom: sentIn } : { switched: true }
+}
+
+function applyRefusal(refusal: ReplayRefusal, notified: { done: boolean }) {
+  if (notified.done) return
+  notified.done = true
+  if ('lostFrom' in refusal) {
+    void useOrganizationContextStore()
+      .handleOrganizationLost(refusal.lostFrom)
+      .catch(() => undefined)
+    return
+  }
+  // Another tab switched organization through the shared refresh cookie: only a reload is safe.
+  reloadTo('/')
 }
 
 function toApiError(error: unknown): ApiError | null {
@@ -102,12 +152,42 @@ function applyCommonHeaders(config: { headers?: AxiosRequestHeaders; url?: strin
   return headers
 }
 
+// Authenticated calls under /api/auth/, not sign-in flows: an expired access token answers them
+// with a bodyless 401, which must go through refresh-and-retry like any other call.
+const AUTHENTICATED_AUTH_URLS = new Set(['/api/auth/switch-organization', '/api/auth/sessions'])
+const AUTHENTICATED_AUTH_PREFIXES = ['/api/auth/sessions/']
+
 function isAuthFlowRequest(url?: string) {
-  return url?.startsWith('/api/auth/') ?? false
+  if (!url) return false
+  const path = url.split('?')[0] ?? url
+  // Anonymous endpoint (the invitation link is opened signed out too): a 401 here says nothing
+  // about the session, so it must not trigger a refresh or clear the auth state.
+  if (path === '/api/invitations/lookup') return true
+  if (
+    AUTHENTICATED_AUTH_URLS.has(path) ||
+    AUTHENTICATED_AUTH_PREFIXES.some((prefix) => path.startsWith(prefix))
+  ) {
+    return false
+  }
+  return url.startsWith('/api/auth/')
 }
 
 function isPasswordChangeRequest(url?: string) {
   return url === '/api/profile/password'
+}
+
+// Form-level 401s from EnsureCurrentPasswordAsync (wrong current password, or its attempt lock):
+// they are about the form, not an expired session. Refreshing and replaying would spend another
+// attempt, and the replayed 401 would then sign the user out.
+const FORM_LEVEL_401_CODES = new Set([
+  'InvalidCurrentPassword',
+  'EmailChangeTemporarilyLocked',
+  'PasswordChangeTemporarilyLocked',
+])
+
+function isFormLevelRejection(data: unknown) {
+  const code = (data as { code?: unknown } | undefined)?.code
+  return typeof code === 'string' && FORM_LEVEL_401_CODES.has(code)
 }
 
 /**
@@ -141,6 +221,7 @@ apiClient.interceptors.request.use((config) => {
   const headers = applyCommonHeaders(config)
 
   config.headers = headers
+  config._organizationId = useAuthStore().organizationId
   return config
 })
 
@@ -163,7 +244,8 @@ apiClient.interceptors.response.use(
       error.response.status === 401 &&
       originalRequest &&
       !isAuthFlowRequest(originalRequest.url) &&
-      !isPasswordChangeRequest(originalRequest.url)
+      !isPasswordChangeRequest(originalRequest.url) &&
+      !isFormLevelRejection(error.response.data)
     ) {
       if (originalRequest._retry) {
         auth.clearAuth()
@@ -173,7 +255,9 @@ apiClient.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({
-            resolve: () => resolve(apiClient(originalRequest)),
+            request: originalRequest,
+            original: toApiError(error) ?? error,
+            resolve,
             reject,
           })
         })
@@ -181,26 +265,54 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true
       isRefreshing = true
+      const originalError = toApiError(error) ?? error
 
-      return auth
-        .refreshToken()
-        .then(() => {
-          processFailedQueue(null)
+      return auth.refreshToken().then(
+        () => {
+          isRefreshing = false
+          const queued = failedQueue
+          failedQueue = []
+          const notified = { done: false }
+          queued.forEach((item) => {
+            const refusal = replayRefusal(item.request, auth.organizationId)
+            if (refusal) {
+              applyRefusal(refusal, notified)
+              item.reject(item.original)
+              return
+            }
+            item.resolve(apiClient(item.request))
+          })
+
+          const refusal = replayRefusal(originalRequest, auth.organizationId)
+          if (refusal) {
+            applyRefusal(refusal, notified)
+            return Promise.reject(originalError)
+          }
           return apiClient(originalRequest)
-        })
-        .catch((refreshError) => {
+        },
+        (refreshError: unknown) => {
+          isRefreshing = false
           const apiError = toApiError(refreshError) ?? refreshError
           clearKeepLoginPreference()
           auth.clearAuth()
-          processFailedQueue(apiError)
+          rejectFailedQueue(apiError)
           return Promise.reject(apiError)
-        })
-        .finally(() => {
-          isRefreshing = false
-        })
+        },
+      )
     }
 
     const apiError = toApiError(error)
+
+    if (
+      apiError &&
+      apiError.status === 403 &&
+      organizationAccessHandler &&
+      ORGANIZATION_ACCESS_CODES.has(apiError.problem.code ?? '') &&
+      originalRequest?.url &&
+      isOrganizationGated(originalRequest.url)
+    ) {
+      organizationAccessHandler(apiError.problem, originalRequest.url)
+    }
 
     if (apiError) {
       return Promise.reject(apiError)

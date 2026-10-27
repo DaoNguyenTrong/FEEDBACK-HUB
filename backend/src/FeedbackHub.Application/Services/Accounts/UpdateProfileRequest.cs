@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FeedbackHub.Application.Common;
 
 namespace FeedbackHub.Application.Services.Accounts;
 
@@ -7,4 +8,5 @@ public sealed record UpdateProfileRequest(
     [MaxLength(20, ErrorMessage = "FieldMaxLength")] string? Phone,
     [MaxLength(100, ErrorMessage = "FieldMaxLength")] string? Position,
     [MaxLength(500, ErrorMessage = "FieldMaxLength")] string? Address,
-    [Required(ErrorMessage = "FieldRequired"), MaxLength(200, ErrorMessage = "FieldMaxLength"), EmailAddress(ErrorMessage = "FieldEmailAddress")] string Email);
+    [Required(ErrorMessage = "FieldRequired"), MaxLength(200, ErrorMessage = "FieldMaxLength"), EmailAddress(ErrorMessage = "FieldEmailAddress")] string Email,
+    [MaxLength(PasswordPolicy.MaxLength, ErrorMessage = "FieldMaxLength")] string? CurrentPassword = null);

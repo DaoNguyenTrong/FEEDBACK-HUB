@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Options;
+using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Accounts;
@@ -126,10 +128,13 @@ public sealed class AuthService(
             throw new UnauthorizedException(ApplicationMessages.InvalidRefreshToken);
         }
 
-        if (rotatingToken.OrganizationId is { } organizationId &&
-            !await tenantAccessService.HasActiveAccessAsync(account.Id, organizationId, cancellationToken))
+        // Losing the organization (removed, or suspended) ends only the organization context, not the session: a 401
+        // would sign the person out and hide why the organization is gone (QĐ-31).
+        Guid? organizationId = rotatingToken.OrganizationId;
+        if (organizationId is { } tokenOrganizationId &&
+            await tenantAccessService.GetAccessAsync(account.Id, tokenOrganizationId, cancellationToken) != TenantAccessStatus.Active)
         {
-            throw new UnauthorizedException(ApplicationMessages.InvalidRefreshToken);
+            organizationId = null;
         }
 
         rotatingToken.Revoke();
@@ -137,7 +142,7 @@ public sealed class AuthService(
 
         return await tokenIssuer.IssueTokensAsync(
             account,
-            rotatingToken.OrganizationId,
+            organizationId,
             deviceInfo,
             ipAddress,
             rotatingToken.IsPersistent,
@@ -198,7 +203,7 @@ public sealed class AuthService(
         throw new UnauthorizedException(ApplicationMessages.InvalidRefreshToken);
     }
 
-    public async Task<AuthResult> ExternalLoginAsync(
+    public async Task<ExternalLoginResult> ExternalLoginAsync(
         string provider,
         ExternalLoginRequest request,
         string? deviceInfo,
@@ -211,11 +216,6 @@ public sealed class AuthService(
 
         ExternalUserInfo userInfo = await authProvider.ValidateAsync(request.Credential, cancellationToken);
 
-        if (!userInfo.EmailVerified)
-        {
-            throw new UnauthorizedException(ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider);
-        }
-
         IRepository<ExternalLogin, Guid> externalLoginRepository = unitOfWork.Repository<ExternalLogin, Guid>();
         IRepository<Account, Guid> accountRepository = unitOfWork.Repository<Account, Guid>();
 
@@ -224,14 +224,31 @@ public sealed class AuthService(
             cancellationToken);
 
         Account account;
+        bool accountCreated = false;
 
         if (existingLogin is not null)
         {
             account = await accountRepository.GetByIdAsync(existingLogin.AccountId, cancellationToken)
                 ?? throw new UnauthorizedException(ApplicationMessages.InvalidUsernameOrPassword);
+
+            // A linked sign-in needs no provider verification, but it is the only way an account whose
+            // email was never proven (left unconfirmed by the M8 migration) can be re-verified.
+            if (!account.EmailConfirmed
+                && userInfo.EmailVerified
+                && !string.IsNullOrWhiteSpace(userInfo.Email)
+                && Account.NormalizeEmail(userInfo.Email) == account.Email)
+            {
+                account.ConfirmEmail();
+                accountRepository.Update(account);
+            }
         }
         else
         {
+            if (!userInfo.EmailVerified || string.IsNullOrWhiteSpace(userInfo.Email))
+            {
+                throw new UnauthorizedException(ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider);
+            }
+
             string email = Account.NormalizeEmail(userInfo.Email);
             Account? matchedAccount = await accountRepository.FirstOrDefaultAsync(
                 a => a.Email == email, cancellationToken);
@@ -241,6 +258,12 @@ public sealed class AuthService(
                 if (!matchedAccount.EmailConfirmed)
                 {
                     throw new ConflictException(ApplicationMessages.ExternalLoginEmailNotConfirmed);
+                }
+
+                // The link is added before TokenIssuer runs, so a locked account must be refused here.
+                if (!matchedAccount.Status)
+                {
+                    throw new UnauthorizedException(ApplicationMessages.InvalidUsernameOrPassword);
                 }
 
                 account = matchedAccount;
@@ -257,6 +280,7 @@ public sealed class AuthService(
                 account.ConfirmEmail();
 
                 await accountRepository.AddAsync(account, cancellationToken);
+                accountCreated = true;
             }
 
             ExternalLogin login = ExternalLogin.Create(new ExternalLoginParams(
@@ -269,7 +293,8 @@ public sealed class AuthService(
 
         Guid? organizationId = await tokenIssuer.ResolveDefaultOrganizationIdAsync(account.Id, cancellationToken);
 
-        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, false, DateTime.UtcNow, familyId: null, cancellationToken);
+        AuthResult auth = await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, false, DateTime.UtcNow, familyId: null, cancellationToken);
+        return new ExternalLoginResult(auth, accountCreated);
     }
 
     public async Task RevokeTokenAsync(string refreshToken, CancellationToken cancellationToken)
@@ -305,33 +330,38 @@ public sealed class AuthService(
 
         if (organizationId is { } targetOrganizationId)
         {
-            OrganizationMember? member = await unitOfWork.Repository<OrganizationMember, Guid>()
-                .FirstOrDefaultAsync(
-                    m => m.OrganizationId == targetOrganizationId && m.AccountId == accountId && m.IsActive,
-                    cancellationToken);
-
-            Organization? organization = member is null
-                ? null
-                : await unitOfWork.Repository<Organization, Guid>().GetByIdAsync(targetOrganizationId, cancellationToken);
-
-            if (member is null || organization is null || !organization.Status)
-            {
-                throw new ForbiddenException(ApplicationMessages.OrganizationAccessDenied);
-            }
+            await EnsureCanEnterOrganizationAsync(accountId, targetOrganizationId, cancellationToken);
         }
 
         Account account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken)
             ?? throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
 
-        // Same sign-in, different organization: the session keeps its family and its previous token is retired, so
-        // the device is listed once. A token minted before sessions were named (no session claim) starts a new one.
+        // Same sign-in, different organization: the family keeps its remember-me choice, sign-in time and device slot.
+        // No session claim starts a new, non-persistent session. A family with no active token was signed out, revoked
+        // or has lapsed: it is refused, never revived.
         Guid? sessionId = currentUserService.SessionId;
+        bool isPersistent = false;
+        DateTime loginAt = DateTime.UtcNow;
         if (sessionId is { } currentSessionId)
         {
             IRepository<RefreshToken, long> refreshTokenRepository = unitOfWork.Repository<RefreshToken, long>();
+            // EF cannot translate RefreshToken.IsActive (a computed property), so the query repeats its rule: not
+            // revoked and not yet expired.
+            DateTime now = DateTime.UtcNow;
             IReadOnlyList<RefreshToken> previousTokens = await refreshTokenRepository.ListAsync(
-                token => token.AccountId == accountId && token.FamilyId == currentSessionId && token.RevokedAt == null,
+                token => token.AccountId == accountId
+                    && token.FamilyId == currentSessionId
+                    && token.RevokedAt == null
+                    && token.ExpiresAt > now,
                 cancellationToken);
+
+            if (previousTokens.Count == 0)
+            {
+                throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
+            }
+
+            isPersistent = previousTokens.Any(token => token.IsPersistent);
+            loginAt = previousTokens.Min(token => token.LoginAt);
 
             foreach (RefreshToken previousToken in previousTokens)
             {
@@ -340,7 +370,28 @@ public sealed class AuthService(
             }
         }
 
-        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, true, DateTime.UtcNow, familyId: sessionId, cancellationToken);
+        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, isPersistent, loginAt, familyId: sessionId, cancellationToken);
+    }
+
+    // The organization gate's order (TECH00 §5.1): membership first, so only a member ever learns the name.
+    private async Task EnsureCanEnterOrganizationAsync(
+        Guid accountId, Guid organizationId, CancellationToken cancellationToken)
+    {
+        TenantAccessStatus access = await tenantAccessService.GetAccessAsync(accountId, organizationId, cancellationToken);
+        if (access == TenantAccessStatus.Active)
+        {
+            return;
+        }
+
+        Organization? organization = access == TenantAccessStatus.Suspended
+            ? await unitOfWork.Repository<Organization, Guid>().GetByIdAsync(organizationId, cancellationToken)
+            : null;
+
+        throw organization is null
+            ? new ForbiddenException(ApplicationMessages.OrganizationAccessDenied)
+            : new ForbiddenException(
+                ApplicationMessages.OrganizationSuspended,
+                new Dictionary<string, string> { [ProblemExtensionKeys.OrganizationName] = organization.Name });
     }
 
     private Guid GetCurrentAccountId()

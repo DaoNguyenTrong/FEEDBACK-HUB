@@ -81,7 +81,7 @@ public sealed class ProfileControllerTests(ApiFactoryFixture fixture) : IAsyncLi
         Account account;
         await using (AppDbContext context = CreateDbContext())
         {
-            account = await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "profile-update-user", email: "profile-update@example.com");
+            account = await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "profile-update-user", email: "profile-update@example.com", passwordHash: null);
             await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "profile-taken-user", email: "profile-taken@example.com");
         }
         client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account));
@@ -211,6 +211,102 @@ public sealed class ProfileControllerTests(ApiFactoryFixture fixture) : IAsyncLi
         HttpResponseMessage signIn = await fixture.CreateTestClient().PostAsJsonAsync(
             "/api/auth/login", new LoginRequest("password-lockout-user", "correct-current"));
         Assert.Equal(HttpStatusCode.OK, signIn.StatusCode);
+    }
+
+    private async Task<(HttpClient Client, Account Account)> SeedPasswordAccountAsync(string tag, string password = "correct-current")
+    {
+        HttpClient client = fixture.CreateTestClient();
+        await using AppDbContext context = CreateDbContext();
+        Account account = Account.Create(new AccountParams("Email User", $"{tag}-user", $"{tag}@example.com"));
+        account.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(password, FastPasswordHasher.WorkFactor));
+        account.ConfirmEmail();
+        context.Accounts.Add(account);
+        await context.SaveChangesAsync();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account));
+
+        return (client, account);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("  ")]
+    public async Task Update_MissingCurrentPassword_Returns400(string? password)
+    {
+        (HttpClient client, _) = await SeedPasswordAccountAsync("email-missing");
+
+        HttpResponseMessage response = await client.PutAsJsonAsync(
+            "/api/profile", new UpdateProfileRequest("Name", null, null, null, "new-missing@example.com", password));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("FieldRequired", await ErrorCodeAsync(response));
+    }
+
+    [Fact]
+    public async Task Update_WrongCurrentPassword_Returns401WithCode()
+    {
+        (HttpClient client, _) = await SeedPasswordAccountAsync("email-wrong");
+
+        HttpResponseMessage response = await client.PutAsJsonAsync(
+            "/api/profile", new UpdateProfileRequest("Name", null, null, null, "new-wrong@example.com", "nope"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("InvalidCurrentPassword", await ErrorCodeAsync(response));
+    }
+
+    [Fact]
+    public async Task Update_PasswordAccountCorrectPasswordAddressTaken_Returns409()
+    {
+        (HttpClient client, _) = await SeedPasswordAccountAsync("email-taken");
+        await using (AppDbContext context = CreateDbContext())
+        {
+            await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "email-owner", email: "owner-taken@example.com");
+        }
+
+        HttpResponseMessage response = await client.PutAsJsonAsync(
+            "/api/profile", new UpdateProfileRequest("Name", null, null, null, "owner-taken@example.com", "correct-current"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_Anonymous_Returns401()
+    {
+        HttpResponseMessage response = await fixture.CreateTestClient().PutAsJsonAsync(
+            "/api/profile", new UpdateProfileRequest("Name", null, null, null, "a@example.com"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Resend_Anonymous_Returns401()
+    {
+        HttpResponseMessage response = await fixture.CreateTestClient().PostAsync("/api/profile/email/resend", null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cancel_Anonymous_Returns401()
+    {
+        HttpResponseMessage response = await fixture.CreateTestClient().DeleteAsync("/api/profile/email/pending");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResendAndCancel_PendingChange_Return204ThenNothingPendingGives409()
+    {
+        (HttpClient client, Account account) = await SeedPasswordAccountAsync("email-flow");
+        HttpResponseMessage update = await client.PutAsJsonAsync(
+            "/api/profile", new UpdateProfileRequest("Name", null, null, null, "flow-new@example.com", "correct-current"));
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/profile/email/resend", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync("/api/profile/email/pending")).StatusCode);
+
+        HttpResponseMessage again = await client.PostAsync("/api/profile/email/resend", null);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync("/api/profile/email/pending")).StatusCode);
     }
 
     private static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)

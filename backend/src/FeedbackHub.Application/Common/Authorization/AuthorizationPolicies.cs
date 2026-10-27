@@ -7,10 +7,14 @@ namespace FeedbackHub.Application.Common.Authorization;
 /// </summary>
 public static class AuthorizationPolicies
 {
-    public const string OrganizationMember = "OrganizationMember";
-
     /// <summary>Any active member of the caller's active organization (JWT <c>org_id</c> claim).</summary>
     public const string ActiveOrganizationMember = "ActiveOrganizationMember";
+
+    /// <summary>
+    /// Like <see cref="ActiveOrganizationMember"/>, but a caller outside the organization gets 404 instead of 403, for
+    /// data read inside an organization (BR-45).
+    /// </summary>
+    public const string ActiveOrganizationMemberOrNotFound = "ActiveOrganizationMemberOrNotFound";
 
     /// <summary>
     /// A signed-in person (JWT from the header or the <c>access_token</c> cookie) — never an API key.
@@ -18,4 +22,10 @@ public static class AuthorizationPolicies
     /// policy's schemes (JWT and API key) to it.
     /// </summary>
     public const string SignedInUser = "SignedInUser";
+
+    /// <summary>
+    /// A system administrator's JWT, whatever organization it names; never an API key (401). Anyone else gets 403
+    /// <c>SystemAdministratorRequired</c>.
+    /// </summary>
+    public const string SystemAdministrator = "SystemAdministrator";
 }

@@ -1,22 +1,17 @@
 <script setup lang="ts">
-import { BELOW_LG_QUERY } from '@/lib/responsive'
 import AppFooter from './AppFooter.vue'
-import AppHeader from './AppHeader.vue'
-import AppSidebar from './AppSidebar.vue'
-import AppTopMenu from './AppTopMenu.vue'
+import AppRail from './AppRail.vue'
+import AppTopBar from './AppTopBar.vue'
 import AppearanceSettings from './AppearanceSettings.vue'
 import CommandPalette from './CommandPalette.vue'
-import PageTitle from './PageTitle.vue'
 
 const notificationsStore = useNotificationsStore()
 const route = useRoute()
 const layout = useLayoutStore()
-const belowLg = useMediaQuery(BELOW_LG_QUERY)
+const auth = useAuthStore()
 
-// Horizontal on a wide screen: the top bar replaces the header, and the page title moves into the content.
-// Below lg it falls back to the header and the mobile drawer like every mode. AppSidebar stays mounted in
-// both cases; it owns that drawer and shows no desktop sidebar in horizontal mode.
-const topMenu = computed(() => layout.menuMode === 'horizontal' && !belowLg.value)
+// Replaces the routed view instead of covering it, so a forbidden page never mounts or fetches.
+const forbidden = computed(() => routeAccess(route.meta, auth) === 'forbidden')
 
 // Pages scroll inside `main`, not `window`, so the router's `scrollBehavior` never reaches it.
 // Keyed on `path` only: a query change (filters, paging) keeps the scroll position.
@@ -38,37 +33,31 @@ onUnmounted(() => {
 
 <template>
   <!--
-    `relative` on the shell and `main` is load-bearing: without a positioned ancestor, an absolute
-    element (an `sr-only` label) escapes every `overflow` clip and the shell scrolls. `h-dvh`, not
-    `h-screen`: mobile `100vh` includes the area under the address bar, hiding the footer.
+    `relative` on shell and `main` is load-bearing: without it an `sr-only` label escapes the `overflow` clip.
+    `h-dvh`, not `h-screen`, keeps the footer above the address bar; `isolate` keeps the backdrop over the bg.
   -->
-  <div
-    data-testid="app-shell"
-    class="relative flex h-dvh overflow-hidden bg-surface-100 dark:bg-surface-950"
-    :class="topMenu && 'flex-col'"
-  >
-    <AppSidebar />
-    <AppTopMenu v-if="topMenu" />
-    <!-- `isolate`: a z-index inside the page stays below the drawer's overlay panel (z-20). -->
-    <div class="isolate flex min-h-0 flex-1 flex-col overflow-hidden">
-      <AppHeader v-if="!topMenu" />
+  <div data-testid="app-shell" class="relative isolate flex h-dvh overflow-hidden bg-page text-ink">
+    <AmbientBackdrop strength="soft" />
+    <AppRail />
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <AppTopBar />
       <main
         ref="mainEl"
-        class="relative flex-1 overflow-y-auto p-4 [scrollbar-gutter:stable] lg:p-6"
+        class="relative flex-1 overflow-y-auto p-4 [scrollbar-gutter:stable] desktop:p-6"
       >
-        <PageTitle v-if="topMenu" class="mb-4" />
-        <RouterView />
+        <AccessProblemState v-if="forbidden" kind="forbidden" />
+        <RouterView v-else />
       </main>
       <AppFooter />
     </div>
 
     <!--
-      Overlays opened from the header (⚙, "Go to…", Ctrl K, the avatar menu); mounted once for the whole
-      shell. The profile dialog lives here, not in the avatar menu: horizontal mode swaps the top bar and
-      the header at lg, which unmounts that menu and would drop the dialog's unsaved form.
+      Overlays opened from the top bar (the avatar menu, "Go to…", Ctrl K); mounted once for the whole
+      shell. The profile panel lives here, not in the avatar menu, so its unsaved form outlives the menu.
     -->
     <AppearanceSettings />
     <CommandPalette />
-    <ProfileDialog v-model:visible="layout.profileOpen" />
+    <ProfilePanel v-model:visible="layout.profileOpen" />
+    <CreateOrganizationSheet v-model:show="layout.createOrganizationOpen" />
   </div>
 </template>

@@ -17,6 +17,7 @@ public sealed class AccountService(
     IOptions<LoginLockoutSettings> lockoutOptions,
     IStorageService storageService,
     IOptions<StorageSettings> storageOptions,
+    EmailChangeLink emailChangeLink,
     ILogger<AccountService> logger) : IAccountService
 {
     public const long MaxAvatarBytes = 2 * 1024 * 1024;
@@ -42,25 +43,76 @@ public sealed class AccountService(
         Account account = await GetCurrentAccountAsync(cancellationToken);
 
         string email = Account.NormalizeEmail(request.Email);
-        if (await repository.FirstOrDefaultAsync(
+        bool emailChanges = email != account.Email && email != account.PendingEmail;
+
+        if (emailChanges && !string.IsNullOrWhiteSpace(account.PasswordHash))
+        {
+            // Before the attempt counter: a missing password is a malformed request, not a guess.
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+            {
+                throw new DomainException("FieldRequired");
+            }
+
+            await EnsureCurrentPasswordAsync(
+                account,
+                account.PasswordHash,
+                request.CurrentPassword,
+                PasswordAttemptPurpose.EmailChange,
+                ApplicationMessages.EmailChangeTemporarilyLocked,
+                cancellationToken);
+        }
+
+        if (emailChanges
+            && await repository.FirstOrDefaultAsync(
                 candidate => candidate.Email == email && candidate.Id != account.Id,
                 cancellationToken) is not null)
         {
             throw new ConflictException(ApplicationMessages.AccountEmailAlreadyExists);
         }
 
+        // The email only ever changes through the confirmed link, so Update always keeps the current one.
         account.Update(new AccountParams(
             request.Name,
             account.Username,
-            request.Email,
+            account.Email,
             request.Phone,
             request.Position,
             request.Address));
 
-        repository.Update(account);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (emailChanges)
+        {
+            account.RequestEmailChange(email);
+            await emailChangeLink.IssueAsync(account, cancellationToken);
+        }
+        else
+        {
+            repository.Update(account);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         return ToProfile(account);
+    }
+
+    public async Task ResendEmailChangeAsync(CancellationToken cancellationToken)
+    {
+        Account account = await GetCurrentAccountAsync(cancellationToken);
+
+        if (account.PendingEmail is null)
+        {
+            throw new ConflictException(ApplicationMessages.EmailChangeNotPending);
+        }
+
+        await emailChangeLink.IssueAsync(account, cancellationToken);
+    }
+
+    public async Task CancelEmailChangeAsync(CancellationToken cancellationToken)
+    {
+        Account account = await GetCurrentAccountAsync(cancellationToken);
+
+        account.CancelEmailChange();
+        await emailChangeLink.ConsumeAllAsync(account.Id, EmailVerificationPurpose.ChangeEmail, cancellationToken);
+        unitOfWork.Repository<Account, Guid>().Update(account);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<ProfileDto> UploadAvatarAsync(AvatarUploadRequest request, CancellationToken cancellationToken)
@@ -140,28 +192,50 @@ public sealed class AccountService(
             throw new UnauthorizedException(ApplicationMessages.InvalidCurrentPassword);
         }
 
-        // Same scheme as sign-in (AuthService.LoginAsync), on its own counter: a stolen session can't brute-force
-        // the current password here, and can't lock the owner out of signing in either. Reserved and reported
-        // before the check, so parallel guesses can't slip past the limit and the lock confirms no guess.
+        await EnsureCurrentPasswordAsync(
+            account,
+            account.PasswordHash,
+            request.CurrentPassword,
+            PasswordAttemptPurpose.PasswordChange,
+            ApplicationMessages.PasswordChangeTemporarilyLocked,
+            cancellationToken);
+
+        account.SetPasswordHash(passwordHasher.Hash(request.NewPassword));
+
+        repository.Update(account);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    // Same scheme as sign-in (AuthService.LoginAsync), on a counter of its own per purpose: a stolen session can't
+    // brute-force the current password here, and can't lock the owner out of signing in either. Reserved and reported
+    // before the check, so parallel guesses can't slip past the limit and the lock confirms no guess.
+    private async Task EnsureCurrentPasswordAsync(
+        Account account,
+        string passwordHash,
+        string password,
+        PasswordAttemptPurpose purpose,
+        string lockedMessageKey,
+        CancellationToken cancellationToken)
+    {
         DateTime utcNow = DateTime.UtcNow;
         int? attempt = await passwordAttemptStore.ReserveAttemptAsync(
-            PasswordAttemptPurpose.PasswordChange,
+            purpose,
             account.Id,
             utcNow,
             TimeSpan.FromMinutes(lockoutSettings.WindowMinutes),
             cancellationToken);
         if (attempt is not { } attemptNumber || attemptNumber > lockoutSettings.MaxFailedAttempts)
         {
-            throw new UnauthorizedException(ApplicationMessages.PasswordChangeTemporarilyLocked);
+            throw new UnauthorizedException(lockedMessageKey);
         }
 
-        if (!passwordHasher.Verify(request.CurrentPassword, account.PasswordHash))
+        if (!passwordHasher.Verify(password, passwordHash))
         {
             if (attemptNumber == lockoutSettings.MaxFailedAttempts)
             {
                 // Not the request's token — an aborted request must not skip the lock.
                 await passwordAttemptStore.LockAsync(
-                    PasswordAttemptPurpose.PasswordChange,
+                    purpose,
                     account.Id,
                     utcNow.AddMinutes(lockoutSettings.LockDurationMinutes),
                     CancellationToken.None);
@@ -170,12 +244,7 @@ public sealed class AccountService(
             throw new UnauthorizedException(ApplicationMessages.InvalidCurrentPassword);
         }
 
-        await passwordAttemptStore.ClearAsync(PasswordAttemptPurpose.PasswordChange, account.Id, cancellationToken);
-
-        account.SetPasswordHash(passwordHasher.Hash(request.NewPassword));
-
-        repository.Update(account);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await passwordAttemptStore.ClearAsync(purpose, account.Id, cancellationToken);
     }
 
     private ProfileDto ToProfile(Account account) =>

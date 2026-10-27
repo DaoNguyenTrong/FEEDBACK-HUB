@@ -51,6 +51,12 @@ public class AccountServiceAvatarTests
             Options.Create(new LoginLockoutSettings()),
             storage,
             Options.Create(new StorageSettings { PublicUrlBase = "http://cdn.test/feedbackhub/" }),
+            new EmailChangeLink(
+                unitOfWork,
+                Substitute.For<IEmailSender>(),
+                Options.Create(new EmailSettings()),
+                Substitute.For<IDateTimeProvider>(),
+                NullLogger<EmailChangeLink>.Instance),
             NullLogger<AccountService>.Instance);
 
         return new Fixture(service, accountRepo, unitOfWork, storage, account);

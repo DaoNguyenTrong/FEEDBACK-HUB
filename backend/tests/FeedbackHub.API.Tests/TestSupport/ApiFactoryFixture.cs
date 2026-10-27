@@ -75,6 +75,8 @@ public sealed class ApiFactoryFixture : WebApplicationFactory<Program>, IAsyncLi
         pinned["ConnectionStrings:DefaultConnection"] = ConnectionString;
         pinned["RateLimiterSettings:AuthPermitLimit"] = "1000";
         pinned["RateLimiterSettings:AuthWindowMinutes"] = "1";
+        pinned["RateLimiterSettings:InvitationPermitLimit"] = "1000";
+        pinned["RateLimiterSettings:InvitationWindowMinutes"] = "1";
         pinned["StorageSettings:Provider"] = "Local";
         pinned["StorageSettings:BasePath"] = storageTempDir;
         pinned["CacheSettings:Provider"] = "Memory";

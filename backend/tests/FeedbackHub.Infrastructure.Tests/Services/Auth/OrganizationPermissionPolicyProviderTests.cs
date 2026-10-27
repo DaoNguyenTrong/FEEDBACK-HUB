@@ -24,16 +24,14 @@ public class OrganizationPermissionPolicyProviderTests
         return new Fixture(provider, options);
     }
 
-    public static TheoryData<string> ActiveOrganizationScopedCodes() => [.. Permissions.ActiveOrganizationScoped];
-
-    public static TheoryData<string> RouteScopedCodes() =>
-        [.. Permissions.All.Except(Permissions.ActiveOrganizationScoped)];
+    public static TheoryData<string> EveryPermissionCode() => [.. Permissions.All];
 
     // GetPolicyAsync
 
+    // QĐ-06: every code is checked in the JWT's organization; none may fall back to a route-scoped check.
     [Theory]
-    [MemberData(nameof(ActiveOrganizationScopedCodes))]
-    public async Task GetPolicyAsync_ActiveOrganizationScopedCode_BuildsActiveOrganizationRequirement(string code)
+    [MemberData(nameof(EveryPermissionCode))]
+    public async Task GetPolicyAsync_EveryPermissionCode_BuildsGateRequirementForbidden(string code)
     {
         Fixture f = CreateFixture();
 
@@ -41,51 +39,17 @@ public class OrganizationPermissionPolicyProviderTests
 
         Assert.NotNull(policy);
         IAuthorizationRequirement requirement = Assert.Single(policy.Requirements);
-        ActiveOrganizationPermissionRequirement typed = Assert.IsType<ActiveOrganizationPermissionRequirement>(requirement);
+        OrganizationContextRequirement typed = Assert.IsType<OrganizationContextRequirement>(requirement);
         Assert.Equal(code, typed.PermissionCode);
+        Assert.Equal(DenyMode.Forbidden, typed.DenyMode);
         Assert.Empty(policy.AuthenticationSchemes);
-    }
-
-    [Theory]
-    [MemberData(nameof(RouteScopedCodes))]
-    public async Task GetPolicyAsync_RouteScopedCode_BuildsRouteOrganizationRequirement(string code)
-    {
-        Fixture f = CreateFixture();
-
-        AuthorizationPolicy? policy = await f.Provider.GetPolicyAsync(code);
-
-        Assert.NotNull(policy);
-        IAuthorizationRequirement requirement = Assert.Single(policy.Requirements);
-        OrganizationPermissionRequirement typed = Assert.IsType<OrganizationPermissionRequirement>(requirement);
-        Assert.Equal(code, typed.PermissionCode);
-    }
-
-    [Fact]
-    public void Permissions_ActiveOrganizationScoped_IsSubsetOfAll()
-    {
-        // The provider checks ActiveOrganizationScoped first precisely because every scoped code is
-        // also in All — this pins the overlap the precedence test below depends on.
-        Assert.All(Permissions.ActiveOrganizationScoped, code => Assert.Contains(code, Permissions.All));
-    }
-
-    [Fact]
-    public async Task GetPolicyAsync_ActiveOrganizationScopedCode_NeverResolvesToRouteRequirement()
-    {
-        Fixture f = CreateFixture();
-
-        foreach (string code in Permissions.ActiveOrganizationScoped)
-        {
-            AuthorizationPolicy? policy = await f.Provider.GetPolicyAsync(code);
-
-            Assert.DoesNotContain(policy!.Requirements, r => r is OrganizationPermissionRequirement);
-        }
     }
 
     [Fact]
     public async Task GetPolicyAsync_StaticallyRegisteredPolicy_FallsThroughToOptions()
     {
         AuthorizationPolicy registered = new AuthorizationPolicyBuilder()
-            .AddRequirements(new OrganizationMembershipRequirement())
+            .AddRequirements(new SystemAdministratorRequirement())
             .Build();
         Fixture f = CreateFixture(options => options.AddPolicy(RegisteredPolicyName, registered));
 
@@ -99,12 +63,12 @@ public class OrganizationPermissionPolicyProviderTests
     {
         Fixture f = CreateFixture(options => options.AddPolicy(
             AuthorizationPolicies.ActiveOrganizationMember,
-            policy => policy.AddRequirements(new ActiveOrganizationMembershipRequirement())));
+            policy => policy.AddRequirements(new OrganizationContextRequirement(null, DenyMode.Forbidden))));
 
         AuthorizationPolicy? policy = await f.Provider.GetPolicyAsync(AuthorizationPolicies.ActiveOrganizationMember);
 
         Assert.NotNull(policy);
-        Assert.IsType<ActiveOrganizationMembershipRequirement>(Assert.Single(policy.Requirements));
+        Assert.IsType<OrganizationContextRequirement>(Assert.Single(policy.Requirements));
     }
 
     [Theory]

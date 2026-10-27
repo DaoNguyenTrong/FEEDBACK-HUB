@@ -1,10 +1,11 @@
 using System.Net;
-using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
+using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
 using FeedbackHub.Domain.Interfaces;
@@ -17,6 +18,8 @@ public sealed class RegistrationService(
     IEmailSender emailSender,
     IOptions<EmailSettings> emailOptions,
     ITokenIssuer tokenIssuer,
+    EmailChangeLink emailChangeLink,
+    IDateTimeProvider clock,
     ILogger<RegistrationService> logger) : IRegistrationService
 {
     private readonly EmailSettings emailSettings = emailOptions.Value;
@@ -27,11 +30,8 @@ public sealed class RegistrationService(
     {
         IRepository<Account, Guid> accountRepository = unitOfWork.Repository<Account, Guid>();
 
-        await EnsureUniqueAccountAsync(
-            accountRepository,
-            Account.NormalizeUsername(request.Username),
-            Account.NormalizeEmail(request.Email),
-            cancellationToken);
+        await AccountUniqueness.EnsureAvailableAsync(
+            accountRepository, request.Username, request.Email, cancellationToken);
 
         Account account = Account.Create(request.ToParams());
         account.SetPasswordHash(passwordHasher.Hash(request.Password));
@@ -57,7 +57,10 @@ public sealed class RegistrationService(
         EmailVerificationToken? token = await tokenRepository
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
-        if (token is null || !token.IsActive)
+        // A null purpose is a row from before purposes existed; it is still a verification token.
+        if (token is null
+            || !token.IsActiveAt(clock.UtcNow)
+            || token.Purpose is not (null or EmailVerificationPurpose.VerifyEmail))
         {
             throw new UnauthorizedException(ApplicationMessages.EmailVerificationTokenInvalidOrExpired);
         }
@@ -65,6 +68,13 @@ public sealed class RegistrationService(
         Account account = await unitOfWork.Repository<Account, Guid>()
             .GetByIdAsync(token.AccountId, cancellationToken)
             ?? throw new UnauthorizedException(ApplicationMessages.EmailVerificationTokenInvalidOrExpired);
+
+        // The token proves control of the address it was mailed to; it must still be the account's address.
+        // A legacy row without an address cannot prove that, so it is refused.
+        if (token.Email is null || token.Email != account.Email)
+        {
+            throw new UnauthorizedException(ApplicationMessages.EmailVerificationTokenInvalidOrExpired);
+        }
 
         account.ConfirmEmail();
         unitOfWork.Repository<Account, Guid>().Update(account);
@@ -74,7 +84,7 @@ public sealed class RegistrationService(
 
         Guid? organizationId = await tokenIssuer.ResolveDefaultOrganizationIdAsync(account.Id, cancellationToken);
 
-        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, false, DateTime.UtcNow, familyId: null, cancellationToken);
+        return await tokenIssuer.IssueTokensAsync(account, organizationId, deviceInfo, ipAddress, false, clock.UtcNow, familyId: null, cancellationToken);
     }
 
     public async Task ResendVerificationEmailAsync(
@@ -85,7 +95,8 @@ public sealed class RegistrationService(
         Account? account = await unitOfWork.Repository<Account, Guid>()
             .FirstOrDefaultAsync(a => a.Email == email, cancellationToken);
 
-        if (account is null)
+        // An account without a password was made through a provider or an invitation and has nothing to verify here.
+        if (account is null || account.PasswordHash is null)
         {
             return;
         }
@@ -98,35 +109,64 @@ public sealed class RegistrationService(
         await IssueVerificationTokenAsync(account, cancellationToken);
     }
 
-    private static async Task EnsureUniqueAccountAsync(
-        IRepository<Account, Guid> accountRepository,
-        string username,
-        string email,
+    public async Task ConfirmEmailChangeAsync(
+        ConfirmEmailChangeRequest request,
         CancellationToken cancellationToken)
     {
-        if (await accountRepository.FirstOrDefaultAsync(
-                account => account.Username == username,
-                cancellationToken) is not null)
+        string tokenHash = TokenHash.Compute(request.Token);
+
+        IRepository<EmailVerificationToken, Guid> tokenRepository =
+            unitOfWork.Repository<EmailVerificationToken, Guid>();
+        IRepository<Account, Guid> accountRepository = unitOfWork.Repository<Account, Guid>();
+
+        EmailVerificationToken? token = await tokenRepository
+            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
+
+        if (token is null
+            || !token.IsActiveAt(clock.UtcNow)
+            || token.Purpose != EmailVerificationPurpose.ChangeEmail
+            || token.Email is null)
         {
-            throw new ConflictException(ApplicationMessages.AccountUsernameAlreadyExists);
+            throw new ConflictException(ApplicationMessages.EmailChangeLinkNoLongerValid);
         }
 
+        Account account = await accountRepository.GetByIdAsync(token.AccountId, cancellationToken)
+            ?? throw new ConflictException(ApplicationMessages.EmailChangeLinkNoLongerValid);
+
+        if (account.PendingEmail != token.Email)
+        {
+            throw new ConflictException(ApplicationMessages.EmailChangeLinkNoLongerValid);
+        }
+
+        string newEmail = account.PendingEmail;
+        Guid accountId = account.Id;
+
+        // Someone may have registered the address while the change was waiting. The unique index on Email
+        // backstops two confirmations racing past this check (mapped in UnitOfWork.SaveChangesAsync).
         if (await accountRepository.FirstOrDefaultAsync(
-                account => account.Email == email,
-                cancellationToken) is not null)
+                a => a.Email == newEmail && a.Id != accountId, cancellationToken) is not null)
         {
             throw new ConflictException(ApplicationMessages.AccountEmailAlreadyExists);
         }
+
+        account.ApplyEmailChange();
+        accountRepository.Update(account);
+
+        // Consumes this link too: it is one of the account's active tokens.
+        await emailChangeLink.ConsumeAllAsync(account.Id, purpose: null, cancellationToken);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private async Task IssueVerificationTokenAsync(Account account, CancellationToken cancellationToken)
     {
-        string rawToken = GenerateRawToken();
+        string rawToken = RandomToken.Create();
         string tokenHash = TokenHash.Compute(rawToken);
-        DateTime expiresAt = DateTime.UtcNow.AddHours(emailSettings.VerificationTokenExpiryHours);
+        DateTime expiresAt = clock.UtcNow.AddHours(emailSettings.VerificationTokenExpiryHours);
 
         EmailVerificationToken token = EmailVerificationToken.Create(
-            new EmailVerificationTokenParams(account.Id, tokenHash, expiresAt));
+            new EmailVerificationTokenParams(
+                account.Id, tokenHash, expiresAt, EmailVerificationPurpose.VerifyEmail, account.Email));
 
         await unitOfWork.Repository<EmailVerificationToken, Guid>().AddAsync(token, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -155,11 +195,5 @@ public sealed class RegistrationService(
             // 409 "đã tồn tại" không lối thoát. User dùng "Gửi lại email xác thực" để thử lại khi SMTP ổn.
             logger.LogError(exception, "Failed to send verification email to account {AccountId}", account.Id);
         }
-    }
-
-    private static string GenerateRawToken()
-    {
-        byte[] bytes = RandomNumberGenerator.GetBytes(32);
-        return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 }

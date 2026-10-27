@@ -80,7 +80,17 @@ internal static class CachingExtensions
         string connectionString = RedisConnection.RequireConnectionString(
             configuration, "a Redis-backed feature");
 
-        services.AddSingleton<IConnectionMultiplexer>(_ =>
-            ConnectionMultiplexer.Connect(connectionString));
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(CreateRedisOptions(connectionString)));
+    }
+
+    internal static ConfigurationOptions CreateRedisOptions(string connectionString)
+    {
+        // AbortOnConnectFail = false: with Redis down at first use Connect would throw, failing every request
+        // that resolves the multiplexer. FailFast: during an outage a command fails at once instead of queueing
+        // until asyncTimeout (5 s), so callers with a fallback (rate limits) answer without that wait.
+        ConfigurationOptions options = ConfigurationOptions.Parse(connectionString);
+        options.AbortOnConnectFail = false;
+        options.BacklogPolicy = BacklogPolicy.FailFast;
+        return options;
     }
 }

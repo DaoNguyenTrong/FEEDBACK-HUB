@@ -35,13 +35,13 @@ internal sealed class PermissionResolver(
                 List<Role> roles = await (
                     from memberRole in dbContext.OrganizationMemberRoles.AsNoTracking()
                     join role in dbContext.Roles.AsNoTracking() on memberRole.RoleId equals role.Id
-                    where memberRole.OrganizationMemberId == member.Id
+                    where memberRole.OrganizationMemberId == member.Id && role.OrganizationId == organizationId
                     select role)
                     .ToListAsync(ct);
 
                 if (roles.Any(role => role.SystemRoleKind == SystemRoleKind.Owner))
                 {
-                    return Permissions.All.ToHashSet();
+                    return SystemRoleDefaults.EffectivePermissionCodes(SystemRoleKind.Owner, []).ToHashSet();
                 }
 
                 List<Guid> roleIds = roles.Select(role => role.Id).ToList();

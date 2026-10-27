@@ -5,6 +5,8 @@ public static class DomainMessages
     public const string AccountNameRequired = nameof(AccountNameRequired);
     public const string AccountUsernameRequired = nameof(AccountUsernameRequired);
     public const string AccountEmailRequired = nameof(AccountEmailRequired);
+    public const string EmailChangeSameAsCurrent = nameof(EmailChangeSameAsCurrent);
+    public const string EmailChangeNotPending = nameof(EmailChangeNotPending);
     public const string PasswordHashRequired = nameof(PasswordHashRequired);
     public const string AccountIdRequired = nameof(AccountIdRequired);
     public const string RefreshTokenRequired = nameof(RefreshTokenRequired);
@@ -23,9 +25,13 @@ public static class DomainMessages
     public const string ExternalLoginProviderUserIdRequired = nameof(ExternalLoginProviderUserIdRequired);
     public const string OrganizationNameRequired = nameof(OrganizationNameRequired);
     public const string OrganizationSlugRequired = nameof(OrganizationSlugRequired);
+    public const string OrganizationSlugInvalid = nameof(OrganizationSlugInvalid);
     public const string RoleNameRequired = nameof(RoleNameRequired);
     public const string NotificationTypeRequired = nameof(NotificationTypeRequired);
     public const string NotificationDedupeKeyTooLong = nameof(NotificationDedupeKeyTooLong);
     public const string PushSubscriptionTokenRequired = nameof(PushSubscriptionTokenRequired);
     public const string PushSubscriptionPlatformRequired = nameof(PushSubscriptionPlatformRequired);
+    public const string InvitationOrganizationRequired = nameof(InvitationOrganizationRequired);
+    public const string InvitationRoleRequired = nameof(InvitationRoleRequired);
+    public const string InvitationTokenHashInvalid = nameof(InvitationTokenHashInvalid);
 }

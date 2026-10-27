@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
+using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Infrastructure.Services.Auth;
 
 namespace FeedbackHub.Infrastructure;
@@ -47,11 +48,10 @@ internal static class AuthExtensions
         services.AddScoped<ICurrentTenantProvider, CurrentTenantProvider>();
         services.AddScoped<ITenantAccessService, TenantAccessService>();
         services.AddScoped<IPermissionResolver, PermissionResolver>();
+        services.AddScoped<ISystemAdministratorResolver, SystemAdministratorResolver>();
         services.AddSingleton<IAuthorizationPolicyProvider, OrganizationPermissionPolicyProvider>();
-        services.AddScoped<IAuthorizationHandler, OrganizationPermissionAuthorizationHandler>();
-        services.AddScoped<IAuthorizationHandler, OrganizationMembershipAuthorizationHandler>();
-        services.AddScoped<IAuthorizationHandler, ActiveOrganizationPermissionAuthorizationHandler>();
-        services.AddScoped<IAuthorizationHandler, ActiveOrganizationMembershipAuthorizationHandler>();
+        services.AddScoped<IAuthorizationHandler, OrganizationContextAuthorizationHandler>();
+        services.AddScoped<IAuthorizationHandler, SystemAdministratorAuthorizationHandler>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -99,18 +99,25 @@ internal static class AuthExtensions
             options.FallbackPolicy = options.DefaultPolicy;
 
             options.AddPolicy(
-                AuthorizationPolicies.OrganizationMember,
-                policy => policy.AddRequirements(new OrganizationMembershipRequirement()));
+                AuthorizationPolicies.ActiveOrganizationMember,
+                policy => policy.AddRequirements(new OrganizationContextRequirement(null, DenyMode.Forbidden)));
 
             options.AddPolicy(
-                AuthorizationPolicies.ActiveOrganizationMember,
-                policy => policy.AddRequirements(new ActiveOrganizationMembershipRequirement()));
+                AuthorizationPolicies.ActiveOrganizationMemberOrNotFound,
+                policy => policy.AddRequirements(new OrganizationContextRequirement(null, DenyMode.NotFound)));
 
             options.AddPolicy(
                 AuthorizationPolicies.SignedInUser,
                 policy => policy
                     .RequireAuthenticatedUser()
                     .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme));
+
+            options.AddPolicy(
+                AuthorizationPolicies.SystemAdministrator,
+                policy => policy
+                    .RequireAuthenticatedUser()
+                    .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+                    .AddRequirements(new SystemAdministratorRequirement()));
         });
 
         return services;

@@ -21,6 +21,15 @@
   <data name="AccountEmailRequired" xml:space="preserve">
     <value>Account email is required.</value>
   </data>
+  <data name="EmailChangeSameAsCurrent" xml:space="preserve">
+    <value>The new email is the same as the current email.</value>
+  </data>
+  <data name="EmailChangeNotPending" xml:space="preserve">
+    <value>There is no email change waiting for confirmation.</value>
+  </data>
+  <data name="EmailChangeLinkNoLongerValid" xml:space="preserve">
+    <value>This email change link is no longer valid.</value>
+  </data>
   <data name="PasswordHashRequired" xml:space="preserve">
     <value>Password hash is required.</value>
   </data>
@@ -60,6 +69,9 @@
   <data name="PasswordChangeTemporarilyLocked" xml:space="preserve">
     <value>Changing the password is temporarily locked after too many wrong current passwords. Please try again in a few minutes.</value>
   </data>
+  <data name="EmailChangeTemporarilyLocked" xml:space="preserve">
+    <value>Email change is temporarily locked. Try again later.</value>
+  </data>
   <data name="InvalidRefreshToken" xml:space="preserve">
     <value>Invalid refresh token.</value>
   </data>
@@ -68,6 +80,9 @@
   </data>
   <data name="AccountEmailAlreadyExists" xml:space="preserve">
     <value>Account email already exists.</value>
+  </data>
+  <data name="SystemAdministratorAlreadyGranted" xml:space="preserve">
+    <value>This account is already a system administrator.</value>
   </data>
   <data name="FileIsRequired" xml:space="preserve">
     <value>File is required.</value>
@@ -108,9 +123,6 @@
   <data name="FieldRegularExpression" xml:space="preserve">
     <value>This field does not match the required format.</value>
   </data>
-  <data name="AccountNotFound" xml:space="preserve">
-    <value>Account not found.</value>
-  </data>
   <data name="EmailVerificationTokenRequired" xml:space="preserve">
     <value>Email verification token is required.</value>
   </data>
@@ -138,6 +150,9 @@
   <data name="OrganizationSlugRequired" xml:space="preserve">
     <value>Organization slug is required.</value>
   </data>
+  <data name="OrganizationSlugInvalid" xml:space="preserve">
+    <value>The identifier may use only lowercase letters a–z, digits and single hyphens between them, and must be 3–50 characters long.</value>
+  </data>
   <data name="RoleNameRequired" xml:space="preserve">
     <value>Role name is required.</value>
   </data>
@@ -150,8 +165,17 @@
   <data name="OrganizationAccessDenied" xml:space="preserve">
     <value>You do not have access to this organization.</value>
   </data>
-  <data name="OrganizationMemberAlreadyExists" xml:space="preserve">
-    <value>This account is already a member of the organization.</value>
+  <data name="OrganizationSuspended" xml:space="preserve">
+    <value>This organization is suspended.</value>
+  </data>
+  <data name="SystemAdministratorRequired" xml:space="preserve">
+    <value>Only a system administrator can do this.</value>
+  </data>
+  <data name="DeactivationReasonRequired" xml:space="preserve">
+    <value>A reason is required to deactivate the organization.</value>
+  </data>
+  <data name="ResourceNotFound" xml:space="preserve">
+    <value>Not found.</value>
   </data>
   <data name="OrganizationCannotRemoveLastOwner" xml:space="preserve">
     <value>Cannot remove or change the role of the last owner in an organization.</value>
@@ -170,6 +194,24 @@
   </data>
   <data name="UnknownPermissionCode" xml:space="preserve">
     <value>Unknown permission code.</value>
+  </data>
+  <data name="OwnerOnlyOperation" xml:space="preserve">
+    <value>Only an Owner can do this.</value>
+  </data>
+  <data name="InsufficientRolePermissions" xml:space="preserve">
+    <value>You don't have every permission of this role.</value>
+  </data>
+  <data name="CannotRemoveSelf" xml:space="preserve">
+    <value>You can't remove yourself from the organization. Use Leave organization instead.</value>
+  </data>
+  <data name="LastOwnerCannotLeave" xml:space="preserve">
+    <value>The organization needs at least one Owner. Make someone else an Owner before you leave.</value>
+  </data>
+  <data name="RoleHasHolders" xml:space="preserve">
+    <value>Someone still has this role. Change their roles before deleting it.</value>
+  </data>
+  <data name="RoleNameReservedForSystemRole" xml:space="preserve">
+    <value>This name is taken by a system role.</value>
   </data>
   <data name="ExternalLoginEmailNotConfirmed" xml:space="preserve">
     <value>An account with this email already exists but has not been confirmed yet. Please confirm the email before linking an external login.</value>
@@ -191,5 +233,38 @@
   </data>
   <data name="InternalServerError" xml:space="preserve">
     <value>An unexpected error occurred. Please try again later.</value>
+  </data>
+  <data name="EmailDeliveryFailed" xml:space="preserve">
+    <value>The email could not be sent. Please try again later.</value>
+  </data>
+  <data name="InvitationOrganizationRequired" xml:space="preserve">
+    <value>An invitation must belong to an organization.</value>
+  </data>
+  <data name="InvitationRoleRequired" xml:space="preserve">
+    <value>An invitation must have a role.</value>
+  </data>
+  <data name="InvitationTokenHashInvalid" xml:space="preserve">
+    <value>The invitation code is invalid.</value>
+  </data>
+  <data name="InvitationEmailAlreadyMember" xml:space="preserve">
+    <value>This person is already a member of the organization.</value>
+  </data>
+  <data name="InvitationEmailDeliveryFailed" xml:space="preserve">
+    <value>The invitation email could not be sent. Nothing was changed; try again later.</value>
+  </data>
+  <data name="InvitationExpired" xml:space="preserve">
+    <value>This invitation has expired.</value>
+  </data>
+  <data name="InvitationNoLongerValid" xml:space="preserve">
+    <value>This invitation is no longer valid.</value>
+  </data>
+  <data name="InvitationWrongAccount" xml:space="preserve">
+    <value>This invitation is not for the account you are using.</value>
+  </data>
+  <data name="InvitationOrganizationSuspended" xml:space="preserve">
+    <value>The organization is suspended, so you can't join it yet.</value>
+  </data>
+  <data name="InvalidCursor" xml:space="preserve">
+    <value>The list could not continue. Reload the page.</value>
   </data>
 </root>

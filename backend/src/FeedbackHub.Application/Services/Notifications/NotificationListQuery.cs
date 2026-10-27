@@ -1,8 +1,7 @@
 namespace FeedbackHub.Application.Services.Notifications;
 
 /// <summary>
-/// Query for the caller's own notification list. Its own record rather than <c>PaginationRequest</c>, whose
-/// <c>Search</c> the service never read — the contract promised a filter the server silently ignored.
+/// Query for the caller's own notification list; it declares no <c>Search</c>, because the server would not read it.
 /// </summary>
 public sealed record NotificationListQuery(
     int PageNumber = 1,

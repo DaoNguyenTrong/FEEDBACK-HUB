@@ -28,8 +28,9 @@ fi
 
 docker network create "$network" >/dev/null
 
-# The stub answers only what nginx's auth_request asks; nginx resolves `api` at start, so it must be up first.
-docker run -d --name "$api" --network "$network" --network-alias api nginx:alpine sh -c '
+# The stub answers only what nginx's auth_request asks; nginx resolves `api` and `minio` at start, so the stub
+# carries both names and must be up first.
+docker run -d --name "$api" --network "$network" --network-alias api --network-alias minio nginx:alpine sh -c '
 cat > /etc/nginx/conf.d/default.conf <<EOF
 server {
   listen 8080;
@@ -38,6 +39,18 @@ server {
     # Accepts any API key, so a 302 below proves nginx strips the header before asking.
     if (\$http_x_api_key != "") { return 204; }
     return 401;
+  }
+  location / { return 404; }
+}
+# Stands in for MinIO: echoes what /storage/public/ forwarded.
+server {
+  listen 9000;
+  location /feedbackhub/public/ {
+    add_header Content-Type image/png;
+    add_header X-Seen-Args "args=\$args";
+    add_header X-Seen-Auth "auth=\$http_authorization";
+    add_header X-Seen-Cookie "cookie=\$http_cookie";
+    return 200 png;
   }
   location / { return 404; }
 }
@@ -121,6 +134,18 @@ i="http://127.0.0.1:$invalid"
 check "invalid GUIDE_PUBLIC: stays private" private "$(curl -s "$i/guide/_mode")"
 check "invalid GUIDE_PUBLIC: no session -> 302" 302 "$(code "$i/guide/faq")"
 contains "invalid GUIDE_PUBLIC: warning logged" "GUIDE_PUBLIC=abc" "$(docker logs "$run_id-invalid" 2>&1)"
+
+# Public files (avatars): nothing of the client's query string or credentials may reach MinIO.
+s="$p/storage/public/avatars/a.png"
+st=$(curl -s -D - -o /dev/null -H 'Authorization: Bearer x' -H 'Cookie: access_token=good' "$s?response-content-type=text/html" | tr -d '\r')
+contains "storage: image served" " 200 " "$(head -n1 <<<"$st")"
+check "storage: query string dropped" "args=" "$(sed -n 's/^x-seen-args: *//Ip' <<<"$st")"
+check "storage: Authorization dropped" "auth=" "$(sed -n 's/^x-seen-auth: *//Ip' <<<"$st")"
+check "storage: Cookie dropped" "cookie=" "$(sed -n 's/^x-seen-cookie: *//Ip' <<<"$st")"
+contains "storage: nosniff" "x-content-type-options: nosniff" "$(tr 'A-Z' 'a-z' <<<"$st")"
+contains "storage: sandbox CSP" "content-security-policy: sandbox" "$(tr 'A-Z' 'a-z' <<<"$st")"
+check "storage: POST refused" 403 "$(code -X POST "$s")"
+
 
 # A hung API (accepts the connection, never answers) must not hold every guide request for a minute.
 docker pause "$api" >/dev/null

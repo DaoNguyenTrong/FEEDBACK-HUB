@@ -21,6 +21,15 @@
   <data name="AccountEmailRequired" xml:space="preserve">
     <value>Email tài khoản là bắt buộc.</value>
   </data>
+  <data name="EmailChangeSameAsCurrent" xml:space="preserve">
+    <value>Email mới trùng với email hiện tại.</value>
+  </data>
+  <data name="EmailChangeNotPending" xml:space="preserve">
+    <value>Không có email nào đang chờ xác nhận.</value>
+  </data>
+  <data name="EmailChangeLinkNoLongerValid" xml:space="preserve">
+    <value>Liên kết đổi email không còn hiệu lực.</value>
+  </data>
   <data name="PasswordHashRequired" xml:space="preserve">
     <value>Mã băm mật khẩu là bắt buộc.</value>
   </data>
@@ -60,6 +69,9 @@
   <data name="PasswordChangeTemporarilyLocked" xml:space="preserve">
     <value>Đổi mật khẩu tạm thời bị khoá do nhập sai mật khẩu hiện tại nhiều lần. Vui lòng thử lại sau ít phút.</value>
   </data>
+  <data name="EmailChangeTemporarilyLocked" xml:space="preserve">
+    <value>Tạm khoá đổi email, thử lại sau.</value>
+  </data>
   <data name="InvalidRefreshToken" xml:space="preserve">
     <value>Refresh token không hợp lệ.</value>
   </data>
@@ -68,6 +80,9 @@
   </data>
   <data name="AccountEmailAlreadyExists" xml:space="preserve">
     <value>Email tài khoản đã tồn tại.</value>
+  </data>
+  <data name="SystemAdministratorAlreadyGranted" xml:space="preserve">
+    <value>Tài khoản này đã là quản trị viên hệ thống.</value>
   </data>
   <data name="FileIsRequired" xml:space="preserve">
     <value>Tệp là bắt buộc.</value>
@@ -108,9 +123,6 @@
   <data name="FieldRegularExpression" xml:space="preserve">
     <value>Trường này không đúng định dạng yêu cầu.</value>
   </data>
-  <data name="AccountNotFound" xml:space="preserve">
-    <value>Tài khoản không tìm thấy.</value>
-  </data>
   <data name="EmailVerificationTokenRequired" xml:space="preserve">
     <value>Token xác thực email là bắt buộc.</value>
   </data>
@@ -138,6 +150,9 @@
   <data name="OrganizationSlugRequired" xml:space="preserve">
     <value>Slug tổ chức là bắt buộc.</value>
   </data>
+  <data name="OrganizationSlugInvalid" xml:space="preserve">
+    <value>Định danh chỉ gồm chữ thường không dấu, chữ số và dấu gạch ngang nằm giữa, dài 3–50 ký tự.</value>
+  </data>
   <data name="RoleNameRequired" xml:space="preserve">
     <value>Tên vai trò là bắt buộc.</value>
   </data>
@@ -150,8 +165,17 @@
   <data name="OrganizationAccessDenied" xml:space="preserve">
     <value>Bạn không có quyền truy cập tổ chức này.</value>
   </data>
-  <data name="OrganizationMemberAlreadyExists" xml:space="preserve">
-    <value>Tài khoản đã là thành viên của tổ chức này.</value>
+  <data name="OrganizationSuspended" xml:space="preserve">
+    <value>Tổ chức này đang tạm ngừng hoạt động.</value>
+  </data>
+  <data name="SystemAdministratorRequired" xml:space="preserve">
+    <value>Chỉ admin hệ thống làm được việc này.</value>
+  </data>
+  <data name="DeactivationReasonRequired" xml:space="preserve">
+    <value>Cần ghi lý do vô hiệu tổ chức.</value>
+  </data>
+  <data name="ResourceNotFound" xml:space="preserve">
+    <value>Không tìm thấy.</value>
   </data>
   <data name="OrganizationCannotRemoveLastOwner" xml:space="preserve">
     <value>Không thể xóa hoặc đổi vai trò của chủ sở hữu cuối cùng trong tổ chức.</value>
@@ -170,6 +194,24 @@
   </data>
   <data name="UnknownPermissionCode" xml:space="preserve">
     <value>Mã quyền không hợp lệ.</value>
+  </data>
+  <data name="OwnerOnlyOperation" xml:space="preserve">
+    <value>Chỉ Chủ sở hữu làm được thao tác này.</value>
+  </data>
+  <data name="InsufficientRolePermissions" xml:space="preserve">
+    <value>Bạn không có đủ quyền của vai trò này.</value>
+  </data>
+  <data name="CannotRemoveSelf" xml:space="preserve">
+    <value>Bạn không thể tự gỡ mình khỏi tổ chức. Hãy dùng Rời tổ chức.</value>
+  </data>
+  <data name="LastOwnerCannotLeave" xml:space="preserve">
+    <value>Tổ chức cần ít nhất một Chủ sở hữu. Hãy gán vai trò Chủ sở hữu cho người khác trước khi rời.</value>
+  </data>
+  <data name="RoleHasHolders" xml:space="preserve">
+    <value>Vai trò này còn người giữ. Hãy đổi vai trò của họ trước khi xoá.</value>
+  </data>
+  <data name="RoleNameReservedForSystemRole" xml:space="preserve">
+    <value>Tên này trùng tên một vai trò hệ thống.</value>
   </data>
   <data name="ExternalLoginEmailNotConfirmed" xml:space="preserve">
     <value>Đã có tài khoản dùng email này nhưng chưa được xác thực. Vui lòng xác thực email trước khi liên kết đăng nhập.</value>
@@ -191,5 +233,38 @@
   </data>
   <data name="InternalServerError" xml:space="preserve">
     <value>Đã có lỗi xảy ra. Vui lòng thử lại sau.</value>
+  </data>
+  <data name="EmailDeliveryFailed" xml:space="preserve">
+    <value>Không gửi được email. Vui lòng thử lại sau.</value>
+  </data>
+  <data name="InvitationOrganizationRequired" xml:space="preserve">
+    <value>Lời mời phải thuộc một tổ chức.</value>
+  </data>
+  <data name="InvitationRoleRequired" xml:space="preserve">
+    <value>Lời mời phải có vai trò.</value>
+  </data>
+  <data name="InvitationTokenHashInvalid" xml:space="preserve">
+    <value>Mã lời mời không hợp lệ.</value>
+  </data>
+  <data name="InvitationEmailAlreadyMember" xml:space="preserve">
+    <value>Người này đã là thành viên của tổ chức.</value>
+  </data>
+  <data name="InvitationEmailDeliveryFailed" xml:space="preserve">
+    <value>Không gửi được email mời. Chưa có gì thay đổi, hãy thử lại sau.</value>
+  </data>
+  <data name="InvitationExpired" xml:space="preserve">
+    <value>Lời mời đã hết hạn.</value>
+  </data>
+  <data name="InvitationNoLongerValid" xml:space="preserve">
+    <value>Lời mời không còn hiệu lực.</value>
+  </data>
+  <data name="InvitationWrongAccount" xml:space="preserve">
+    <value>Lời mời này không dành cho tài khoản bạn đang dùng.</value>
+  </data>
+  <data name="InvitationOrganizationSuspended" xml:space="preserve">
+    <value>Tổ chức đang tạm ngừng hoạt động nên chưa vào được.</value>
+  </data>
+  <data name="InvalidCursor" xml:space="preserve">
+    <value>Không tải tiếp được danh sách. Hãy tải lại trang.</value>
   </data>
 </root>

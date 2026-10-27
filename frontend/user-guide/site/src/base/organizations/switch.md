@@ -1,52 +1,41 @@
 ---
 title: Chuyển tổ chức
-description: 'Chọn tổ chức bạn muốn làm việc, hoặc quay về không gian cá nhân.'
+description: 'Chọn tổ chức bạn muốn làm việc, hoặc quay về trang chào.'
 ---
 
 # Chuyển tổ chức
 
-Bạn có thể thuộc nhiều tổ chức. Mỗi lúc bạn làm việc trong một tổ chức, hoặc trong **Không gian cá nhân** (không thuộc tổ chức nào). Dữ liệu và quyền bạn thấy là của nơi đang chọn.
+Bạn có thể thuộc nhiều tổ chức. Mỗi lúc bạn làm việc trong một tổ chức, và dữ liệu cùng quyền bạn thấy là của tổ chức đang chọn. Tên tổ chức đó luôn hiện ở góc trên bên trái. Khi bạn chưa chọn tổ chức nào, nút này ghi **Không gian cá nhân**.
 
-## Chuyển bằng menu tài khoản
+## Các bước
 
-1. Ở góc trên phải, bấm vào ảnh đại diện của bạn. Danh sách nơi làm việc (**Không gian cá nhân** và các tổ chức) hiện ở đầu menu.
-2. Chọn tổ chức cần chuyển tới. Nơi đang dùng có dấu tích.
-
-<figure>
-
-![Menu tài khoản với danh sách tổ chức](/base/images/vi/organizations/switch.jpg)
-
-<figcaption>Menu chuyển tổ chức</figcaption>
-</figure>
-
-| #   | Thành phần                                |
-| --- | ----------------------------------------- |
-| 1   | Ảnh đại diện; bấm để mở menu              |
-| 2   | Một tổ chức bạn là thành viên             |
-| 3   | **Quản lý tổ chức**: mở trang **Tổ chức** |
-
-## Chuyển từ trang Tổ chức
-
-1. Bấm **Tổ chức** ở thanh bên (hoặc **Quản lý tổ chức** trong menu trên).
-2. Ở dòng của tổ chức cần chuyển tới, bấm **Chuyển tổ chức**.
+1. Bấm nút ghi tên tổ chức ở góc trên bên trái. Bảng **Tổ chức của bạn** mở ra.
+2. Chọn tổ chức cần chuyển tới. Dưới tên mỗi tổ chức là vai trò của bạn trong đó; tổ chức đang dùng có dấu tích.
 
 <figure>
 
-![Trang Tổ chức với danh sách tổ chức của bạn](/base/images/vi/organizations/list.jpg)
+![Bảng Tổ chức của bạn với danh sách tổ chức](/base/images/vi/organizations/switch.jpg)
 
-<figcaption>Trang Tổ chức</figcaption>
+<figcaption>Bảng chuyển tổ chức</figcaption>
 </figure>
 
-| #   | Thành phần                                                     |
-| --- | -------------------------------------------------------------- |
-| 1   | Nút **Tạo tổ chức**                                            |
-| 2   | Trạng thái: **Hoạt động** hoặc **Ngưng hoạt động**             |
-| 3   | Nút **Chuyển tổ chức**                                         |
-| 4   | Nút **Thành viên**: xem thành viên của tổ chức                 |
-| 5   | Nút **Vai trò**: chỉ hiện khi bạn có quyền **Quản lý vai trò** |
+| #   | Thành phần                                        |
+| --- | ------------------------------------------------- |
+| 1   | Nút ghi tên tổ chức đang làm việc; bấm để mở bảng |
+| 2   | Một tổ chức bạn là thành viên                     |
+| 3   | **Về trang chào**: mở [trang chào](./welcome)     |
+| 4   | **Tạo tổ chức**: mở bảng [tạo tổ chức](./create)  |
 
-Dưới tên mỗi tổ chức là định danh của nó và **Vai trò của bạn** trong tổ chức đó.
+Trên điện thoại, danh sách mở thành một bảng riêng thay vì cửa sổ nhỏ.
+
+## Tổ chức tạm ngừng
+
+Tổ chức đã bị [vô hiệu](./settings) hiện mờ trong danh sách, có nhãn **Tạm ngừng**. Bấm vào nó không chuyển được.
 
 ## Kết quả
 
-Trang tải lại và mở trong tổ chức mới. Tên tổ chức hiện cạnh ảnh đại diện ở góc trên phải (trên màn hình nhỏ, mở menu tài khoản để xem).
+Trang tải lại và mở **Trang chủ** của tổ chức mới chọn. Bạn không phải đăng nhập lại. Nếu bạn chọn đúng tổ chức đang dùng, bảng chỉ đóng lại.
+
+## Sự cố thường gặp
+
+- **Có lời báo lỗi ở đầu bảng và trang không đổi**: việc chuyển chưa thực hiện được, bạn vẫn ở tổ chức hiện tại. Chọn lại tổ chức.

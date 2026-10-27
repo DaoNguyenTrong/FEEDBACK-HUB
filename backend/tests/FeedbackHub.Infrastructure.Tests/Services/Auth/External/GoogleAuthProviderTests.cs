@@ -57,6 +57,19 @@ public class GoogleAuthProviderTests
     }
 
     [Fact]
+    public async Task ValidateAsync_NoEmailClaim_ReturnsNullEmailWithoutThrowing()
+    {
+        Fixture f = CreateFixture();
+        f.Validator.ValidateAsync(Arg.Any<string>(), Arg.Any<GoogleJsonWebSignature.ValidationSettings>())
+            .Returns(new GoogleJsonWebSignature.Payload { Subject = "sub", Email = null });
+
+        ExternalUserInfo result = await f.Provider.ValidateAsync("some-credential", CancellationToken.None);
+
+        Assert.Null(result.Email);
+        Assert.Equal("sub", result.ProviderUserId);
+    }
+
+    [Fact]
     public async Task ValidateAsync_PassesConfiguredClientIdAsAudience()
     {
         Fixture f = CreateFixture(clientId: "configured-client-id");

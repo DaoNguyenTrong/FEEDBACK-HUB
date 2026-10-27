@@ -80,14 +80,14 @@ describe('content integrity', () => {
   })
 
   test('a base permission is named as the app names it', () => {
-    // The app labels Permissions.X with organizations.permissionX (OrganizationRolesDialog, RoleForm).
-    const app = { vi: vi.organizations, en: en.organizations } as const
+    // The app names a permission at permissions.<code with dots turned into underscores>.name.
+    const app = { vi: vi.permissions, en: en.permissions } as const
     const mismatches: string[] = []
-    for (const [key, code] of Object.entries(Permissions)) {
-      const localeKey = `permission${key}` as keyof typeof en.organizations
+    for (const code of Object.values(Permissions)) {
+      const localeKey = code.replaceAll('.', '_') as keyof typeof en.permissions
       for (const locale of ['vi', 'en'] as const) {
-        const expected = app[locale][localeKey]
-        if (permissionLabels[code]?.[locale] !== expected)
+        const expected = app[locale][localeKey]?.name
+        if (expected === undefined || permissionLabels[code]?.[locale] !== expected)
           mismatches.push(`${code} [${locale}]: ${permissionLabels[code]?.[locale]} ≠ ${expected}`)
       }
     }

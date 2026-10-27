@@ -20,7 +20,11 @@ anonymous caller, 404 to a signed-in one (an `/api` request without `X-TimeZone`
 surfaces opt out explicitly:
 
 - Controllers: `[AllowAnonymous]` on `HealthController` and on `AuthController`'s `login`, `register`,
-  `verify-email`, `resend-verification`, `external/{provider}` and `refresh` (pinned by their controller tests).
+  `register-with-invitation`, `verify-email`, `resend-verification`, `confirm-email-change`, `external/{provider}`
+  and `refresh` (pinned by their controller tests).
+- `InvitationsController` requires `SignedInUser` at class level; only `lookup` is `[AllowAnonymous]` (it still
+  reads a JWT session when one is sent; an API key counts as none), `accept` needs the signed-in person (pinned by
+  `InvitationsControllerTests`).
 - `Program.cs`: `.AllowAnonymous()` on `/metrics`, `/hangfire` and the dev-only OpenAPI/Scalar routes (pinned by
   `FallbackAuthorizationTests`). A new `Map...` endpoint meant to be public needs the same call. `/metrics` and
   `/hangfire` (full job control, no app-level check) rely on the deployment: nginx answers 404 for both and the
@@ -43,10 +47,29 @@ personal, org-less context).
 Each organization has its own roles (`Role`, system kinds `Owner`/`Admin`/`Member` in
 `SystemRoleKind`, plus custom ones); a role bundles permissions from the fixed, code-defined catalog
 `Permissions`. Endpoints gate with `[Authorize(Policy = Permissions.X)]` (resolved by
-`OrganizationPermissionPolicyProvider`) or `AuthorizationPolicies.OrganizationMember` /
-`ActiveOrganizationMember` / `SignedInUser`. Effective permissions resolve per request through a
-short-TTL cache, not the JWT. The frontend's `meta.permission` route gate is UI-only
-(`frontend-conventions.md`).
+`OrganizationPermissionPolicyProvider`) or one of the `AuthorizationPolicies`:
+
+- `ActiveOrganizationMember` — active member of the JWT's organization; outside it → 403 `OrganizationAccessDenied`.
+- `ActiveOrganizationMemberOrNotFound` — the same, but outside it → 404 `ResourceNotFound` (BR-45).
+- `SignedInUser` — a signed-in person's JWT; never an API key.
+- `SystemAdministrator` — a system administrator's JWT (API key → 401), whatever `org_id` it carries; anyone
+  else → 403 `SystemAdministratorRequired`. Membership in `system_administrators` resolves per request through
+  `ISystemAdministratorResolver` (60-second cache; `InvalidateAsync` drops it on every instance sharing the Redis
+  cache, as production does; with the Memory provider in dev a CLI grant or revoke reaches a running API only after
+  the TTL), never from a JWT claim.
+
+The organization gate (`OrganizationContextAuthorizationHandler`, TECH00 §5.1) backs the two
+`ActiveOrganizationMember*` policies and every `Permissions` code (`OrganizationContextRequirement(code,
+DenyMode.Forbidden)`). It checks in this order and answers the first failure: not signed in (401), outside the
+organization — personal context, API key or non-member (403 or 404), organization suspended (403
+`OrganizationSuspended` with `organizationName`), missing permission (403 `OrganizationAccessDenied`). The organization
+is always the JWT's `org_id`: no route takes an organization id (QĐ-06) — `api/organizations` serves only the caller's
+own list and create, and the `api/system/organizations/{id}` routes use `SystemAdministrator`, never a permission code.
+`ArchitectureTests` fails CI on a route under `api/organizations/{…}` or a route naming an organization whose policy
+is a permission code or an `ActiveOrganizationMember*` policy. `TenantAccessMiddleware` exempts only the exact
+`/api/organizations` path (list and create), so a route added under it is gated.
+Effective permissions resolve per request through a short-TTL cache, not the JWT. The frontend's
+`meta.permission` route gate is UI-only (`frontend-conventions.md`).
 
 ## Headers
 

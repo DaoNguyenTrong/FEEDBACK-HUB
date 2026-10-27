@@ -89,17 +89,10 @@ async function readPreconditions(context: BrowserContext): Promise<PreconditionD
 
   const organizations =
     await get<{ id: string; myPermissionCodes: string[] }[]>('/api/organizations')
-  const membersByOrg: Record<string, number> = {}
-  const customRolesByOrg: Record<string, number> = {}
-  for (const { id } of organizations) {
-    membersByOrg[id] = (await get<unknown[]>(`/api/organizations/${id}/members`)).length
-    const roles = await get<{ isSystem: boolean }[]>(`/api/organizations/${id}/roles`)
-    customRolesByOrg[id] = roles.filter((r) => !r.isSystem).length
-  }
   const { count } = await get<{ count: number }>('/api/notifications/unread-count')
   const sessions = (await get<unknown[]>('/api/auth/sessions')).length
 
-  return { organizations, membersByOrg, customRolesByOrg, unreadNotifications: count, sessions }
+  return { organizations, unreadNotifications: count, sessions }
 }
 
 /** Signs in only if the stored session is rejected, then checks the account's data. */

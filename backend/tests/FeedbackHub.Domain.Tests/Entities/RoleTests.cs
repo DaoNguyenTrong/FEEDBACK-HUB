@@ -58,4 +58,31 @@ public class RoleTests
 
         DomainAssert.ThrowsWithMessage(DomainMessages.RoleNameRequired, () => role.Update(ValidParams() with { Name = "" }));
     }
+
+    [Fact]
+    public void Update_NameWithSpacesAndDecomposedUnicode_StoresTrimmedNfc()
+    {
+        string decomposed = "  Chủ sở hữu ".Normalize(System.Text.NormalizationForm.FormD);
+        Role role = Role.Create(ValidParams());
+
+        role.Update(ValidParams() with { Name = decomposed });
+
+        Assert.Equal("Chủ sở hữu", role.Name);
+        Assert.True(role.Name.IsNormalized(System.Text.NormalizationForm.FormC));
+    }
+
+    [Fact]
+    public void Update_BlankName_ThrowsRoleNameRequired()
+    {
+        // PRD00-AC-287
+        Role role = Role.Create(ValidParams());
+
+        DomainAssert.ThrowsWithMessage(DomainMessages.RoleNameRequired, () => role.Update(ValidParams() with { Name = " \t " }));
+    }
+
+    [Fact]
+    public void Role_ImplementsIHasOrganization()
+    {
+        Assert.IsAssignableFrom<IHasOrganization>(Role.Create(ValidParams()));
+    }
 }

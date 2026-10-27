@@ -23,6 +23,7 @@ using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Infrastructure;
 using FeedbackHub.Infrastructure.Services.Notifications;
+using FeedbackHub.Infrastructure.Services.RateLimiting;
 using Prometheus;
 using Serilog;
 using Microsoft.Extensions.FileProviders;
@@ -116,6 +117,8 @@ builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, Authorizati
 RateLimiterSettings rateLimiterSettings = builder.Configuration
     .GetSection(nameof(RateLimiterSettings)).Get<RateLimiterSettings>() ?? new RateLimiterSettings();
 
+string rateLimiterStore = RateLimiterStore.Resolve(rateLimiterSettings.Store);
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -132,24 +135,24 @@ builder.Services.AddRateLimiter(options =>
 
         await ApiProblemDetailsFactory.WriteAsync(context.HttpContext, problemDetails, cancellationToken);
     };
-    options.AddPolicy("auth", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = rateLimiterSettings.AuthPermitLimit,
-                Window = TimeSpan.FromMinutes(rateLimiterSettings.AuthWindowMinutes),
-                QueueLimit = 0
-            }));
-    options.AddPolicy("auth-refresh", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = rateLimiterSettings.RefreshPermitLimit,
-                Window = TimeSpan.FromMinutes(rateLimiterSettings.RefreshWindowMinutes),
-                QueueLimit = 0
-            }));
+    options.AddPolicy("auth", httpContext => RateLimitPartitions.FixedWindow(
+        httpContext,
+        "auth",
+        rateLimiterSettings.AuthPermitLimit,
+        TimeSpan.FromMinutes(rateLimiterSettings.AuthWindowMinutes),
+        rateLimiterStore));
+    options.AddPolicy("auth-refresh", httpContext => RateLimitPartitions.FixedWindow(
+        httpContext,
+        "auth-refresh",
+        rateLimiterSettings.RefreshPermitLimit,
+        TimeSpan.FromMinutes(rateLimiterSettings.RefreshWindowMinutes),
+        rateLimiterStore));
+    options.AddPolicy("invitation", httpContext => RateLimitPartitions.FixedWindow(
+        httpContext,
+        "invitation",
+        rateLimiterSettings.InvitationPermitLimit,
+        TimeSpan.FromMinutes(rateLimiterSettings.InvitationWindowMinutes),
+        rateLimiterStore));
 });
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -169,6 +172,17 @@ if (await CliCommands.TryRunAsync(app.Services, args, CancellationToken.None) is
 // without starting it. Startup steps that reach Postgres or S3 are skipped there so the export needs no services;
 // new startup work that touches an external service belongs behind this flag too.
 bool isOpenApiExport = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
+
+// CLI verbs have already returned above, so reaching here means the web host is about to start.
+if (ProductionTopologyValidator.ShouldValidate(isOpenApiExport, isCliCommand: false, app.Environment))
+{
+    IReadOnlyList<string> topologyErrors = ProductionTopologyValidator.Validate(app.Configuration);
+    if (topologyErrors.Count > 0)
+    {
+        throw new InvalidOperationException(
+            $"{ProductionTopologyValidator.ErrorTitle}{Environment.NewLine}{string.Join(Environment.NewLine, topologyErrors)}");
+    }
+}
 
 if (!isOpenApiExport)
 {
@@ -207,7 +221,7 @@ if (app.Environment.IsDevelopment())
 }
 
 StorageSettings storageSettings = app.Services.GetRequiredService<IOptions<StorageSettings>>().Value;
-if (storageSettings.Provider == "Local")
+if (FeedbackHub.Infrastructure.DependencyInjection.IsLocalStorage(storageSettings.Provider))
 {
     string storagePath = Path.IsPathRooted(storageSettings.BasePath)
         ? storageSettings.BasePath

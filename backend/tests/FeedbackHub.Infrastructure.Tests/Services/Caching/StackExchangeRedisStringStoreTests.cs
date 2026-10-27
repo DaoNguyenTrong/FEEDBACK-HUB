@@ -1,6 +1,6 @@
 using StackExchange.Redis;
 using FeedbackHub.Infrastructure.Services.Caching;
-using Testcontainers.Redis;
+using FeedbackHub.Infrastructure.Tests.TestSupport;
 
 namespace FeedbackHub.Infrastructure.Tests.Services.Caching;
 
@@ -8,8 +8,8 @@ namespace FeedbackHub.Infrastructure.Tests.Services.Caching;
 /// The transactions behind the cache's correctness run against a real Redis: the unit tests' fake only
 /// mirrors this contract, so this is where the contract itself is checked.
 /// </summary>
-public sealed class StackExchangeRedisStringStoreTests(StackExchangeRedisStringStoreTests.RedisFixture redis)
-    : IClassFixture<StackExchangeRedisStringStoreTests.RedisFixture>
+public sealed class StackExchangeRedisStringStoreTests(RedisContainerFixture redis)
+    : IClassFixture<RedisContainerFixture>
 {
     private static readonly TimeSpan EntryTtl = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan CounterTtl = TimeSpan.FromMinutes(10);
@@ -19,25 +19,6 @@ public sealed class StackExchangeRedisStringStoreTests(StackExchangeRedisStringS
 
     // One container for the class; each test gets its own hash tag so tests can't see each other's keys.
     private readonly string tag = $"{{{Guid.NewGuid():N}}}";
-
-    public sealed class RedisFixture : IAsyncLifetime
-    {
-        private readonly RedisContainer container = new RedisBuilder("redis:8-alpine").Build();
-
-        public ConnectionMultiplexer Multiplexer { get; private set; } = null!;
-
-        public async Task InitializeAsync()
-        {
-            await container.StartAsync();
-            Multiplexer = await ConnectionMultiplexer.ConnectAsync(container.GetConnectionString());
-        }
-
-        public async Task DisposeAsync()
-        {
-            await Multiplexer.DisposeAsync();
-            await container.DisposeAsync();
-        }
-    }
 
     private string Key(string name) => tag + name;
 

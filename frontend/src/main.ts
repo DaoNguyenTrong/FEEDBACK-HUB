@@ -1,3 +1,5 @@
+import '@fontsource-variable/plus-jakarta-sans'
+import '@fontsource-variable/jetbrains-mono'
 import App from './App.vue'
 
 import './assets/styles/tailwind.css'
@@ -39,6 +41,9 @@ async function bootstrap() {
   await restoreSession(pinia)
 
   app.use(pinia)
+  setOrganizationAccessHandler((problem) => {
+    void useOrganizationContextStore().handleAccessProblem(problem)
+  })
   app.use(router)
   app.use(i18n)
 

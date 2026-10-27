@@ -11,7 +11,7 @@
 | Người duyệt | Người dùng (sau review của `appsec`); duyệt 2026-10-23 cùng PRD-00 v1.4 và thiết kế module 01 |
 | Cập nhật | 2026-10-23 |
 | Phụ thuộc | Không có. TECH01–TECH07 phụ thuộc tài liệu này (cổng tổ chức §5.1, phạm vi theo sản phẩm §5.5, quy tắc file §7.5) |
-| Kế hoạch triển khai | Chưa có |
+| Kế hoạch triển khai | [Phần 1](../superpowers/plans/2026-10-23-module-00-phase-1-security.md), [Phần 2](../superpowers/plans/2026-10-23-module-00-phase-2-multi-instance.md), [Phần 3](../superpowers/plans/2026-10-23-module-00-phase-3-organization-gate.md), [Phần 4](../superpowers/plans/2026-10-23-module-00-phase-4-roles-members.md), [Phần 5](../superpowers/plans/2026-10-23-module-00-phase-5-invitations.md), [Phần 6](../superpowers/plans/2026-10-23-module-00-phase-6-audit-log.md), [Phần 7](../superpowers/plans/2026-10-23-module-00-phase-7-frontend-foundation.md), [Phần 8](../superpowers/plans/2026-10-23-module-00-phase-8-frontend-screens.md) |
 
 ## 1. Phạm vi và truy vết
 

@@ -9,7 +9,7 @@ Vue 3 + Vite + TypeScript, Pinia, naive-ui, Tailwind, vue-i18n. Package manager 
 
 ## File & Naming Conventions
 
-- Components/views: PascalCase, `*View.vue` suffix for route-level views (`frontend/src/views/OrganizationsView.vue`).
+- Components/views: PascalCase, `*View.vue` suffix for route-level views (`frontend/src/views/HomeView.vue`).
 - Composables: kebab-case file, `use*` export (`frontend/src/composables/use-sidebar-menu.ts` → `useSidebarMenu`).
 - Stores: kebab-case file, `use*Store` export via Pinia (`frontend/src/stores/auth.ts` → `useAuthStore`).
 - No hand-written per-resource API modules — call the generated client directly (see API Layer below).
@@ -48,13 +48,13 @@ const example = await client.examplesGetById(id)
 ```
 
 - Never hand-roll another axios instance — every generated call already goes through `apiClient` (`api/mutator.ts`). A success side effect goes in the owning Pinia store, request/response types come from `api/types.ts` re-exports, int64 fields are normalized at the point of use: details in `api-contract.md`.
-- In components, catch errors with `error instanceof ApiError` and prefer `error.problem.detail ?? error.problem.title`, falling back to a localized generic string (`t('errors.requestFailed')`) — see `ProfileDialog.vue` for the pattern.
+- In components, show an error with `errorMessage(error, t, te)` (`lib/error-message.ts`): a localized `errorCodes.<code>` string when the locale has one, else `problem.detail`, else the generic `errors.requestFailed`. Don't read `error.problem` fields by hand; `ProfilePanel` and `NotificationBell` still do and move over when next touched.
 
 ## Runtime Configuration
 
 Never read `import.meta.env.VITE_*` directly — call `getRuntimeConfig()` (`lib/runtime-config.ts`), which overlays the deploy-time `/config.json` over the build-time value key by key. Call it inside a function body or `<script setup>`, never at a `.ts` module's top level (that would freeze the value before `main.ts` has loaded `config.json`). The one deliberate exception is the axios instances in `api/client.ts`, whose `baseURL` `main.ts` re-applies right after loading `config.json` and before the first request. A new `VITE_*` value needs: the key in `RuntimeConfig`/`RUNTIME_CONFIG_KEYS`/`readBuildTimeDefaults`, `env.d.ts`, `public/config.example.json`, `docker/40-write-runtime-config.sh`, and the `web` service's `environment` in `docker-compose.prod.yml` + `.env.prod.example`.
 
-A page that needs a permission declares it once as `meta.permission` (a `lib/permissions.ts` code) on its route: `useSidebarMenu` hides the item and the router guard sends a signed-in user without it to `home`. It is a UI gate only — the matching endpoint must still carry its `[Authorize(Policy = ...)]`. Never gate `home`, the fallback itself.
+A page that needs a permission declares it once as `meta.permission` (a `lib/permissions.ts` code) on its route: `useSidebarMenu` hides the item; opened by URL without it, the URL stays and the layout shows the *Không đủ quyền* state (`AccessProblemState`). `meta.requiresOrganization` sends a user in the personal context to `useHomeRoute()`; `meta.systemAdministrator` marks a system administrator page. One function, `routeAccess` (`lib/route-access.ts`), decides all of it for the guard and the menu. These are UI gates only — the matching endpoint must still carry its `[Authorize(Policy = ...)]`. Never gate `home`, the fallback itself.
 
 ## Session and Organization Exits
 

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
+using FeedbackHub.Application.Resources;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
 
@@ -92,5 +94,38 @@ public sealed class SystemSettingsControllerTests(ApiFactoryFixture fixture) : I
 
         Dictionary<string, string?>? values = await response.Content.ReadJsonAsync<Dictionary<string, string?>>();
         Assert.False(values!.ContainsKey($"{prefix}:key1"));
+    }
+
+    // Organization gate
+
+    [Fact]
+    public async Task UpdateSection_Unauthenticated_ReturnsUnauthorized()
+    {
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.PutAsJsonAsync("/api/system-settings/Gate", new Dictionary<string, string?>());
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/system-settings")]
+    [InlineData("PUT", "/api/system-settings/Gate")]
+    public async Task AnyEndpoint_MemberWithoutSettingsManage_Returns403AccessDenied(string method, string path)
+    {
+        HttpClient client = await AuthTestHelper.CreateOrganizationCallerClientAsync(
+            fixture, SystemRoleKind.Member);
+        HttpRequestMessage request = new(new HttpMethod(method), path);
+        if (method is "POST" or "PUT")
+        {
+            request.Content = JsonContent.Create(new { });
+        }
+
+        HttpResponseMessage response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
+        Assert.False(body.TryGetProperty("organizationName", out _));
     }
 }

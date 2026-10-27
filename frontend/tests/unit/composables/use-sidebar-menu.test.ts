@@ -2,9 +2,10 @@ import type { RouteRecordRaw } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useSidebarMenu } from '@/composables/use-sidebar-menu'
-import { containsRoute, flattenMenuLinks } from '@/layouts/sidebar-menu'
+import { containsRoute, flattenMenuLinks, toNavSections } from '@/layouts/sidebar-menu'
 import type { SidebarMenuEntry } from '@/layouts/sidebar-menu'
 import type { MenuGroup } from '@/layouts/menu-groups'
+import { MENU_GROUPS } from '@/layouts/menu-groups'
 import { useAuthStore } from '@/stores/auth'
 import { withSetup } from '../../helpers/with-setup'
 
@@ -247,6 +248,133 @@ describe('useSidebarMenu', () => {
   })
 })
 
+describe('useSidebarMenu access', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  function sections() {
+    return layoutRoutes([
+      leaf('home', { order: 0 }),
+      {
+        ...leaf('members'),
+        meta: {
+          requiresOrganization: true,
+          permission: 'organizations.members.manage',
+          sidebar: { labelKey: 'nav.members', icon: stub, group: 'organization' },
+        },
+      },
+      {
+        ...leaf('overview'),
+        meta: {
+          requiresOrganization: true,
+          sidebar: { labelKey: 'nav.overview', icon: stub, group: 'organization', order: 1 },
+        },
+      },
+      {
+        ...leaf('tenants'),
+        meta: {
+          systemAdministrator: true,
+          sidebar: { labelKey: 'nav.tenants', icon: stub, group: 'system' },
+        },
+      },
+    ])
+  }
+
+  function groupItems(entry: SidebarMenuEntry) {
+    return entry.kind === 'group' ? entry.items.map((item) => item.routeName) : []
+  }
+
+  it('shows the system group only to a system administrator', async () => {
+    const auth = useAuthStore()
+    auth.organizationId = 'org-1'
+    const { result } = await withSetup(() => useSidebarMenu(), '/', sections())
+
+    expect(result.value.map(idOf)).not.toContain('system')
+
+    auth.isSystemAdministrator = true
+
+    expect(result.value.map(idOf)).toContain('system')
+  })
+
+  it('hides a gated child under an allowed parent item', async () => {
+    const auth = useAuthStore()
+    const routes = layoutRoutes([
+      {
+        path: 'settings',
+        name: 'settings',
+        component: stub,
+        meta: { sidebar: { labelKey: 'nav.settings', icon: stub } },
+        children: [
+          leaf('general'),
+          {
+            ...leaf('billing'),
+            meta: {
+              permission: 'billing.manage',
+              sidebar: { labelKey: 'nav.billing', icon: stub },
+            },
+          },
+        ],
+      },
+    ])
+    const { result } = await withSetup(() => useSidebarMenu(), '/', routes)
+
+    function childNames() {
+      const parent = result.value[0]
+      const items = parent?.kind === 'item' ? (parent as { items?: { routeName?: string }[] }).items : []
+      return items?.map((item) => item.routeName)
+    }
+
+    expect(childNames()).toEqual(['general'])
+
+    auth.permissions = ['billing.manage']
+
+    expect(childNames()).toEqual(['general', 'billing'])
+  })
+
+  it('hides organization pages in the personal context', async () => {
+    const auth = useAuthStore()
+    auth.organizationId = null
+    auth.permissions = ['organizations.members.manage']
+    const { result } = await withSetup(() => useSidebarMenu(), '/', sections())
+
+    expect(result.value.map(idOf)).toEqual(['home'])
+
+    auth.organizationId = 'org-1'
+
+    expect(result.value.map(idOf)).toEqual(['home', 'organization'])
+  })
+
+  it('hides a page whose permission the user lacks', async () => {
+    const auth = useAuthStore()
+    auth.organizationId = 'org-1'
+    const { result } = await withSetup(() => useSidebarMenu(), '/', sections())
+
+    expect(groupItems(result.value[1]!)).toEqual(['overview'])
+
+    auth.permissions = ['organizations.members.manage']
+
+    expect(groupItems(result.value[1]!)).toEqual(['members', 'overview'])
+  })
+
+  it('lists the home item, then the organization group, then the system group', async () => {
+    const auth = useAuthStore()
+    auth.organizationId = 'org-1'
+    auth.isSystemAdministrator = true
+    auth.permissions = ['organizations.members.manage']
+    const { result } = await withSetup(() => useSidebarMenu(), '/', sections())
+
+    expect(result.value.map(idOf)).toEqual(['home', 'organization', 'system'])
+  })
+
+  it('ships the organization and system groups as text headings', () => {
+    expect(MENU_GROUPS.map((group) => [group.id, group.labelKey, group.order])).toEqual([
+      ['organization', 'nav.groups.organization', 100],
+      ['system', 'nav.groups.system', 200],
+    ])
+  })
+})
+
 describe('flattenMenuLinks', () => {
   it('returns leaves with their group and parent trail', () => {
     const entries: SidebarMenuEntry[] = [
@@ -296,5 +424,39 @@ describe('containsRoute', () => {
   it('is false when no descendant matches', () => {
     expect(containsRoute(group, 'other')).toBe(false)
     expect(containsRoute(group, undefined)).toBe(false)
+  })
+})
+
+describe('toNavSections', () => {
+  const link = (routeName: string): SidebarMenuEntry => ({
+    kind: 'item',
+    labelKey: `nav.${routeName}`,
+    icon: stub,
+    routeName,
+  })
+  const group = (id: string, routeName: string): SidebarMenuEntry => ({
+    kind: 'group',
+    id,
+    labelKey: `nav.groups.${id}`,
+    icon: stub,
+    items: [{ labelKey: `nav.${routeName}`, icon: stub, routeName }],
+  })
+
+  it('merges loose items that sit next to each other into one section', () => {
+    const sections = toNavSections([link('home'), link('inbox'), group('admin', 'users')])
+
+    expect(sections.map((section) => section.links.map((l) => l.routeName))).toEqual([
+      ['home', 'inbox'],
+      ['users'],
+    ])
+    expect(sections[0]!.headingKey).toBeUndefined()
+    expect(sections[1]!.headingKey).toBe('nav.groups.admin')
+  })
+
+  it('gives every section a unique key when loose items follow a group', () => {
+    const sections = toNavSections([link('home'), group('admin', 'users'), link('help')])
+
+    expect(sections).toHaveLength(3)
+    expect(new Set(sections.map((section) => section.key)).size).toBe(3)
   })
 })

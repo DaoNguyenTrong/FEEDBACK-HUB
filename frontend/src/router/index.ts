@@ -1,18 +1,27 @@
 import type { Component } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { Building, Home } from '@vicons/tabler'
+import type { RouteMeta } from 'vue-router'
+import { BuildingCommunity, Home, ListDetails, Settings, Users } from '@vicons/tabler'
+import { Permissions } from '@/lib/permissions'
+import { routeAccess } from '@/lib/route-access'
+import type { RouteAccessContext } from '@/lib/route-access'
 
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     guestOnly?: boolean
     /**
-     * Permission code (`lib/permissions.ts`) the active organization must grant: hides the route's
-     * sidebar item and sends a signed-in user without it to home. A UI gate only — the API still
-     * checks every request. Never put one on `home`, the fallback itself.
+     * Permission code (`lib/permissions.ts`) the active organization must grant. Hides the route's
+     * menu item; opened by URL without it, the layout shows "not enough permission" and keeps the
+     * URL. A UI gate only — the API still checks every request. Never put one on `home`.
      */
     permission?: string
-    breadcrumbKey?: string
+    /** The page lives inside the active organization: the personal context is sent to home. */
+    requiresOrganization?: boolean
+    /** A system administrator page. UI gate only; the API still checks `isSystemAdministrator`. */
+    systemAdministrator?: boolean
+    /** Route name of the menu item shown as open when this page has no item of its own. */
+    activeMenu?: string
     sidebar?: {
       labelKey: string
       icon: Component
@@ -40,7 +49,6 @@ const router = createRouter({
           component: () => import('@/views/HomeView.vue'),
           meta: {
             requiresAuth: true,
-            breadcrumbKey: 'nav.home',
             sidebar: {
               labelKey: 'nav.home',
               icon: Home,
@@ -48,19 +56,105 @@ const router = createRouter({
           },
         },
         {
-          path: 'organizations',
-          name: 'organizations',
-          component: () => import('@/views/OrganizationsView.vue'),
+          path: 'organization/members',
+          name: 'organization-members',
+          component: () => import('@/views/organization/MembersView.vue'),
           meta: {
             requiresAuth: true,
-            breadcrumbKey: 'nav.organizations',
+            requiresOrganization: true,
             sidebar: {
-              labelKey: 'nav.organizations',
-              icon: Building,
+              labelKey: 'nav.members',
+              icon: Users,
+              group: 'organization',
+              order: 10,
             },
           },
         },
+        {
+          path: 'organization/members/invitations',
+          name: 'organization-invitations',
+          component: () => import('@/views/organization/InvitationsView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresOrganization: true,
+            permission: Permissions.OrganizationMembersManage,
+            activeMenu: 'organization-members',
+          },
+        },
+        {
+          path: 'organization/members/roles',
+          name: 'organization-roles',
+          component: () => import('@/views/organization/RolesView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresOrganization: true,
+            permission: Permissions.OrganizationRolesManage,
+            activeMenu: 'organization-members',
+          },
+        },
+        {
+          path: 'organization/settings',
+          name: 'organization-settings',
+          component: () => import('@/views/organization/OrganizationSettingsView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresOrganization: true,
+            permission: Permissions.OrganizationManage,
+            sidebar: {
+              labelKey: 'nav.organizationSettings',
+              icon: Settings,
+              group: 'organization',
+              order: 20,
+            },
+          },
+        },
+        {
+          path: 'organization/audit-log',
+          name: 'organization-audit-log',
+          component: () => import('@/views/organization/AuditLogView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresOrganization: true,
+            permission: Permissions.AuditLogsView,
+            sidebar: {
+              labelKey: 'nav.auditLog',
+              icon: ListDetails,
+              group: 'organization',
+              order: 30,
+            },
+          },
+        },
+        {
+          // No `requiresOrganization`: a system administrator opens it from any context, even with an
+          // empty `org_id`.
+          path: 'system/organizations',
+          name: 'system-organizations',
+          component: () => import('@/views/system/SystemOrganizationsView.vue'),
+          meta: {
+            requiresAuth: true,
+            systemAdministrator: true,
+            sidebar: {
+              labelKey: 'nav.systemOrganizations',
+              icon: BuildingCommunity,
+              group: 'system',
+              order: 10,
+            },
+          },
+        },
+        {
+          // Last child: an unknown path shows "not found" inside the shell, after sign-in if need be.
+          path: '/:pathMatch(.*)*',
+          name: 'not-found',
+          component: () => import('@/views/NotFoundView.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
+    },
+    {
+      path: '/welcome',
+      name: 'welcome',
+      component: () => import('@/views/WelcomeView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/login',
@@ -80,6 +174,19 @@ const router = createRouter({
       component: () => import('@/views/VerifyEmailView.vue'),
     },
     {
+      // Public: the invitation link is opened from a mail, signed in or not. No `guestOnly`: a
+      // signed-in invitee accepts here, and the page itself says what to do for the wrong account.
+      path: '/invite',
+      name: 'invite',
+      component: () => import('@/views/InviteView.vue'),
+    },
+    {
+      // Public like /verify-email: the link is opened from a mail, signed in or not.
+      path: '/confirm-email-change',
+      name: 'confirm-email-change',
+      component: () => import('@/views/ConfirmEmailChangeView.vue'),
+    },
+    {
       // nginx sends a reader of the private user guide here when their session cookie is missing or
       // expired; the guard routes them through login, then the view sends them back to the guide.
       path: '/guide-auth',
@@ -87,21 +194,17 @@ const router = createRouter({
       component: () => import('@/views/GuideAuthView.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/:pathMatch(.*)*',
-      name: 'not-found',
-      component: () => import('@/views/NotFoundView.vue'),
-    },
   ],
 })
 
 export function resolveGuardRedirect(
   to: {
-    meta: { requiresAuth?: boolean; guestOnly?: boolean; permission?: string }
+    meta: RouteMeta
     fullPath: string
     query: Record<string, unknown>
+    name?: string | symbol | null
   },
-  auth: { isAuthenticated: boolean; hasPermission: (code: string) => boolean },
+  auth: RouteAccessContext,
   health: { isDown: boolean },
 ) {
   // During an outage the silent refresh couldn't run, so `isAuthenticated` is unreliable: don't
@@ -110,17 +213,24 @@ export function resolveGuardRedirect(
     return undefined
   }
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+  const access = routeAccess(to.meta, auth)
+
+  if (access === 'login') {
     // Preserve the destination so LoginView can return the user there after
     // signing in, instead of always dropping them on the home page.
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  // Hiding the sidebar item isn't enough: a typed URL or a bookmark still reaches the route.
-  if (to.meta.permission && auth.isAuthenticated && !auth.hasPermission(to.meta.permission)) {
+  if (access === 'no-organization') {
     return useHomeRoute()
   }
 
+  // The rail-and-header shell has nothing to show without an organization; the picker is its home.
+  if (to.name === 'home' && auth.isAuthenticated && auth.organizationId === null) {
+    return { name: 'welcome' }
+  }
+
+  // 'forbidden' keeps the URL: AppLayout shows the "not enough permission" state in place.
   if (to.meta.guestOnly && auth.isAuthenticated) {
     return safeRedirectTarget(to.query.redirect) ?? useHomeRoute()
   }

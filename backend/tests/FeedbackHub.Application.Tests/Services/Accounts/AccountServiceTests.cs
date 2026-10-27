@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using NSubstitute.Core;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
@@ -19,7 +21,10 @@ public class AccountServiceTests
         IUnitOfWork UnitOfWork,
         ICurrentUserService CurrentUserService,
         IPasswordHasher PasswordHasher,
-        IPasswordAttemptStore PasswordAttempts);
+        IPasswordAttemptStore PasswordAttempts,
+        IEmailSender EmailSender,
+        List<EmailVerificationToken> Tokens,
+        ILogger<EmailChangeLink> LinkLogger);
 
     private static Fixture CreateFixture()
     {
@@ -36,6 +41,31 @@ public class AccountServiceTests
                 Arg.Any<PasswordAttemptPurpose>(), Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns(1);
 
+        IEmailSender emailSender = Substitute.For<IEmailSender>();
+        List<EmailVerificationToken> tokens = [];
+        IRepository<EmailVerificationToken, Guid> tokenRepo = Substitute.For<IRepository<EmailVerificationToken, Guid>>();
+        unitOfWork.Repository<EmailVerificationToken, Guid>().Returns(tokenRepo);
+        RepositoryPredicateStub.StubListAsync(tokenRepo, tokens);
+        tokenRepo.AddAsync(Arg.Any<EmailVerificationToken>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                if (call[0] is EmailVerificationToken added)
+                {
+                    tokens.Add(added);
+                }
+
+                return Task.CompletedTask;
+            });
+        IDateTimeProvider clock = Substitute.For<IDateTimeProvider>();
+        clock.UtcNow.Returns(_ => DateTime.UtcNow);
+        ILogger<EmailChangeLink> linkLogger = Substitute.For<ILogger<EmailChangeLink>>();
+        EmailChangeLink link = new(
+            unitOfWork,
+            emailSender,
+            Options.Create(new EmailSettings { FrontendBaseUrl = "https://app.example.com" }),
+            clock,
+            linkLogger);
+
         AccountService service = new(
             unitOfWork,
             currentUserService,
@@ -44,9 +74,11 @@ public class AccountServiceTests
             Options.Create(new LoginLockoutSettings()),
             Substitute.For<IStorageService>(),
             Options.Create(new StorageSettings()),
+            link,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AccountService>.Instance);
 
-        return new Fixture(service, accountRepo, unitOfWork, currentUserService, passwordHasher, passwordAttempts);
+        return new Fixture(
+            service, accountRepo, unitOfWork, currentUserService, passwordHasher, passwordAttempts, emailSender, tokens, linkLogger);
     }
 
     private static Account CreateAccount(
@@ -116,7 +148,8 @@ public class AccountServiceTests
         f.CurrentUserService.UserId.Returns(account.Id.ToString());
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
         RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [account, other]);
-        UpdateProfileRequest request = new("Name", null, null, null, "taken@example.com");
+        f.PasswordHasher.Verify("pw", Arg.Any<string>()).Returns(true);
+        UpdateProfileRequest request = new("Name", null, null, null, "taken@example.com", "pw");
 
         await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
             ApplicationMessages.AccountEmailAlreadyExists,
@@ -154,16 +187,335 @@ public class AccountServiceTests
         f.CurrentUserService.UserId.Returns(account.Id.ToString());
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
         RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [account]);
-        UpdateProfileRequest request = new("New Name", "0123456789", "Dev", "Address", "new@example.com");
+        UpdateProfileRequest request = new("New Name", "0123456789", "Dev", "Address", "nva@example.com");
 
         ProfileDto dto = await f.Service.UpdateCurrentProfileAsync(request, CancellationToken.None);
 
         Assert.Equal("keep-username", dto.Username);
         Assert.Equal("New Name", dto.Name);
-        Assert.Equal("new@example.com", dto.Email);
+        Assert.Equal("nva@example.com", dto.Email);
         Assert.True(account.Status);
         f.AccountRepo.Received(1).Update(account);
         await f.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    // UpdateCurrentProfileAsync: email change (API-29, BR-82)
+
+    private static Fixture EmailFixture(
+        out Account account,
+        string? passwordHash = "hashed-password",
+        string email = "a@x.com",
+        string? pending = null,
+        params Account[] others)
+    {
+        Fixture f = CreateFixture();
+        account = CreateAccount(email: email, passwordHash: passwordHash);
+        if (pending is not null)
+        {
+            account.RequestEmailChange(pending);
+        }
+
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [account, .. others]);
+        f.PasswordHasher.Verify("pw", Arg.Any<string>()).Returns(true);
+        return f;
+    }
+
+    private static UpdateProfileRequest Req(string email, string? password, string name = "Name") =>
+        new(name, null, null, null, email, password);
+
+    // ResendEmailChangeAsync / CancelEmailChangeAsync (API-30, API-31)
+
+    [Fact]
+    public async Task ResendEmailChangeAsync_Pending_ConsumesOldIssuesNew_NoPasswordAsked()
+    {
+        Fixture f = EmailFixture(out Account account, pending: "b@x.com");
+        EmailVerificationToken old = EmailVerificationToken.Create(new EmailVerificationTokenParams(
+            account.Id, "old-hash", DateTime.UtcNow.AddHours(1), EmailVerificationPurpose.ChangeEmail, "b@x.com"));
+        f.Tokens.Add(old);
+
+        await f.Service.ResendEmailChangeAsync(CancellationToken.None);
+
+        Assert.NotNull(old.ConsumedAt);
+        Assert.Equal(2, f.Tokens.Count);
+        Assert.Null(f.Tokens[1].ConsumedAt);
+        Assert.Equal("b@x.com", f.Tokens[1].Email);
+        await f.EmailSender.Received(1).SendAsync(
+            "b@x.com", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await f.PasswordAttempts.DidNotReceiveWithAnyArgs().ReserveAttemptAsync(
+            default, default, default, default, default);
+        f.PasswordHasher.DidNotReceiveWithAnyArgs().Verify(default!, default!);
+    }
+
+    [Fact]
+    public async Task ResendEmailChangeAsync_NothingPending_Throws409()
+    {
+        Fixture f = EmailFixture(out _);
+
+        ConflictException ex = await Assert.ThrowsAsync<ConflictException>(
+            () => f.Service.ResendEmailChangeAsync(CancellationToken.None));
+
+        Assert.Equal(ApplicationMessages.EmailChangeNotPending, ex.Message);
+        Assert.Empty(f.Tokens);
+        await f.EmailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task CancelEmailChangeAsync_ClearsPendingAndConsumesChangeTokens()
+    {
+        Fixture f = EmailFixture(out Account account, pending: "b@x.com");
+        EmailVerificationToken change = EmailVerificationToken.Create(new EmailVerificationTokenParams(
+            account.Id, "h1", DateTime.UtcNow.AddHours(1), EmailVerificationPurpose.ChangeEmail, "b@x.com"));
+        f.Tokens.Add(change);
+
+        await f.Service.CancelEmailChangeAsync(CancellationToken.None);
+
+        Assert.Null(account.PendingEmail);
+        Assert.NotNull(change.ConsumedAt);
+        await f.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CancelEmailChangeAsync_NothingPending_Succeeds()
+    {
+        Fixture f = EmailFixture(out Account account);
+
+        await f.Service.CancelEmailChangeAsync(CancellationToken.None);
+
+        Assert.Null(account.PendingEmail);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_EmailChangedWithCorrectPassword_SetsPendingSendsLinkKeepsEmail()
+    {
+        Fixture f = EmailFixture(out Account account);
+
+        ProfileDto dto = await f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "pw"), CancellationToken.None);
+
+        Assert.Equal("a@x.com", dto.Email);
+        Assert.Equal("b@x.com", dto.PendingEmail);
+        Assert.Equal("a@x.com", account.Email);
+        EmailVerificationToken token = Assert.Single(f.Tokens);
+        Assert.Equal(EmailVerificationPurpose.ChangeEmail, token.Purpose);
+        Assert.Equal("b@x.com", token.Email);
+        await f.EmailSender.Received(1).SendAsync(
+            "b@x.com",
+            "Xác nhận đổi địa chỉ email",
+            Arg.Is<string>(b => b != null && b.Contains("nva") && b.Contains("Nếu không phải bạn, hãy bỏ qua thư này")
+                && b.Contains("/#/confirm-email-change?token=") && b.Contains("Link có hiệu lực trong 24 giờ.")),
+            Arg.Any<CancellationToken>());
+        await f.PasswordAttempts.Received(1).ClearAsync(
+            PasswordAttemptPurpose.EmailChange, account.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task UpdateCurrentProfileAsync_EmailChangedWithoutPassword_Throws400AndReservesNothing(string? password)
+    {
+        Fixture f = EmailFixture(out Account account);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<DomainException>(
+            "FieldRequired",
+            () => f.Service.UpdateCurrentProfileAsync(Req("b@x.com", password, "Changed"), CancellationToken.None));
+
+        await f.PasswordAttempts.DidNotReceiveWithAnyArgs().ReserveAttemptAsync(
+            default, default, default, default, default);
+        await f.EmailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default);
+        Assert.Equal("Nguyen Van A", account.Name);
+        Assert.Null(account.PendingEmail);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_WrongPassword_Throws401AndSavesNothing()
+    {
+        Fixture f = EmailFixture(out Account account);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.InvalidCurrentPassword,
+            () => f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "bad", "Changed"), CancellationToken.None));
+
+        Assert.Null(account.PendingEmail);
+        Assert.Equal("Nguyen Van A", account.Name);
+        Assert.Empty(f.Tokens);
+        await f.EmailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default);
+        await f.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        await f.PasswordAttempts.DidNotReceive().ClearAsync(
+            Arg.Any<PasswordAttemptPurpose>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_WrongPasswordAtMaxAttempt_Locks()
+    {
+        Fixture f = EmailFixture(out Account account);
+        f.PasswordAttempts.ReserveAttemptAsync(
+                PasswordAttemptPurpose.EmailChange, account.Id, Arg.Any<DateTime>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new LoginLockoutSettings().MaxFailedAttempts);
+
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "bad"), CancellationToken.None));
+
+        await f.PasswordAttempts.Received(1).LockAsync(
+            PasswordAttemptPurpose.EmailChange, account.Id, Arg.Any<DateTime>(), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_Locked_ThrowsTemporarilyLockedEvenWithCorrectPassword()
+    {
+        Fixture f = EmailFixture(out Account account);
+        f.PasswordAttempts.ReserveAttemptAsync(
+                PasswordAttemptPurpose.EmailChange, account.Id, Arg.Any<DateTime>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns((int?)null);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.EmailChangeTemporarilyLocked,
+            () => f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "pw"), CancellationToken.None));
+
+        f.PasswordHasher.DidNotReceiveWithAnyArgs().Verify(default!, default!);
+        Assert.Null(account.PendingEmail);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_WrongPasswordAndAddressTaken_Throws401Not409()
+    {
+        Account other = CreateAccount(username: "other", email: "b@x.com");
+        Fixture f = EmailFixture(out _, others: other);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.InvalidCurrentPassword,
+            () => f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "bad"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_AddressIsOtherAccountsEmail_Throws409()
+    {
+        Account other = CreateAccount(username: "other", email: "b@x.com");
+        Fixture f = EmailFixture(out Account account, others: other);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.AccountEmailAlreadyExists,
+            () => f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "pw"), CancellationToken.None));
+
+        Assert.Null(account.PendingEmail);
+        Assert.Empty(f.Tokens);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_AddressIsOtherAccountsPendingEmail_Succeeds()
+    {
+        Account other = CreateAccount(username: "other", email: "c@x.com");
+        other.RequestEmailChange("b@x.com");
+        Fixture f = EmailFixture(out Account account, others: other);
+
+        await f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "pw"), CancellationToken.None);
+
+        Assert.Equal("b@x.com", account.PendingEmail);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_NoPasswordAccount_ChangesWithoutAsking()
+    {
+        Fixture f = EmailFixture(out Account account, passwordHash: null);
+
+        await f.Service.UpdateCurrentProfileAsync(Req("b@x.com", null), CancellationToken.None);
+
+        await f.PasswordAttempts.DidNotReceiveWithAnyArgs().ReserveAttemptAsync(
+            default, default, default, default, default);
+        Assert.Equal("b@x.com", account.PendingEmail);
+        await f.EmailSender.Received(1).SendAsync("b@x.com", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_EmailUnchangedIgnoringCaseAndSpaces_NoPasswordNoLink()
+    {
+        Fixture f = EmailFixture(out Account account);
+
+        ProfileDto dto = await f.Service.UpdateCurrentProfileAsync(Req("  A@X.com ", null, "New"), CancellationToken.None);
+
+        Assert.Equal("New", dto.Name);
+        Assert.Null(account.PendingEmail);
+        await f.PasswordAttempts.DidNotReceiveWithAnyArgs().ReserveAttemptAsync(
+            default, default, default, default, default);
+        await f.EmailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default);
+        Assert.Empty(f.Tokens);
+        await f.UnitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_EmailEqualsPending_NoNewLinkOldLinkKept()
+    {
+        Fixture f = EmailFixture(out Account account, pending: "b@x.com");
+        EmailVerificationToken old = EmailVerificationToken.Create(new EmailVerificationTokenParams(
+            account.Id, "hash", DateTime.UtcNow.AddHours(1), EmailVerificationPurpose.ChangeEmail, "b@x.com"));
+        f.Tokens.Add(old);
+
+        await f.Service.UpdateCurrentProfileAsync(Req("B@x.com", null), CancellationToken.None);
+
+        Assert.Equal("b@x.com", account.PendingEmail);
+        Assert.Null(old.ConsumedAt);
+        Assert.Single(f.Tokens);
+        await f.EmailSender.DidNotReceiveWithAnyArgs().SendAsync(default!, default!, default!, default);
+        await f.PasswordAttempts.DidNotReceiveWithAnyArgs().ReserveAttemptAsync(
+            default, default, default, default, default);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_ThirdAddressWhilePending_AsksPasswordAgainAndConsumesOldLink()
+    {
+        Fixture f = EmailFixture(out Account account, pending: "b@x.com");
+        EmailVerificationToken old = EmailVerificationToken.Create(new EmailVerificationTokenParams(
+            account.Id, "hash", DateTime.UtcNow.AddHours(1), EmailVerificationPurpose.ChangeEmail, "b@x.com"));
+        f.Tokens.Add(old);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<DomainException>(
+            "FieldRequired",
+            () => f.Service.UpdateCurrentProfileAsync(Req("c@x.com", null), CancellationToken.None));
+        Assert.Null(old.ConsumedAt);
+
+        await f.Service.UpdateCurrentProfileAsync(Req("c@x.com", "pw"), CancellationToken.None);
+
+        Assert.Equal("c@x.com", account.PendingEmail);
+        Assert.NotNull(old.ConsumedAt);
+        Assert.Equal(2, f.Tokens.Count);
+        Assert.Equal("c@x.com", f.Tokens[1].Email);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_SendFails_StillSavesPendingAndLogsOnlyAccountId()
+    {
+        Fixture f = EmailFixture(out Account account);
+        f.EmailSender.SendAsync(default!, default!, default!, default)
+            .ReturnsForAnyArgs(Task.FromException(new InvalidOperationException("smtp down")));
+
+        ProfileDto dto = await f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "pw"), CancellationToken.None);
+
+        Assert.Equal("b@x.com", dto.PendingEmail);
+        Assert.Single(f.Tokens);
+        ICall call = Assert.Single(f.LinkLogger.ReceivedCalls(), c =>
+            c.GetMethodInfo().Name == nameof(ILogger.Log) && (LogLevel)c.GetArguments()[0]! == LogLevel.Error);
+        string state = call.GetArguments()[2]!.ToString()!;
+        Assert.Contains(account.Id.ToString(), state);
+        Assert.DoesNotContain("b@x.com", state);
+        Assert.DoesNotContain(f.Tokens[0].TokenHash, state);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentProfileAsync_LoginAndPasswordChangeCountersUntouched()
+    {
+        Fixture f = EmailFixture(out Account account);
+
+        await f.Service.UpdateCurrentProfileAsync(Req("b@x.com", "pw"), CancellationToken.None);
+
+        await f.PasswordAttempts.DidNotReceive().ReserveAttemptAsync(
+            PasswordAttemptPurpose.Login, Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+        await f.PasswordAttempts.DidNotReceive().ReserveAttemptAsync(
+            PasswordAttemptPurpose.PasswordChange, Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+        await f.PasswordAttempts.DidNotReceive().ClearAsync(
+            Arg.Is<PasswordAttemptPurpose>(p => p != PasswordAttemptPurpose.EmailChange), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        Assert.Equal(0, account.FailedLoginCount);
+        Assert.Equal(0, account.FailedPasswordChangeCount);
     }
 
     // ChangePasswordAsync

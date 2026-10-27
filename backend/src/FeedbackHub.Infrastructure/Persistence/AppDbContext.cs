@@ -18,8 +18,24 @@ public sealed class AppDbContext(
     [
         typeof(RefreshToken),
         typeof(EmailVerificationToken),
+        typeof(OrganizationInvitation),
         typeof(Notification),
         typeof(PushSubscription)
+    ];
+
+    // Secrets and lockout state never go into the audit snapshot, whichever way the account changed.
+    private static readonly HashSet<(Type Entity, string Property)> AuditExcludedProperties =
+    [
+        (typeof(Account), nameof(Account.PasswordHash)),
+        (typeof(Account), nameof(Account.FailedLoginCount)),
+        (typeof(Account), nameof(Account.FailedLoginWindowStartedAt)),
+        (typeof(Account), nameof(Account.LockedUntil)),
+        (typeof(Account), nameof(Account.FailedPasswordChangeCount)),
+        (typeof(Account), nameof(Account.PasswordChangeWindowStartedAt)),
+        (typeof(Account), nameof(Account.PasswordChangeLockedUntil)),
+        (typeof(Account), nameof(Account.FailedEmailChangeCount)),
+        (typeof(Account), nameof(Account.EmailChangeWindowStartedAt)),
+        (typeof(Account), nameof(Account.EmailChangeLockedUntil))
     ];
 
     public DbSet<Account> Accounts => Set<Account>();
@@ -40,6 +56,8 @@ public sealed class AppDbContext(
 
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
 
+    public DbSet<OrganizationInvitation> OrganizationInvitations => Set<OrganizationInvitation>();
+
     public DbSet<OrganizationMemberRole> OrganizationMemberRoles => Set<OrganizationMemberRole>();
 
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
@@ -51,6 +69,8 @@ public sealed class AppDbContext(
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
+
+    public DbSet<SystemAdministrator> SystemAdministrators => Set<SystemAdministrator>();
 
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
@@ -137,6 +157,11 @@ public sealed class AppDbContext(
                 }
 
                 string propertyName = property.Metadata.Name;
+
+                if (AuditExcludedProperties.Contains((entry.Entity.GetType(), propertyName)))
+                {
+                    continue;
+                }
 
                 if (entry.State == EntityState.Added)
                 {

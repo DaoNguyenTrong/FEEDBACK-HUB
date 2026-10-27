@@ -79,7 +79,7 @@ async function handleSubmit() {
     </div>
     <div class="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-md items-center justify-center">
       <div
-        class="w-full overflow-hidden rounded-2xl border border-surface-200 bg-surface-0 dark:border-surface-800 dark:bg-surface-900"
+        class="w-full overflow-hidden rounded-lg border border-surface-200 bg-surface-0 dark:border-surface-800 dark:bg-surface-900"
       >
         <div class="h-1 bg-primary-500" />
 
@@ -132,7 +132,7 @@ async function handleSubmit() {
               </div>
             </n-form-item>
 
-            <div class="flex items-end gap-2 rounded-2xl px-4 dark:border-surface-800">
+            <div class="flex items-end gap-2 rounded-lg px-4 dark:border-surface-800">
               <n-checkbox v-model:checked="keepLogin">{{ t('auth.keepLogin') }}</n-checkbox>
             </div>
 

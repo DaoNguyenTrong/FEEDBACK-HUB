@@ -10,6 +10,73 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-23 — A profile email change waits in `PendingEmail` until the link sent to the new address is opened, and one `EmailConfirmed` predicate gates every email-trust decision
+
+An unproven address must not open invitations, match an external account or grant system administrator, and the old `Email` stays until confirmation so the account never loses its sign-in route. Rejected: changing `Email` at once with `EmailConfirmed = false` (a typo locks the person out of password sign-in while the unproven address holds the unique slot), a separate change-request table (an entity for one field), and a verified flag per external login (two predicates for one question).
+
+### 2026-10-23 — Account status is checked once, in the token issuer, for all six session-issuing paths
+
+Email verification issued a session without any status check, so a locked account could get in. One check in the issuer means a new issuing path cannot forget it. External login keeps only its extra check in the email-match branch, before a link is created. Rejected: a check in each service, which was already forgotten once.
+
+### 2026-10-23 — Audit excludes chosen properties (the password hash and the account's lock columns) instead of whole entities, and an entry with no organization is never returned
+
+A password hash has no audit value, while excluding the whole `Account` entity would lose the history of email changes. Rejected: masking the hash when entries are returned (it would still sit in the database and its backups), and excluding `Account` entirely.
+
+### 2026-10-26 — The app's fonts are bundled from Fontsource packages, not loaded from a font CDN
+
+A CDN request on every page sends each visitor's IP address to a third party and breaks an offline or air-gapped deployment. Plus Jakarta Sans and JetBrains Mono are under the SIL OFL 1.1, which allows bundling and redistribution, and the licence text ships in each npm package. Rejected: Google Fonts, and system fonts only, which would not render the design language's type.
+
+### 2026-10-23 — Organization administration takes the organization only from the JWT; no route carries an organization id
+
+A route parameter naming the organization is a second, client-chosen selector next to `org_id`: a check made in one could authorize acting on the other, and a foreign object answers 403 instead of the 404 BR-45 requires. Every permission code therefore resolves through the organization gate. Rejected: keeping the `{id}` routes with 404s, and a release that serves both route shapes.
+
+### 2026-10-23 — Refreshing into an organization the account can no longer enter issues a token with no organization
+
+A refresh that failed would log the person out although their identity is still valid, and a silent success would keep a stale organization claim. Issuing `org_id = null` keeps the session and lets the client choose another organization or the personal context. Rejected: rejecting the refresh, and trusting the old claim until it expires.
+
+### 2026-10-23 — System administrators live in their own table, written only from the server CLI, and checked by a cached lookup
+
+Platform authority must not be grantable through the API it guards, and must not ride in a JWT that outlives a revocation. A separate table that only a server-side command writes removes the API escalation path; a short-lived cache with explicit invalidation bounds how long a revoked administrator keeps access. Rejected: a role or claim on the account.
+
+### 2026-10-23 — Audit entries are semantic events written through one trail with an explicit organization and actor
+
+The organization of an entry must come from the entity that changed, never from the JWT, query or body, or a caller could write into another tenant's log. Fixed event kinds make the log queryable and let secrets and free text stay out. Rejected: deriving `organization_id` from the request token, and diffing entity changes into an unstructured log.
+
+### 2026-10-23 — One organization gate with a distinct code per refusal reason, evaluated in a fixed order
+
+A client must tell "not a member", "organization suspended" and "missing permission" apart to show the right screen, and the same request must always get the same answer. A single requirement checks the cases in a fixed order (not signed in, then not a member, then suspended, then missing permission) and reports the first failure; access has three states (allowed, denied, suspended). Rejected: one generic 403 and per-endpoint checks.
+
+### 2026-10-23 — Production file storage moves to MinIO AIStor Free (single node)
+Supersedes: 2026-08-25 — SeaweedFS storage provider: S3 Gateway API, bucket auto-created at startup
+
+The user chose MinIO. Community MinIO was rejected: it ships no images, its repository is archived and it gets no security patches. AIStor Free's limits are accepted: a single node, no at-rest encryption (use host disk encryption when needed), and the operator must supply the licence. The bucket and its public-prefix read policy are still set at startup, so a fresh deployment needs no manual step.
+
+### 2026-10-23 — Production refuses to start unless the multi-instance security conditions hold
+
+Each instance trusts only its own configuration, so one forgotten setting (local file storage, a Memory cache, an unlisted proxy, an insecure auth cookie, plaintext SMTP) silently breaks or weakens the whole fleet. A pure startup validator lists every unmet condition and fails fast, in Production only. Rejected: documentation alone, and warnings that scroll past in logs.
+
+### 2026-10-23 — Data Protection uses a fixed application name and SignalR clients use WebSockets only
+
+Instances otherwise isolate Data Protection keys by content root, so a cookie or token issued by one instance fails on another. SignalR long polling and server-sent events need sticky sessions behind a load balancer; WebSockets with skipped negotiation need none. Rejected: sticky sessions, a transport fallback chain.
+
+### 2026-10-23 — Migrations run once through a one-shot `migrate` command, never at API startup in production
+
+Several replicas starting together would race to apply the same migrations. A single `migrate` run that must complete before any API container starts removes the race and keeps schema changes out of the health-check start-up window. Rejected: a startup advisory lock (hidden coupling, slow first boot) and leaving `MigrateOnStartup` on.
+
+### 2026-10-23 — Rate limits are counted in Redis with a local in-memory fallback, never fail-open
+
+Per-instance counters multiply every limit by the replica count. Redis gives one fixed-window count shared by all instances. If Redis fails, each instance falls back to its own limiter with the same parameters rather than allowing everything, which keeps brute-force protection under an outage at the cost of looser global limits.
+
+### 2026-10-23 — Redis is mandatory in production
+
+Multiple API replicas need a shared cache, a SignalR backplane and shared rate-limit counters; a per-process fallback silently gives wrong results as soon as a second replica starts. The production compose file therefore ships Redis and the API validates it at startup. Rejected: leaving Redis to the deploy environment, which let single-replica defaults survive a scale-out unnoticed.
+Supersedes: 2026-08-25 — Cache + SignalR pick Memory/Redis via config; Redis is not hard-required
+
+### 2026-10-23 — Microsoft external login trusts an email only from the personal tenant or `xms_edov`, and the issuer tenant must equal `tid`
+
+The default claim mapping silently read `preferred_username` (user-editable) as the email, so any Entra tenant could assert someone else's address (nOAuth). Rejected: keeping regex-only issuer validation, which lets one tenant's token carry another's issuer. Trade-off: unverified work-tenant users must register by email.
+Supersedes: 2026-07-25 — Microsoft external login: multi-tenant issuer validated by regex, no email_verified check
+
 ### 2026-10-22 — git and gh run without prompts; a command-parsing guard catches accidental never-rule breaks
 
 Confirming every push and merge interrupted agent work, so the prompts were removed. Prefix deny rules miss other spellings, so a PreToolUse guard parses each command: pushes go only to work branches and tags, and unparseable git/gh is denied. It stops accidents, not deliberate obfuscation: variables, interpreters, wrappers, script files, aliases, `gh api`, `gh pr merge` into `main`, and hook or global-config edits pass, and it fails open if `bun` is missing or times out. Rejected: `ask` prompts; prefix rules alone.

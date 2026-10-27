@@ -10,4 +10,5 @@ public sealed record AuthResult(
     bool IsPersistent,
     Guid? OrganizationId,
     string? OrganizationName,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    bool IsSystemAdministrator);

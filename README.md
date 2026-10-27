@@ -39,10 +39,10 @@ For layer/rule details for each part, see `AGENTS.md` and `.claude/rules/`. Work
 | Backend         | .NET 10, ASP.NET Core, Clean Architecture, EF Core                         |
 | Database        | PostgreSQL                                                                  |
 | Frontend        | Vue 3 + Vite, Pinia, naive-ui, vue-i18n, Tailwind                          |
-| Storage         | Local disk currently; pluggable via `IStorageProvider`                     |
+| Storage         | Local disk in dev; MinIO in production (`IStorageProvider`)                |
 | Email           | SMTP (MailKit) — required, even in dev                                     |
 | Background jobs | Hangfire (PostgreSQL storage, dashboard at `/hangfire`)                    |
-| Realtime        | SignalR (`/hubs/notifications`, in-memory — no Redis backplane)            |
+| Realtime        | SignalR (`/hubs/notifications`; in-memory in dev, Redis backplane in production) |
 | Push            | Firebase Cloud Messaging (`FirebaseAdmin` SDK) — optional, no-op if unconfigured |
 | Logging         | Serilog (structured, console + rolling file) + correlation ID middleware   |
 | Monitoring      | Prometheus metrics (`/metrics`) + Grafana, see `monitoring/`               |
@@ -84,7 +84,7 @@ dotnet run --project backend/src/FeedbackHub.API
 backend/scripts/test.sh
 ```
 
-Production: migrations are applied automatically on startup via `Database.MigrateAsync`. Running several API instances? Set `DatabaseSettings__MigrateOnStartup=false` on them and run `dotnet FeedbackHub.API.dll migrate` once before starting them, so they don't race on the same migration.
+Production: migrations never run on API startup. The one-shot `migrate` service (`dotnet FeedbackHub.API.dll migrate`) applies them before any `api` replica starts, and `DatabaseSettings:MigrateOnStartup` must be `false` — the API refuses to start in Production otherwise. Outside Development and Production (e.g. Staging), the API still migrates on startup unless that key is `false`.
 
 ### 3. Frontend (`frontend/`)
 
@@ -142,11 +142,18 @@ For full details, see `.claude/reference/ci-and-git-hooks.md`.
 
 ## Production (Docker)
 
-`docker-compose.prod.yml` builds and runs the API and frontend as containers (single-instance —
-caching and SignalR are in-memory, don't scale `api` past 1 replica without pointing
-`ConnectionStrings:Redis` at a Redis from your deploy environment first — this compose file no
-longer ships a Redis container).
-An nginx container serves the built frontend and reverse-proxies `/api/` and `/hubs/` to the API;
+`docker-compose.prod.yml` builds and runs the API and frontend as containers, with Redis, MinIO and a
+one-shot `migrate` service. Production is multi-instance ready: Redis and shared file storage are required, and
+`appsettings.json` must set `EmailSettings:SecureSocket`. Scale with
+`up -d --scale api=N`. Restart `web` after scaling or redeploying `api` or `minio`: nginx resolves their names once at start
+and keeps those addresses. `minio` must be running when `web` restarts, or nginx cannot resolve the name and does not start. Compose environment values override `appsettings.json`, so change the Redis or storage
+endpoints in `docker-compose.prod.yml` or `.env.prod`.
+File storage is MinIO AIStor Free, a single node. The operator supplies its licence file (`MINIO_LICENSE_FILE` in
+`.env.prod`, default `./minio.license`, never committed) and its root user and password (`MINIO_ROOT_USER` /
+`MINIO_ROOT_PASSWORD`), which the API also uses as its MinIO keys. The free tier has no at-rest encryption; use host
+disk encryption if you need it. MinIO publishes no port: the API reaches it on the compose network.
+An nginx container serves the built frontend and reverse-proxies `/api/` and `/hubs/` to the API, and
+`/storage/public/` (read-only) to the MinIO bucket's `public/` prefix;
 `/hangfire` and `/metrics` are deliberately not exposed through it, same "network-layer only"
 restriction the API already applies (see `Program.cs`).
 
@@ -155,7 +162,7 @@ restriction the API already applies (see `Program.cs`).
 #    baked into the image. Fill in real ConnectionStrings/JwtSettings/CorsSettings/EmailSettings/...
 cp backend/src/FeedbackHub.API/appsettings.Example.json backend/src/FeedbackHub.API/appsettings.json
 
-# 2. Compose-level vars (Postgres credentials, frontend build arg)
+# 2. Compose-level vars (Postgres and MinIO credentials, MinIO licence path, frontend build arg)
 cp .env.prod.example .env.prod
 
 # 3. Build and start
@@ -164,8 +171,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 Each release tag also publishes both images, versioned from the tag: `ghcr.io/<owner>/<repo>/{backend,frontend}:X.Y.Z` (`:latest` follows the newest stable tag; on GitLab, `$CI_REGISTRY_IMAGE/...`). Build them yourself as above, or point the `api`/`web` services at those images to deploy without building on the server.
 
-Migrations apply automatically on startup (see `DatabaseSettings:MigrateOnStartup` above for several instances). Uploaded files and API logs persist in named volumes
-(`feedbackhub-api-uploads`, `feedbackhub-api-logs`); Postgres data in `feedbackhub-postgres-data`.
+Migrations run once in the `migrate` service before `api` starts (`DatabaseSettings:MigrateOnStartup=false`). Uploaded files persist in `feedbackhub-minio-data`, API logs in `feedbackhub-api-logs`, Redis in `feedbackhub-redis-data`; Postgres data in `feedbackhub-postgres-data`. No backup mechanism ships: include `feedbackhub-postgres-data` and `feedbackhub-minio-data` in your daily backup.
 
 Deploy notes:
 

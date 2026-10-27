@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Brings up the local stack the Playwright suite and manual testing run against: Postgres, Mailpit and SeaweedFS
-# in Docker, then the API on http://localhost:7100 with its database migrated and seeded (`seed-dev`). Safe to re-run.
+# Brings up the local stack the Playwright suite and manual testing run against: Postgres and Mailpit in Docker,
+# then the API on http://localhost:7100 with its database migrated and seeded (`seed-dev`). Safe to re-run.
 # Logs and the API PID go to verify-output/stack/ (gitignored). Stop it with scripts/dev-down.sh.
 set -euo pipefail
 
@@ -29,7 +29,7 @@ fi
 
 mkdir -p "$STATE_DIR"
 
-docker compose up -d --wait postgres mailpit seaweedfs
+docker compose up -d --wait postgres mailpit
 
 dotnet run --project backend/src/FeedbackHub.API -- migrate
 dotnet run --project backend/src/FeedbackHub.API -- seed-dev

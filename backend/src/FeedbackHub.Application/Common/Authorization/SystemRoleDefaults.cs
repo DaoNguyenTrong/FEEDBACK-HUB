@@ -12,7 +12,12 @@ public static class SystemRoleDefaults
     public static readonly IReadOnlyDictionary<SystemRoleKind, IReadOnlyList<string>> PermissionsByKind =
         new Dictionary<SystemRoleKind, IReadOnlyList<string>>
         {
-            [SystemRoleKind.Admin] = [Permissions.OrganizationMembersManage],
+            [SystemRoleKind.Admin] = [Permissions.OrganizationMembersManage, Permissions.FeedbackHubAdmin],
             [SystemRoleKind.Member] = []
         };
+
+    /// <summary>The permissions a role grants: <see cref="Permissions.All"/> for Owner, its stored codes otherwise.</summary>
+    public static IReadOnlyList<string> EffectivePermissionCodes(
+        SystemRoleKind? kind, IReadOnlyList<string> storedCodes) =>
+        kind == SystemRoleKind.Owner ? Permissions.All : storedCodes;
 }

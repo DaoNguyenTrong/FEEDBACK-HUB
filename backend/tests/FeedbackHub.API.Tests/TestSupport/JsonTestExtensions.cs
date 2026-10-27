@@ -20,6 +20,12 @@ public static class JsonTestExtensions
     public static async Task<T?> ReadJsonAsync<T>(this HttpContent content) =>
         JsonSerializer.Deserialize<T>(await content.ReadAsStringAsync(), Options);
 
+    public static async Task<JsonElement> ReadJsonElementAsync(this HttpContent content)
+    {
+        using JsonDocument document = JsonDocument.Parse(await content.ReadAsStringAsync());
+        return document.RootElement.Clone();
+    }
+
     // Mirrors FeedbackHub.API.Json.TimeZoneDateTimeConverter's wire format ("yyyy-MM-dd HH:mm:ss",
     // already converted to the caller's X-TimeZone) — System.Text.Json's default DateTime
     // converter only accepts ISO 8601 and can't parse this.

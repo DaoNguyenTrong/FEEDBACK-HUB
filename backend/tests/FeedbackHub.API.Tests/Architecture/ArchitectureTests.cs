@@ -2,8 +2,11 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.SignalR;
+using FeedbackHub.Application.Common.Authorization;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Domain.Auditing;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
 using FeedbackHub.Infrastructure.Persistence;
@@ -105,6 +108,78 @@ public sealed class ArchitectureTests
     }
 
     /// <summary>
+    /// QĐ-06: organization administration takes the organization from the JWT <c>org_id</c>; a route naming one would
+    /// let a caller checked in organization B act on organization A.
+    /// </summary>
+    [Fact]
+    public void ControllerRoutes_NameNoOrganizationUnderApiOrganizations()
+    {
+        string[] offenders = [.. ControllerRoutes(ApiControllers())
+            .Where(IsUnderApiOrganizations)
+            .Select(route => $"{route.Action}: {route.Template}")];
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>Every organization-gate policy is checked in the JWT's organization: no such route names one.</summary>
+    [Fact]
+    public void OrganizationGatePolicies_HaveNoRouteParameterNamingAnOrganization()
+    {
+        string[] offenders = [.. ControllerRoutes(ApiControllers())
+            .Where(IsGatedRouteNamingAnOrganization)
+            .Select(route => $"{route.Action}: {route.Template}")];
+
+        Assert.Empty(offenders);
+    }
+
+    // The scanner itself: a probe controller per shape the two route rules above must catch.
+    [Theory]
+    [InlineData(typeof(ClassMemberPolicyProbeController))]
+    [InlineData(typeof(MemberOrNotFoundPolicyProbeController))]
+    [InlineData(typeof(PermissionPolicyProbeController))]
+    public void IsGatedRouteNamingAnOrganization_ProbeRoute_IsFlagged(Type probe)
+    {
+        RouteInfo route = Assert.Single(ControllerRoutes([probe]));
+
+        Assert.True(IsGatedRouteNamingAnOrganization(route), route.Template);
+    }
+
+    [Fact]
+    public void IsUnderApiOrganizations_ControllerToken_IsExpanded()
+    {
+        RouteInfo route = Assert.Single(ControllerRoutes([typeof(OrganizationsController)]));
+
+        Assert.Equal("api/organizations/{id:guid}/members", route.Template);
+        Assert.True(IsUnderApiOrganizations(route));
+    }
+
+    [Fact]
+    public void ControllerRoutes_ActionToken_IsExpandedLowercase()
+    {
+        RouteInfo route = Assert.Single(ControllerRoutes([typeof(ActionTokenProbeController)]));
+
+        Assert.Equal("api/organizations/{id}", route.Template);
+        Assert.True(IsUnderApiOrganizations(route));
+        Assert.True(IsGatedRouteNamingAnOrganization(route));
+    }
+
+    /// <summary>System-administrator routes may name an organization only because their policy ignores org_id.</summary>
+    [Fact]
+    public void SystemOrganizationRoutes_RequireSystemAdministratorAndNoPermissionCode()
+    {
+        RouteInfo[] routes = [.. ControllerRoutes(ApiControllers())
+            .Where(route => route.Template.StartsWith("api/system/organizations", StringComparison.OrdinalIgnoreCase))];
+        Assert.NotEmpty(routes);
+
+        string[] offenders = [.. routes
+            .Where(route => !route.Policies.Contains(AuthorizationPolicies.SystemAdministrator)
+                || route.Policies.Any(Permissions.All.Contains))
+            .Select(route => $"{route.Action}: {route.Template}")];
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
     /// Exceptions defined in Domain/Application must go through <see cref="AppException"/> so the middleware maps
     /// them to the right status code and localization key — a bare <see cref="Exception"/> escaping becomes a 500.
     /// </summary>
@@ -147,6 +222,45 @@ public sealed class ArchitectureTests
         Assert.Empty(offenders);
     }
 
+    /// <summary>
+    /// C1: an audit event's organization comes from the entity it describes, never from a caller-supplied Guid.
+    /// No public constructor, no public static method returning one that takes a <c>Guid</c> (a <c>Guid?</c> only as
+    /// <c>actorAccountId</c>), and no public setter on <c>OrganizationId</c>.
+    /// </summary>
+    [Fact]
+    public void AuditEvent_HasNoPublicConstructorOrFactoryTakingOrganizationGuid()
+    {
+        Type auditEvent = typeof(AuditEvent);
+
+        Assert.Empty(auditEvent.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
+        string[] offenders = [.. auditEvent.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(method => method.ReturnType == auditEvent)
+            .Where(method => method.GetParameters().Any(parameter =>
+                parameter.ParameterType == typeof(Guid)
+                || (parameter.ParameterType == typeof(Guid?) && parameter.Name != "actorAccountId")))
+            .Select(method => method.ToString() ?? method.Name)];
+        Assert.Empty(offenders);
+
+        MethodInfo? setter = auditEvent.GetProperty(nameof(AuditEvent.OrganizationId))!.SetMethod;
+        Assert.True(setter is null || !setter.IsPublic);
+    }
+
+    /// <summary>The audit trail is a leaf: it names no other service namespace, so any service can record to it.</summary>
+    [Fact]
+    public void AuditTrailNamespace_DependsOnNoOtherServiceNamespace()
+    {
+        string folder = Path.Combine(SourceRoot(), "FeedbackHub.Application", "Services", "AuditTrail");
+        Assert.True(Directory.Exists(folder));
+
+        string[] offenders = [.. SourceFiles(folder)
+            .SelectMany(file => UsingStatements(File.ReadAllText(file)).Select(used => (file, used)))
+            .Where(item => item.used.StartsWith("FeedbackHub.Application.Services.", StringComparison.Ordinal)
+                && NamespaceKey(item.used) != "FeedbackHub.Application.Services.AuditTrail")
+            .Select(item => $"{Path.GetFileName(item.file)} -> {item.used}")];
+
+        Assert.Empty(offenders);
+    }
+
     private static void AssertNoReference(Assembly assembly, params string[] forbiddenPrefixes)
     {
         string[] offenders = [.. assembly.GetReferencedAssemblies()
@@ -154,6 +268,100 @@ public sealed class ArchitectureTests
             .Where(name => forbiddenPrefixes.Any(prefix => name.StartsWith(prefix, StringComparison.Ordinal)))];
 
         Assert.Empty(offenders);
+    }
+
+    private sealed record RouteInfo(string Action, string Template, string[] Policies);
+
+    private static IEnumerable<Type> ApiControllers() => Api.GetTypes()
+        .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(ControllerBase).IsAssignableFrom(type));
+
+    private static bool IsUnderApiOrganizations(RouteInfo route) =>
+        route.Template.StartsWith("api/organizations/{", StringComparison.OrdinalIgnoreCase);
+
+    // Policies the organization gate evaluates against the JWT org_id.
+    private static readonly string[] OrganizationGatePolicies =
+    [
+        .. Permissions.All,
+        AuthorizationPolicies.ActiveOrganizationMember,
+        AuthorizationPolicies.ActiveOrganizationMemberOrNotFound
+    ];
+
+    private static bool IsGatedRouteNamingAnOrganization(RouteInfo route) =>
+        route.Policies.Any(OrganizationGatePolicies.Contains) && NamesAnOrganization(route.Template);
+
+    private static IEnumerable<RouteInfo> ControllerRoutes(IEnumerable<Type> controllers)
+    {
+        foreach (Type controller in controllers)
+        {
+            // Routing is case-insensitive: lowercase the tokens so the prefix and segment rules compare like routes.
+            string controllerToken = (controller.Name.EndsWith("Controller", StringComparison.Ordinal)
+                ? controller.Name[..^"Controller".Length]
+                : controller.Name).ToLowerInvariant();
+            string[] prefixes = [.. controller.GetCustomAttributes(inherit: true).OfType<IRouteTemplateProvider>()
+                .Select(provider => provider.Template ?? string.Empty)
+                .DefaultIfEmpty(string.Empty)];
+
+            foreach (MethodInfo action in controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .Where(action => action.DeclaringType != typeof(object) && action.DeclaringType != typeof(ControllerBase))
+                .Where(action => !action.IsSpecialName && !action.IsDefined(typeof(NonActionAttribute), inherit: true)))
+            {
+                string actionToken = (action.GetCustomAttribute<ActionNameAttribute>()?.Name ?? action.Name)
+                    .ToLowerInvariant();
+                string[] policies = [.. new MemberInfo[] { controller, action }
+                    .SelectMany(member => member.GetCustomAttributes(inherit: true).OfType<IAuthorizeData>())
+                    .Select(data => data.Policy)
+                    .OfType<string>()];
+                string[] templates = [.. action.GetCustomAttributes(inherit: true).OfType<IRouteTemplateProvider>()
+                    .Select(provider => provider.Template ?? string.Empty)
+                    .DefaultIfEmpty(string.Empty)];
+
+                foreach (string prefix in prefixes)
+                {
+                    foreach (string template in templates)
+                    {
+                        string combined = CombineTemplates(prefix, template)
+                            .Replace("[controller]", controllerToken, StringComparison.OrdinalIgnoreCase)
+                            .Replace("[action]", actionToken, StringComparison.OrdinalIgnoreCase);
+                        yield return new RouteInfo($"{controller.Name}.{action.Name}", combined, policies);
+                    }
+                }
+            }
+        }
+    }
+
+    private static string CombineTemplates(string prefix, string template)
+    {
+        if (template.StartsWith("~/", StringComparison.Ordinal) || template.StartsWith('/'))
+        {
+            return template.TrimStart('~', '/');
+        }
+
+        return string.Join('/', new[] { prefix, template }.Where(part => part.Length > 0)).Trim('/');
+    }
+
+    // A parameter names an organization by its own name or by following an "organization(s)" segment.
+    private static bool NamesAnOrganization(string template)
+    {
+        string[] segments = template.Split('/');
+        for (int i = 0; i < segments.Length; i++)
+        {
+            Match parameter = Regex.Match(segments[i], @"^\{\**([^}:=?]+)");
+            if (!parameter.Success)
+            {
+                continue;
+            }
+
+            string name = parameter.Groups[1].Value;
+            bool followsOrganization = i > 0 && segments[i - 1].ToLowerInvariant() is "organization" or "organizations";
+            if (followsOrganization
+                || name.StartsWith("org", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("organization", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool DeclaresAccess(MemberInfo member) =>
@@ -304,5 +512,45 @@ public sealed class ArchitectureTests
         }
 
         throw new InvalidOperationException("FeedbackHub.sln not found above the test run directory.");
+    }
+
+    [Authorize(Policy = AuthorizationPolicies.ActiveOrganizationMember)]
+    [Route("api/files")]
+    private sealed class ClassMemberPolicyProbeController : ControllerBase
+    {
+        [HttpGet("by-org/{organizationId}")]
+        public void Get(Guid organizationId) => _ = organizationId;
+    }
+
+    [Route("api/files")]
+    private sealed class MemberOrNotFoundPolicyProbeController : ControllerBase
+    {
+        [HttpGet("{orgId:guid}")]
+        [Authorize(Policy = AuthorizationPolicies.ActiveOrganizationMemberOrNotFound)]
+        public void Get(Guid orgId) => _ = orgId;
+    }
+
+    [Authorize(Policy = Permissions.FilesManage)]
+    [Route("api/organization")]
+    private sealed class PermissionPolicyProbeController : ControllerBase
+    {
+        [HttpDelete("{id}")]
+        public void Delete(Guid id) => _ = id;
+    }
+
+    [Authorize]
+    [Route("api/[controller]")]
+    private sealed class OrganizationsController : ControllerBase
+    {
+        [HttpGet("{id:guid}/members")]
+        public void Get(Guid id) => _ = id;
+    }
+
+    [Authorize(Policy = AuthorizationPolicies.ActiveOrganizationMember)]
+    [Route("api/[action]")]
+    private sealed class ActionTokenProbeController : ControllerBase
+    {
+        [HttpGet("{id}")]
+        public void Organizations(Guid id) => _ = id;
     }
 }

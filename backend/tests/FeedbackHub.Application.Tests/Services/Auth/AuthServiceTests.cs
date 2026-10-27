@@ -1,11 +1,14 @@
 using System.Linq.Expressions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Accounts;
 using FeedbackHub.Application.Services.Auth;
+using FeedbackHub.Application.Services.SystemAdministrators;
 using FeedbackHub.Application.Tests.TestSupport;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
@@ -60,7 +63,8 @@ public class AuthServiceTests
         jwtTokenService.GenerateRefreshToken().Returns(_ => Guid.NewGuid().ToString());
 
         ITenantAccessService tenantAccessService = Substitute.For<ITenantAccessService>();
-        tenantAccessService.HasActiveAccessAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
+        tenantAccessService.GetAccessAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Active);
 
         IPermissionResolver permissionResolver = Substitute.For<IPermissionResolver>();
         permissionResolver.GetEffectivePermissionsAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
@@ -85,10 +89,16 @@ public class AuthServiceTests
             RefreshTokenReuseGraceSeconds = refreshTokenReuseGraceSeconds
         });
 
-        // TokenIssuer has no I/O beyond the already-substituted collaborators above (IUnitOfWork,
-        // IJwtTokenService, IPermissionResolver) — wiring the real implementation here (rather than
+        // TokenIssuer has no I/O beyond its substituted collaborators (IUnitOfWork, IJwtTokenService,
+        // IPermissionResolver, ISystemAdministratorResolver) — wiring the real implementation here (rather than
         // mocking ITokenIssuer) preserves every pre-split assertion on token-issuing behavior unchanged.
-        ITokenIssuer tokenIssuer = new TokenIssuer(unitOfWork, jwtTokenService, permissionResolver, jwtOptions, Options.Create(new StorageSettings()));
+        ITokenIssuer tokenIssuer = new TokenIssuer(
+            unitOfWork,
+            jwtTokenService,
+            permissionResolver,
+            Substitute.For<ISystemAdministratorResolver>(),
+            jwtOptions,
+            Options.Create(new StorageSettings()));
 
         AuthService service = new(
             unitOfWork,
@@ -492,21 +502,217 @@ public class AuthServiceTests
             () => f.Service.ExternalLoginAsync("github", request, null, null, CancellationToken.None));
     }
 
+    private static ExternalUserInfo Info(string sub, string? email, bool verified)
+        => new(sub, email, "Some User", EmailVerified: verified);
+
+    private static void SeedExternalLogin(Fixture f, Account? linked, string provider = GoogleProviderName, string sub = "sub-1")
+    {
+        if (linked is null)
+        {
+            RepositoryPredicateStub.StubFirstOrDefault(f.ExternalLoginRepo, []);
+            return;
+        }
+
+        ExternalLogin link = ExternalLogin.Create(new ExternalLoginParams(linked.Id, provider, sub, linked.Email));
+        RepositoryPredicateStub.StubFirstOrDefault(f.ExternalLoginRepo, [link]);
+        f.AccountRepo.GetByIdAsync(linked.Id, Arg.Any<CancellationToken>()).Returns(linked);
+    }
+
     [Fact]
-    public async Task ExternalLoginAsync_ProviderEmailNotVerified_ThrowsUnauthorized()
+    public async Task ExternalLoginAsync_LinkedBySub_UnverifiedToken_SignsIn()
     {
         Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        SeedExternalLogin(f, account);
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new ExternalUserInfo("google-sub-unverified", "attacker@example.com", "Attacker", EmailVerified: false));
-        ExternalLoginRequest request = new("some-credential");
+            .Returns(Info("sub-1", account.Email, false));
+
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None)).Auth;
+
+        Assert.Equal("fake-access-token", result.AccessToken);
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_LinkedAccountUnconfirmed_VerifiedTokenSameEmail_ConfirmsEmail()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(email: "nva@example.com", emailConfirmed: false);
+        SeedExternalLogin(f, account);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-1", "  NVA@Example.com ", true));
+
+        await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.True(account.EmailConfirmed);
+        f.AccountRepo.Received(1).Update(account);
+    }
+
+    [Theory]
+    [InlineData("other@example.com", true)]
+    [InlineData("nva@example.com", false)]
+    public async Task ExternalLoginAsync_LinkedAccountUnconfirmed_DifferentEmailOrUnverified_StaysUnconfirmed(string tokenEmail, bool verified)
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(email: "nva@example.com", emailConfirmed: false);
+        SeedExternalLogin(f, account);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-1", tokenEmail, verified));
+
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None)).Auth;
+
+        Assert.False(account.EmailConfirmed);
+        Assert.Equal("fake-access-token", result.AccessToken);
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_EmailMatch_UnverifiedToken_ThrowsNotVerifiedByProviderAndNoLink()
+    {
+        Fixture f = CreateFixture();
+        Account existing = CreateAccount(email: "victim@example.com");
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [existing]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-x", "victim@example.com", false));
 
         await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
             ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
-            () => f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None));
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
 
-        await f.ExternalLoginRepo.DidNotReceive().FirstOrDefaultAsync(
-            Arg.Any<Expression<Func<ExternalLogin, bool>>>(), Arg.Any<CancellationToken>());
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_EmailMatch_AccountUnconfirmed_ThrowsEmailNotConfirmedAndNoLink()
+    {
+        Fixture f = CreateFixture();
+        Account existing = CreateAccount(email: "pending@example.com", emailConfirmed: false);
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [existing]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-x", "pending@example.com", true));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<ConflictException>(
+            ApplicationMessages.ExternalLoginEmailNotConfirmed,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_EmailMatch_LockedAccount_Throws401AndNoLink()
+    {
+        Fixture f = CreateFixture();
+        Account existing = CreateAccount(email: "locked@example.com", status: false);
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [existing]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-x", "locked@example.com", true));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.InvalidUsernameOrPassword,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_LinkedBySub_TokenWithoutEmail_SignsIn()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(emailConfirmed: false);
+        SeedExternalLogin(f, account);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-1", null, true));
+
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None)).Auth;
+
+        Assert.Equal("fake-access-token", result.AccessToken);
+        Assert.False(account.EmailConfirmed);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ExternalLoginAsync_UnlinkedTokenWithoutEmail_ThrowsNotVerifiedByProviderAndCreatesNothing(string? tokenEmail)
+    {
+        Fixture f = CreateFixture();
+        SeedExternalLogin(f, null);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-n", tokenEmail, true));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.AccountRepo.DidNotReceive().FirstOrDefaultAsync(
+            Arg.Any<Expression<Func<Account, bool>>>(), Arg.Any<CancellationToken>());
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_NewAccount_UnverifiedToken_ThrowsAndCreatesNothing()
+    {
+        Fixture f = CreateFixture();
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, []);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-new", "new@example.com", false));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    // Review Focus 4: matching is on Account.Email only, never PendingEmail.
+    [Fact]
+    public async Task ExternalLoginAsync_TokenEmailEqualsSomeonesPendingEmail_DoesNotMatchThatAccount()
+    {
+        Fixture f = CreateFixture();
+        Account other = CreateAccount(username: "other", email: "other@example.com");
+        other.RequestEmailChange("target@example.com");
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [other]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-t", "target@example.com", true));
+
+        await f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(
+            Arg.Is<ExternalLogin>(l => l != null && l.AccountId == other.Id), Arg.Any<CancellationToken>());
+        await f.AccountRepo.Received(1).AddAsync(
+            Arg.Is<Account>(a => a != null && a.Email == "target@example.com"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_Google_KeepsEmailVerifiedRuleOnBothBranches()
+    {
+        Fixture f = CreateFixture();
+        Account existing = CreateAccount(email: "g@example.com");
+        SeedExternalLogin(f, null);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [existing]);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("g-1", "g@example.com", false), Info("g-2", "fresh@example.com", false));
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.ExternalLoginEmailNotVerifiedByProvider,
+            () => f.Service.ExternalLoginAsync("google", new ExternalLoginRequest("c"), null, null, CancellationToken.None));
+
+        await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -522,7 +728,7 @@ public class AuthServiceTests
             .Returns(new ExternalUserInfo("google-sub-1", account.Email, "Nguyen Van A", EmailVerified: true));
         ExternalLoginRequest request = new("some-credential");
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None)).Auth;
 
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
@@ -543,8 +749,8 @@ public class AuthServiceTests
         f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new ExternalUserInfo("google-sub-1", account.Email, "Nguyen Van A", EmailVerified: true));
 
-        AuthResult result = await f.Service.ExternalLoginAsync(
-            "google", new ExternalLoginRequest("some-credential"), null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync(
+            "google", new ExternalLoginRequest("some-credential"), null, null, CancellationToken.None)).Auth;
 
         Assert.Equal("fake-access-token", result.AccessToken);
         await f.LoginAttempts.Received(1).ClearAsync(PasswordAttemptPurpose.Login, account.Id, Arg.Any<CancellationToken>());
@@ -561,7 +767,7 @@ public class AuthServiceTests
             .Returns(new ExternalUserInfo("google-sub-2", "newuser@example.com", "New User", EmailVerified: true));
         ExternalLoginRequest request = new("some-credential");
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None)).Auth;
 
         await f.AccountRepo.Received(1).AddAsync(
             Arg.Is<Account>(a => a != null && a.Email == "newuser@example.com" && a.Username == "newuser" && a.EmailConfirmed),
@@ -606,6 +812,7 @@ public class AuthServiceTests
 
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
         await f.ExternalLoginRepo.DidNotReceive().AddAsync(Arg.Any<ExternalLogin>(), Arg.Any<CancellationToken>());
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -619,13 +826,57 @@ public class AuthServiceTests
             .Returns(new ExternalUserInfo("google-sub-5", "verified@example.com", "Verified User", EmailVerified: true));
         ExternalLoginRequest request = new("some-credential");
 
-        AuthResult result = await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None);
+        AuthResult result = (await f.Service.ExternalLoginAsync("google", request, null, null, CancellationToken.None)).Auth;
 
         await f.AccountRepo.DidNotReceive().AddAsync(Arg.Any<Account>(), Arg.Any<CancellationToken>());
         await f.ExternalLoginRepo.Received(1).AddAsync(
             Arg.Is<ExternalLogin>(l => l != null && l.AccountId == existing.Id && l.ProviderUserId == "google-sub-5"),
             Arg.Any<CancellationToken>());
         Assert.Equal(existing.Id, result.Account.Id);
+    }
+
+    // AC-178: the invitation page accepts on its own only for an account this sign-in created.
+    [Fact]
+    public async Task ExternalLoginAsync_NewAccount_AccountCreatedTrue()
+    {
+        Fixture f = CreateFixture();
+        RepositoryPredicateStub.StubFirstOrDefault(f.ExternalLoginRepo, []);
+        RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, []);
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new ExternalUserInfo("google-sub-6", "brandnew@example.com", "Brand New", EmailVerified: true));
+
+        ExternalLoginResult result = await f.Service.ExternalLoginAsync(
+            "google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.True(result.AccountCreated);
+        Assert.Equal("fake-access-token", result.Auth.AccessToken);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExternalLoginAsync_LinkedOrEmailMatched_AccountCreatedFalse(bool linked)
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(email: "known@example.com", emailConfirmed: true);
+        if (linked)
+        {
+            SeedExternalLogin(f, account);
+        }
+        else
+        {
+            RepositoryPredicateStub.StubFirstOrDefault(f.ExternalLoginRepo, []);
+            RepositoryPredicateStub.StubFirstOrDefault(f.AccountRepo, [account]);
+        }
+
+        f.ExternalAuthProvider.ValidateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Info("sub-1", account.Email, true));
+
+        ExternalLoginResult result = await f.Service.ExternalLoginAsync(
+            "google", new ExternalLoginRequest("c"), null, null, CancellationToken.None);
+
+        Assert.False(result.AccountCreated);
+        Assert.Equal(account.Id, result.Auth.Account.Id);
     }
 
     // RefreshTokenAsync
@@ -857,6 +1108,7 @@ public class AuthServiceTests
         f.OrganizationMemberRepo.ListAsync(
                 Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>())
             .Returns([membership]);
+        RepositoryPredicateStub.StubListAsync(f.OrganizationRepo, [organization]);
         f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
         LoginRequest request = new(account.Username, "correct-password");
 
@@ -876,12 +1128,15 @@ public class AuthServiceTests
             .Returns(account);
         f.PasswordHasher.Verify(Arg.Any<string>(), Arg.Any<string>()).Returns(true);
 
+        Organization first = Organization.Create(new OrganizationParams("First", "first"));
+        Organization second = Organization.Create(new OrganizationParams("Second", "second"));
         f.OrganizationMemberRepo.ListAsync(
                 Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>())
             .Returns([
-                OrganizationMember.Create(new OrganizationMemberParams(Guid.NewGuid(), account.Id)),
-                OrganizationMember.Create(new OrganizationMemberParams(Guid.NewGuid(), account.Id))
+                OrganizationMember.Create(new OrganizationMemberParams(first.Id, account.Id)),
+                OrganizationMember.Create(new OrganizationMemberParams(second.Id, account.Id))
             ]);
+        RepositoryPredicateStub.StubListAsync(f.OrganizationRepo, [first, second]);
         LoginRequest request = new(account.Username, "correct-password");
 
         AuthResult result = await f.Service.LoginAsync(request, null, null, CancellationToken.None);
@@ -909,58 +1164,180 @@ public class AuthServiceTests
         f.JwtTokenService.Received(1).GenerateAccessToken(account, organizationId, Arg.Any<Guid>());
     }
 
-    [Fact]
-    public async Task RefreshTokenAsync_TokenHasOrganization_AccessRevoked_ThrowsUnauthorized()
+    private static RefreshToken CreateOrganizationRefreshToken(
+        Guid accountId, Guid organizationId, Guid familyId, bool isPersistent, DateTime loginAt)
+    {
+        return RefreshToken.Create(new RefreshTokenParams(
+            accountId,
+            TokenHash.Compute("old-token"),
+            DateTime.UtcNow.AddDays(1),
+            null,
+            null,
+            isPersistent,
+            loginAt,
+            organizationId,
+            familyId));
+    }
+
+    // QĐ-31: a removed member or a suspended organization (AC-183, AC-199) ends only the organization context —
+    // the session keeps its family, persistence and sign-in time, so the client can say why the organization is gone.
+    [Theory]
+    [InlineData(TenantAccessStatus.NotMember, true)]
+    [InlineData(TenantAccessStatus.Suspended, false)]
+    public async Task RefreshTokenAsync_RemovedMemberOrSuspendedOrganization_IssuesTokensWithoutOrganizationSameFamily(
+        TenantAccessStatus access, bool isPersistent)
     {
         Fixture f = CreateFixture();
         Account account = CreateAccount();
         Guid organizationId = Guid.NewGuid();
-        RefreshToken oldToken = RefreshToken.Create(new RefreshTokenParams(
-            account.Id, TokenHash.Compute("old-token"), DateTime.UtcNow.AddDays(1), null, null, false, DateTime.UtcNow, organizationId));
+        Guid familyId = Guid.NewGuid();
+        DateTime loginAt = DateTime.UtcNow.AddHours(-3);
+        RefreshToken oldToken = CreateOrganizationRefreshToken(
+            account.Id, organizationId, familyId, isPersistent, loginAt);
         RepositoryPredicateStub.StubFirstOrDefault(f.RefreshTokenRepo, [oldToken]);
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
-        f.TenantAccessService.HasActiveAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
-            .Returns(false);
+        f.TenantAccessService.GetAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
+            .Returns(access);
+        RefreshToken? issued = null;
+        f.RefreshTokenRepo.When(r => r.AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>()))
+            .Do(ci => issued = ci.Arg<RefreshToken>());
+
+        AuthResult result = await f.Service.RefreshTokenAsync("old-token", null, null, CancellationToken.None);
+
+        Assert.Null(result.OrganizationId);
+        Assert.Null(result.OrganizationName);
+        Assert.Empty(result.Permissions);
+        Assert.Equal(isPersistent, result.IsPersistent);
+        Assert.NotNull(oldToken.RevokedAt);
+        f.RefreshTokenRepo.Received(1).Update(oldToken);
+        Assert.NotNull(issued);
+        Assert.Equal(familyId, issued!.FamilyId);
+        Assert.Null(issued.OrganizationId);
+        Assert.Equal(isPersistent, issued.IsPersistent);
+        Assert.Equal(loginAt, issued.LoginAt);
+        f.JwtTokenService.Received(1).GenerateAccessToken(account, null, familyId);
+        await f.OrganizationRepo.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_LockedAccount_StillThrows401()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount(status: false);
+        Guid organizationId = Guid.NewGuid();
+        RefreshToken oldToken = CreateOrganizationRefreshToken(
+            account.Id, organizationId, Guid.NewGuid(), false, DateTime.UtcNow);
+        RepositoryPredicateStub.StubFirstOrDefault(f.RefreshTokenRepo, [oldToken]);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        f.TenantAccessService.GetAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.NotMember);
 
         await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
             ApplicationMessages.InvalidRefreshToken,
             () => f.Service.RefreshTokenAsync("old-token", null, null, CancellationToken.None));
+
+        Assert.Null(oldToken.RevokedAt);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await f.UnitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+        f.JwtTokenService.DidNotReceiveWithAnyArgs().GenerateAccessToken(default!, default, default);
+        await f.TenantAccessService.DidNotReceiveWithAnyArgs().GetAccessAsync(default, default, default);
+    }
+
+    // Reuse detection runs before the organization is looked at: losing the organization never rescues a replay.
+    [Fact]
+    public async Task RefreshTokenAsync_StaleTokenOfSuspendedOrganization_BurnsFamily()
+    {
+        Fixture f = CreateFixture(refreshTokenReuseGraceSeconds: 0);
+        Account account = CreateAccount();
+        Guid organizationId = Guid.NewGuid();
+        Guid familyId = Guid.NewGuid();
+        RefreshToken staleToken = CreateOrganizationRefreshToken(
+            account.Id, organizationId, familyId, false, DateTime.UtcNow);
+        staleToken.Revoke();
+        RefreshToken successor = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, TokenHash.Compute("successor-token"), DateTime.UtcNow.AddDays(1), null, null, false,
+            DateTime.UtcNow, organizationId, familyId));
+        RepositoryPredicateStub.StubFirstOrDefault(f.RefreshTokenRepo, [staleToken, successor]);
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [staleToken, successor]);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        f.TenantAccessService.GetAccessAsync(account.Id, organizationId, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Suspended);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.InvalidRefreshToken,
+            () => f.Service.RefreshTokenAsync("old-token", null, null, CancellationToken.None));
+
+        Assert.NotNull(successor.RevokedAt);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        f.JwtTokenService.DidNotReceiveWithAnyArgs().GenerateAccessToken(default!, default, default);
+        await f.TenantAccessService.DidNotReceiveWithAnyArgs().GetAccessAsync(default, default, default);
     }
 
     // SwitchOrganizationAsync
 
+    // AC-320: a non-member learns nothing about the organization, not even that it is suspended.
     [Fact]
-    public async Task SwitchOrganizationAsync_NotAMember_ThrowsForbidden()
+    public async Task SwitchOrganizationAsync_NotMemberOfSuspendedOrganization_ThrowsAccessDeniedWithoutName()
     {
         Fixture f = CreateFixture();
         Guid accountId = Guid.NewGuid();
         f.CurrentUserService.UserId.Returns(accountId.ToString());
-        f.OrganizationMemberRepo.FirstOrDefaultAsync(
-                Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>())
-            .Returns((OrganizationMember?)null);
+        Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
+        organization.Deactivate(new DeactivationParams(Guid.NewGuid(), false, null, DateTime.UtcNow));
+        f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
+        f.TenantAccessService.GetAccessAsync(accountId, organization.Id, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.NotMember);
 
-        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
-            ApplicationMessages.OrganizationAccessDenied,
-            () => f.Service.SwitchOrganizationAsync(Guid.NewGuid(), null, null, CancellationToken.None));
+        ForbiddenException exception = await Assert.ThrowsAsync<ForbiddenException>(
+            () => f.Service.SwitchOrganizationAsync(organization.Id, null, null, CancellationToken.None));
+
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, exception.Message);
+        Assert.Empty(exception.Extensions);
+        await f.OrganizationRepo.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
     }
 
+    // AC-301 (API-28): a member of a suspended organization is told which one.
     [Fact]
-    public async Task SwitchOrganizationAsync_OrganizationInactive_ThrowsForbidden()
+    public async Task SwitchOrganizationAsync_SuspendedOrganizationMember_ThrowsSuspendedWithName()
     {
         Fixture f = CreateFixture();
         Guid accountId = Guid.NewGuid();
         f.CurrentUserService.UserId.Returns(accountId.ToString());
-
         Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
-        organization.Deactivate();
-        OrganizationMember membership = OrganizationMember.Create(
-            new OrganizationMemberParams(organization.Id, accountId));
-        RepositoryPredicateStub.StubFirstOrDefault(f.OrganizationMemberRepo, [membership]);
+        organization.Deactivate(new DeactivationParams(Guid.NewGuid(), false, null, DateTime.UtcNow));
         f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
+        f.TenantAccessService.GetAccessAsync(accountId, organization.Id, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Suspended);
 
-        await ApplicationAssert.ThrowsWithMessageAsync<ForbiddenException>(
-            ApplicationMessages.OrganizationAccessDenied,
+        ForbiddenException exception = await Assert.ThrowsAsync<ForbiddenException>(
             () => f.Service.SwitchOrganizationAsync(organization.Id, null, null, CancellationToken.None));
+
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, exception.Message);
+        Assert.Equal(organization.Name, exception.Extensions[ProblemExtensionKeys.OrganizationName]);
+        Assert.Single(exception.Extensions);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        f.JwtTokenService.DidNotReceiveWithAnyArgs().GenerateAccessToken(default!, default, default);
+    }
+
+    // The organization row vanished after the status was read: no name to give, so the plain denial.
+    [Fact]
+    public async Task SwitchOrganizationAsync_SuspendedOrganizationGone_ThrowsAccessDeniedWithoutName()
+    {
+        Fixture f = CreateFixture();
+        Guid accountId = Guid.NewGuid();
+        Guid organizationId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(accountId.ToString());
+        f.OrganizationRepo.GetByIdAsync(organizationId, Arg.Any<CancellationToken>()).Returns((Organization?)null);
+        f.TenantAccessService.GetAccessAsync(accountId, organizationId, Arg.Any<CancellationToken>())
+            .Returns(TenantAccessStatus.Suspended);
+
+        ForbiddenException exception = await Assert.ThrowsAsync<ForbiddenException>(
+            () => f.Service.SwitchOrganizationAsync(organizationId, null, null, CancellationToken.None));
+
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, exception.Message);
+        Assert.Empty(exception.Extensions);
+        await f.RefreshTokenRepo.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
     }
 
     [Fact]
@@ -972,9 +1349,6 @@ public class AuthServiceTests
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
 
         Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
-        OrganizationMember membership = OrganizationMember.Create(
-            new OrganizationMemberParams(organization.Id, account.Id));
-        RepositoryPredicateStub.StubFirstOrDefault(f.OrganizationMemberRepo, [membership]);
         f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
 
         AuthResult result = await f.Service.SwitchOrganizationAsync(
@@ -983,6 +1357,8 @@ public class AuthServiceTests
         Assert.Equal(organization.Id, result.OrganizationId);
         Assert.Equal(organization.Name, result.OrganizationName);
         f.JwtTokenService.Received(1).GenerateAccessToken(account, organization.Id, Arg.Any<Guid>());
+        await f.TenantAccessService.Received(1)
+            .GetAccessAsync(account.Id, organization.Id, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -998,8 +1374,7 @@ public class AuthServiceTests
         Assert.Null(result.OrganizationId);
         Assert.Null(result.OrganizationName);
         f.JwtTokenService.Received(1).GenerateAccessToken(account, null, Arg.Any<Guid>());
-        await f.OrganizationMemberRepo.DidNotReceive().FirstOrDefaultAsync(
-            Arg.Any<Expression<Func<OrganizationMember, bool>>>(), Arg.Any<CancellationToken>());
+        await f.TenantAccessService.DidNotReceiveWithAnyArgs().GetAccessAsync(default, default, default);
     }
 
     [Fact]
@@ -1013,9 +1388,6 @@ public class AuthServiceTests
         f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
 
         Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
-        OrganizationMember membership = OrganizationMember.Create(
-            new OrganizationMemberParams(organization.Id, account.Id));
-        RepositoryPredicateStub.StubFirstOrDefault(f.OrganizationMemberRepo, [membership]);
         f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
 
         RefreshToken previous = RefreshToken.Create(new RefreshTokenParams(
@@ -1028,4 +1400,132 @@ public class AuthServiceTests
         f.RefreshTokenRepo.Received().Update(previous);
         f.JwtTokenService.Received(1).GenerateAccessToken(account, organization.Id, sessionId);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SwitchOrganizationAsync_InASession_KeepsTheSessionsRememberMeChoice(bool isPersistent)
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid sessionId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(sessionId);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        Organization organization = Organization.Create(new OrganizationParams("Acme", "acme"));
+        f.OrganizationRepo.GetByIdAsync(organization.Id, Arg.Any<CancellationToken>()).Returns(organization);
+
+        RefreshToken previous = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "previous-hash", DateTime.UtcNow.AddDays(1), null, null, isPersistent, DateTime.UtcNow, FamilyId: sessionId));
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [previous]);
+
+        AuthResult result = await f.Service.SwitchOrganizationAsync(organization.Id, null, null, CancellationToken.None);
+
+        Assert.Equal(isPersistent, result.IsPersistent);
+        // Later refreshes copy the stored flag, so the saved row must carry it too.
+        await f.RefreshTokenRepo.Received(1).AddAsync(
+            Arg.Is<RefreshToken>(t => t.IsPersistent == isPersistent), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_InASession_KeepsTheEarliestSignInTime()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid sessionId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(sessionId);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        DateTime signedInAt = DateTime.UtcNow.AddDays(-3);
+        RefreshToken earliest = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "earliest-hash", DateTime.UtcNow.AddDays(1), null, null, false, signedInAt, FamilyId: sessionId));
+        RefreshToken later = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "later-hash", DateTime.UtcNow.AddDays(1), null, null, false, signedInAt.AddDays(1), FamilyId: sessionId));
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [later, earliest]);
+
+        await f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None);
+
+        await f.RefreshTokenRepo.Received(1).AddAsync(
+            Arg.Is<RefreshToken>(t => t.LoginAt == signedInAt), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_NoSessionId_IssuesANonPersistentSession()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+
+        AuthResult result = await f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None);
+
+        Assert.False(result.IsPersistent);
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_SessionWithNoActiveToken_ThrowsUnauthorizedAndIssuesNothing()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(Guid.NewGuid());
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, []);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.AuthenticatedUserRequired,
+            () => f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None));
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+        f.RefreshTokenRepo.DidNotReceive().Update(Arg.Any<RefreshToken>());
+        await f.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_SessionWhoseOnlyOpenTokenExpired_ThrowsUnauthorizedAndIssuesNothing()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid sessionId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(sessionId);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        RefreshToken expired = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "expired-hash", DateTime.UtcNow.AddDays(1), null, null, true, DateTime.UtcNow.AddDays(-8), FamilyId: sessionId));
+        ForceExpired(expired);
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [expired]);
+
+        await ApplicationAssert.ThrowsWithMessageAsync<UnauthorizedException>(
+            ApplicationMessages.AuthenticatedUserRequired,
+            () => f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None));
+        await f.RefreshTokenRepo.DidNotReceive().AddAsync(Arg.Any<RefreshToken>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SwitchOrganizationAsync_ExpiredSiblingToken_DoesNotLeakItsChoiceOrSignInTime()
+    {
+        Fixture f = CreateFixture();
+        Account account = CreateAccount();
+        Guid sessionId = Guid.NewGuid();
+        f.CurrentUserService.UserId.Returns(account.Id.ToString());
+        f.CurrentUserService.SessionId.Returns(sessionId);
+        f.AccountRepo.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        DateTime activeSignIn = DateTime.UtcNow.AddDays(-1);
+        RefreshToken expired = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "expired-hash", DateTime.UtcNow.AddDays(1), null, null, true, DateTime.UtcNow.AddDays(-9), FamilyId: sessionId));
+        ForceExpired(expired);
+        RefreshToken active = RefreshToken.Create(new RefreshTokenParams(
+            account.Id, "active-hash", DateTime.UtcNow.AddDays(1), null, null, false, activeSignIn, FamilyId: sessionId));
+        RepositoryPredicateStub.StubListAsync(f.RefreshTokenRepo, [expired, active]);
+
+        await f.Service.SwitchOrganizationAsync(null, null, null, CancellationToken.None);
+
+        await f.RefreshTokenRepo.Received(1).AddAsync(
+            Arg.Is<RefreshToken>(t => !t.IsPersistent && t.LoginAt == activeSignIn), Arg.Any<CancellationToken>());
+    }
+
+    // Create refuses a past expiry, so a token that expired after it was issued is made by setting the property.
+    private static void ForceExpired(RefreshToken token) =>
+        typeof(RefreshToken).GetProperty(nameof(RefreshToken.ExpiresAt))!.SetValue(token, DateTime.UtcNow.AddMinutes(-1));
 }

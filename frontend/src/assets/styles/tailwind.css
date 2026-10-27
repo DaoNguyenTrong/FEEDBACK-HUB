@@ -13,51 +13,78 @@
   }
 }
 
-@theme {
-  /* Brand violet, one hue (258°) throughout. 600/700/800 are the light-mode
-     primary/hover/pressed in naive-theme.ts. */
-  --color-accent-50: #f5f0fe;
-  --color-accent-100: #e7ddfd;
-  --color-accent-200: #cfbcfb;
-  --color-accent-300: #ac8cf8;
-  --color-accent-400: #895bf5;
-  --color-accent-500: #7842f5;
-  --color-accent-600: #6428f4;
-  --color-accent-700: #5017d3;
-  --color-accent-800: #4418aa;
-  --color-accent-900: #31176d;
-  --color-accent-950: #1d0f3d;
+/* Mirrors src/theme/tokens.ts; tests/unit/theme/tokens.test.ts fails when the two drift.
+   `static` keeps variables that only var() or Naive reads from being dropped. */
+@theme static {
+  --color-page: #e9f1fa;
+  --color-panel: rgba(255, 255, 255, 0.78);
+  --color-panel-solid: #fafcfe;
+  --color-panel-thin: rgba(255, 255, 255, 0.55);
+  --color-panel-thin-solid: #f5f9fd;
+  --color-raised: #ffffff;
+  --color-sunken: #eef1f7;
+  --color-line: rgba(28, 26, 51, 0.1);
+  --color-control: #7c7896;
+  --color-focus: #5b3fd9;
+  --color-ink: #1c1a33;
+  --color-ink-muted: #56536f;
+  --color-ink-disabled: #8e8ba6;
+  --color-accent: #4f3d91;
+  --color-accent-hover: #43337f;
+  --color-accent-pressed: #37296b;
+  --color-on-accent: #ffffff;
+  --color-accent-soft: #ece8f7;
+  --color-on-accent-soft: #3e2f7a;
+  --color-secondary-hover: #f1f3f8;
+  --color-secondary-pressed: #e6e9f1;
+  --color-ghost-hover: #ece8f7;
+  --color-ghost-pressed: #dfd8f2;
+  --color-success: #256126;
+  --color-success-soft: #dcf1d8;
+  --color-warning: #7a4a00;
+  --color-warning-soft: #ffe8c2;
+  --color-danger: #a12a26;
+  --color-danger-soft: #fbdcdc;
+  --color-danger-soft-hover: #f7c9c9;
+  --color-danger-solid: #b4232a;
+  --color-danger-solid-hover: #9c1c23;
+  --color-danger-solid-pressed: #84161c;
+  --color-on-danger-solid: #ffffff;
+  --color-info: #14598f;
+  --color-info-soft: #dcedfb;
+  --color-priority-high: #c2410c;
+  --color-brand: #4f3d91;
+  --color-leaf: #8cc640;
+  --color-status-new: #3e2f7a;
+  --color-status-new-soft: #ece8f7;
+  --color-status-accepted: #36334f;
+  --color-status-accepted-soft: #e7e9f2;
+  --color-status-need-info: #7a4a00;
+  --color-status-need-info-soft: #ffe8c2;
+  --color-status-in-progress: #14598f;
+  --color-status-in-progress-soft: #dcedfb;
+  --color-status-in-review: #0b5e63;
+  --color-status-in-review-soft: #d2f1ef;
+  --color-status-resolved: #256126;
+  --color-status-resolved-soft: #dcf1d8;
+  --color-status-closed: #56536f;
+  --color-status-closed-soft: #f0f1f6;
+  --color-status-duplicate: #56536f;
+  --color-status-duplicate-soft: #f0f1f6;
+  --color-status-rejected: #a12a26;
+  --color-status-rejected-soft: #fbdcdc;
 
-  /* Secondary accent for Naive UI's `successColor` only — keep it off
-     interactive elements so it doesn't compete with the primary. */
-  --color-leaf-50: #f8fbf2;
-  --color-leaf-100: #e7f1d6;
-  --color-leaf-200: #cfe3ac;
-  --color-leaf-300: #b0d078;
-  --color-leaf-400: #91bd44;
-  --color-leaf-500: #739735;
-  --color-leaf-600: #5b772a;
-  --color-leaf-700: #4b6223;
-  --color-leaf-800: #3f521d;
-  --color-leaf-900: #36451c;
-  --color-leaf-950: #1c240f;
-
-  /* Primary (bridged, auto-switches light/dark below) — light default */
-  --color-primary-50: var(--color-accent-50);
-  --color-primary-100: var(--color-accent-100);
-  --color-primary-200: var(--color-accent-200);
-  --color-primary-300: var(--color-accent-300);
-  --color-primary-400: var(--color-accent-400);
-  --color-primary-500: var(--color-accent-500);
-  --color-primary-600: var(--color-accent-600);
-  --color-primary-700: var(--color-accent-700);
-  --color-primary-800: var(--color-accent-800);
-  --color-primary-900: var(--color-accent-900);
-  --color-primary-950: var(--color-accent-950);
-
-  /* Surface (bridged, auto-switches light/dark below) — light default.
-     50-300 are the sky-blue page tones (100 = app body), 400-950 a slate
-     ramp for text and borders. */
+  --color-primary-50: #f5f0fe;
+  --color-primary-100: #e7ddfd;
+  --color-primary-200: #cfbcfb;
+  --color-primary-300: #ac8cf8;
+  --color-primary-400: #895bf5;
+  --color-primary-500: #7842f5;
+  --color-primary-600: #6428f4;
+  --color-primary-700: #5017d3;
+  --color-primary-800: #4418aa;
+  --color-primary-900: #31176d;
+  --color-primary-950: #1d0f3d;
   --color-surface-0: #ffffff;
   --color-surface-50: #eef7fe;
   --color-surface-100: #daeefd;
@@ -71,28 +98,121 @@
   --color-surface-900: #0f172a;
   --color-surface-950: #020617;
 
-  /* One fill for Button secondary, Tag, Input and Select (naive-theme.ts). */
-  --fill-color: var(--color-surface-200);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-2xl: initial;
+  --radius-3xl: initial;
+  --radius-4xl: initial;
+  --radius-full: 999px;
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --breakpoint-desktop: 75rem;
+  --font-sans: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --text-page-title: 1.125rem;
+  --text-page-title--line-height: 1.3;
+  --text-page-title--font-weight: 700;
+  --text-section: 0.9375rem;
+  --text-section--line-height: 1.3;
+  --text-section--font-weight: 600;
+  --text-row: 0.875rem;
+  --text-row--line-height: 1.4;
+  --text-row--font-weight: 600;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.4;
+  --text-meta--font-weight: 500;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 500;
+  --text-code: 0.75rem;
+  --text-code--line-height: 1.5;
+  --text-code--font-weight: 400;
+}
+
+:root {
+  --ambient-1: #a9d3f5;
+  --ambient-2: #cbbef0;
+  --ambient-3: #cfe8a8;
+  --ambient-full: 0.75;
+  --ambient-soft: 0.35;
+  --shadow-panel: rgba(0, 39, 67, 0.08);
 }
 
 .dark {
-  /* Primary — dark mode. Only 200 differs: it is the step `dark:` variants
-     use, and it must equal naive-theme.ts's dark primaryColor. */
-  --color-primary-50: var(--color-accent-50);
-  --color-primary-100: var(--color-accent-100);
-  --color-primary-200: #a27aff;
-  --color-primary-300: var(--color-accent-300);
-  --color-primary-400: var(--color-accent-400);
-  --color-primary-500: var(--color-accent-500);
-  --color-primary-600: var(--color-accent-600);
-  --color-primary-700: var(--color-accent-700);
-  --color-primary-800: var(--color-accent-800);
-  --color-primary-900: var(--color-accent-900);
-  --color-primary-950: var(--color-accent-950);
+  --color-page: #0e1124;
+  --color-panel: rgba(36, 33, 68, 0.78);
+  --color-panel-solid: #1f1d3d;
+  --color-panel-thin: rgba(30, 28, 58, 0.55);
+  --color-panel-thin-solid: #171730;
+  --color-raised: #2c2950;
+  --color-sunken: #15132b;
+  --color-line: rgba(255, 255, 255, 0.1);
+  --color-control: #807ca6;
+  --color-focus: #e3dbff;
+  --color-ink: #eceaf7;
+  --color-ink-muted: #a9a5c6;
+  --color-ink-disabled: #6e6a90;
+  --color-accent: #b4a6f2;
+  --color-accent-hover: #c4b9f6;
+  --color-accent-pressed: #a394e6;
+  --color-on-accent: #1b1242;
+  --color-accent-soft: #342d60;
+  --color-on-accent-soft: #d4cbfa;
+  --color-secondary-hover: #36325e;
+  --color-secondary-pressed: #2a2649;
+  --color-ghost-hover: #302a57;
+  --color-ghost-pressed: #3a3368;
+  --color-success: #9ede99;
+  --color-success-soft: #1b3b22;
+  --color-warning: #f7c873;
+  --color-warning-soft: #3d2f17;
+  --color-danger: #ff9c97;
+  --color-danger-soft: #47202a;
+  --color-danger-soft-hover: #57252f;
+  --color-danger-solid: #ff8a84;
+  --color-danger-solid-hover: #ffa19c;
+  --color-danger-solid-pressed: #f2716b;
+  --color-on-danger-solid: #2a0a0d;
+  --color-info: #9ccff7;
+  --color-info-soft: #173452;
+  --color-priority-high: #ff8a4c;
+  --color-brand: #4f3d91;
+  --color-leaf: #8cc640;
+  --color-status-new: #d4cbfa;
+  --color-status-new-soft: #342d60;
+  --color-status-accepted: #d6d3e8;
+  --color-status-accepted-soft: #2f2c4b;
+  --color-status-need-info: #f7c873;
+  --color-status-need-info-soft: #3d2f17;
+  --color-status-in-progress: #9ccff7;
+  --color-status-in-progress-soft: #173452;
+  --color-status-in-review: #7fddd8;
+  --color-status-in-review-soft: #12393d;
+  --color-status-resolved: #9ede99;
+  --color-status-resolved-soft: #1b3b22;
+  --color-status-closed: #a9a5c6;
+  --color-status-closed-soft: #27243f;
+  --color-status-duplicate: #a9a5c6;
+  --color-status-duplicate-soft: #27243f;
+  --color-status-rejected: #ff9c97;
+  --color-status-rejected-soft: #47202a;
 
-  /* Surface — dark mode. 600/700/800 share the navy hue of 900/950: the
-     hover and fill states built on them would otherwise flash violet-grey
-     against the body/card. */
+  --color-primary-50: #f5f0fe;
+  --color-primary-100: #e7ddfd;
+  --color-primary-200: #a27aff;
+  --color-primary-300: #ac8cf8;
+  --color-primary-400: #895bf5;
+  --color-primary-500: #7842f5;
+  --color-primary-600: #6428f4;
+  --color-primary-700: #5017d3;
+  --color-primary-800: #4418aa;
+  --color-primary-900: #31176d;
+  --color-primary-950: #1d0f3d;
   --color-surface-0: #e2e1e6;
   --color-surface-50: #dad9de;
   --color-surface-100: #ceccd4;
@@ -106,6 +226,66 @@
   --color-surface-900: #1e2235;
   --color-surface-950: #121527;
 
-  /* Shared control fill — see the light-mode definition. */
-  --fill-color: var(--color-surface-800);
+  --ambient-1: #3a2c7a;
+  --ambient-2: #14406b;
+  --ambient-3: #2e5418;
+  --ambient-full: 0.55;
+  --ambient-soft: 0.3;
+  --shadow-panel: rgba(0, 0, 0, 0.4);
+}
+
+@utility glass-thin {
+  background-color: var(--color-panel-thin);
+  backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid var(--color-line);
+}
+
+@utility glass-thick {
+  background-color: var(--color-panel);
+  backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid var(--color-line);
+}
+
+/* Plain rules below, not @utility: an @utility cannot hold an @media or @supports block. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-thin {
+    background-color: var(--color-panel-thin-solid);
+    backdrop-filter: none;
+  }
+
+  .glass-thick {
+    background-color: var(--color-panel-solid);
+    backdrop-filter: none;
+  }
+
+  [data-ambient] {
+    display: none;
+  }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-thin {
+    background-color: var(--color-panel-thin-solid);
+    backdrop-filter: none;
+  }
+
+  .glass-thick {
+    background-color: var(--color-panel-solid);
+    backdrop-filter: none;
+  }
+
+  [data-ambient] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }

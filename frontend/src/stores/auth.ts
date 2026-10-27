@@ -5,11 +5,14 @@ import type {
   Account,
   AuthResponse,
   ExternalLoginRequest,
+  ExternalLoginResponse,
   LoginRequest,
   LogoutRequest,
   RefreshTokenRequest,
   RegisterRequest,
   RegisterResult,
+  RegisterWithInvitationRequest,
+  RegisterWithInvitationResponse,
   ResendVerificationRequest,
   SessionDto,
   VerifyEmailRequest,
@@ -23,6 +26,8 @@ export const useAuthStore = defineStore('auth', () => {
   // (useOrganizationSwitch). Same staleness as organizationId/organizationName. UI-only gate:
   // the server's per-request permission check is the real authorization boundary.
   const permissions = ref<string[]>([])
+  // Only shows the "System" menu group and gates its pages; the API checks every request.
+  const isSystemAdministrator = ref(false)
   const client = getAuth()
 
   const isAuthenticated = computed(() => account.value !== null)
@@ -32,6 +37,7 @@ export const useAuthStore = defineStore('auth', () => {
     organizationId.value = response.organizationId
     organizationName.value = response.organizationName
     permissions.value = response.permissions
+    isSystemAdministrator.value = response.isSystemAdministrator
     // Breadcrumb for the next boot: a silent refresh is worth attempting.
     markSessionHint()
   }
@@ -41,6 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
     organizationId.value = null
     organizationName.value = null
     permissions.value = []
+    isSystemAdministrator.value = false
     clearSessionHint()
   }
 
@@ -71,8 +78,16 @@ export const useAuthStore = defineStore('auth', () => {
   async function externalLogin(
     provider: string,
     data: ExternalLoginRequest,
-  ): Promise<AuthResponse> {
+  ): Promise<ExternalLoginResponse> {
     const response = await client.authExternalLogin(provider, data)
+    setAuth(response)
+    return response
+  }
+
+  async function registerWithInvitation(
+    data: RegisterWithInvitationRequest,
+  ): Promise<RegisterWithInvitationResponse> {
+    const response = await client.authRegisterWithInvitation(data)
     setAuth(response)
     return response
   }
@@ -86,7 +101,8 @@ export const useAuthStore = defineStore('auth', () => {
     return response.data
   }
 
-  async function logout(data?: LogoutRequest): Promise<void> {
+  // `options.redirect` is where the login page sends the next sign-in (e.g. back to `/invite`).
+  async function logout(data?: LogoutRequest, options?: { redirect?: string }): Promise<void> {
     try {
       await client.authLogout(data)
     } finally {
@@ -95,7 +111,11 @@ export const useAuthStore = defineStore('auth', () => {
       // Synchronously after clearAuth: App.vue's session-lapse watcher reloads to
       // login?redirect=<current page> on the same flip. This plain reload must win (first call
       // wins), or the next account to sign in here lands on the previous account's page.
-      reloadToLogin()
+      if (options?.redirect) {
+        reloadToLogin({ redirect: options.redirect })
+      } else {
+        reloadToLogin()
+      }
     }
   }
 
@@ -117,6 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
     organizationId,
     organizationName,
     permissions,
+    isSystemAdministrator,
     isAuthenticated,
     setAuth,
     clearAuth,
@@ -126,6 +147,7 @@ export const useAuthStore = defineStore('auth', () => {
     verifyEmail,
     resendVerification,
     externalLogin,
+    registerWithInvitation,
     refreshToken,
     logout,
     getSessions,

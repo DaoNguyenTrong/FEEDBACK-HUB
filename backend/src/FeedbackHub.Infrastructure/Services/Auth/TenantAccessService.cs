@@ -12,12 +12,12 @@ internal sealed class TenantAccessService(
 {
     private readonly TenantAccessSettings settings = options.Value;
 
-    public Task<bool> HasActiveAccessAsync(
+    public Task<TenantAccessStatus> GetAccessAsync(
         Guid accountId, Guid organizationId, CancellationToken cancellationToken = default)
     {
         return cacheService.GetOrSetAsync(
             Scope(organizationId),
-            accountId.ToString(),
+            Key(accountId),
             async ct =>
             {
                 OrganizationMember? member = await unitOfWork.Repository<OrganizationMember, Guid>()
@@ -26,25 +26,38 @@ internal sealed class TenantAccessService(
 
                 if (member is null)
                 {
-                    return false;
+                    return TenantAccessStatus.NotMember;
                 }
 
                 Organization? organization = await unitOfWork.Repository<Organization, Guid>()
                     .GetByIdAsync(organizationId, ct);
 
-                return organization is { Status: true };
+                return organization switch
+                {
+                    null => TenantAccessStatus.NotMember,
+                    { Status: false } => TenantAccessStatus.Suspended,
+                    _ => TenantAccessStatus.Active
+                };
             },
             TimeSpan.FromSeconds(settings.CacheTtlSeconds),
             cancellationToken);
     }
 
-    public Task InvalidateMemberAsync(
-        Guid organizationId, Guid accountId, CancellationToken cancellationToken = default) =>
-        cacheService.RemoveAsync(Scope(organizationId), accountId.ToString(), cancellationToken);
+    public async Task InvalidateMemberAsync(
+        Guid organizationId, Guid accountId, CancellationToken cancellationToken = default)
+    {
+        await cacheService.RemoveAsync(Scope(organizationId), Key(accountId), cancellationToken);
+        // One-release migration step: instances of the previous build still read a bool under the bare account id
+        // during a rolling deploy. Remove once no such build runs.
+        await cacheService.RemoveAsync(Scope(organizationId), accountId.ToString(), cancellationToken);
+    }
 
     public Task InvalidateOrganizationAsync(
         Guid organizationId, CancellationToken cancellationToken = default) =>
         cacheService.InvalidateScopeAsync(Scope(organizationId), cancellationToken);
 
     private static string Scope(Guid organizationId) => $"tenant-access:{organizationId}";
+
+    // Not the bare account id: entries cached under it hold a bool, which would not deserialize as the status.
+    private static string Key(Guid accountId) => $"{accountId}:status";
 }

@@ -2,10 +2,15 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
+using FeedbackHub.Application.Common.Interfaces;
+using FeedbackHub.Application.Common.Models;
+using FeedbackHub.Application.Resources;
 using FeedbackHub.Application.Services.Auth;
+using FeedbackHub.Domain.Auditing;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
 
@@ -226,6 +231,7 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
         Assert.False(string.IsNullOrWhiteSpace(body!.AccessToken));
+        Assert.False(body.IsSystemAdministrator);
         IEnumerable<string> setCookieHeaders = response.Headers.GetValues("Set-Cookie");
         string accessTokenCookie = Assert.Single(setCookieHeaders, h => h.StartsWith("access_token=", StringComparison.Ordinal));
         string refreshTokenCookie = Assert.Single(setCookieHeaders, h => h.StartsWith("refresh_token=", StringComparison.Ordinal));
@@ -270,7 +276,8 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
             account.SetPasswordHash("hash");
             context.Accounts.Add(account);
             EmailVerificationToken token = EmailVerificationToken.Create(new EmailVerificationTokenParams(
-                account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddHours(1)));
+                account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddHours(1),
+                EmailVerificationPurpose.VerifyEmail, account.Email));
             context.EmailVerificationTokens.Add(token);
             await context.SaveChangesAsync();
         }
@@ -290,6 +297,248 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
             "/api/auth/verify-email", new VerifyEmailRequest("unknown-token"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // ConfirmEmailChange
+
+    [Fact]
+    public async Task ConfirmEmailChange_Valid_Returns204WithoutSetCookieOrBody()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        const string rawToken = "raw-confirm-email-change-token";
+        await using (AppDbContext context = CreateDbContext())
+        {
+            Account account = Account.Create(new AccountParams("Changer", "email-changer", "old-address@example.com"));
+            account.SetPasswordHash("hash");
+            account.ConfirmEmail();
+            account.RequestEmailChange("new-address@example.com");
+            context.Accounts.Add(account);
+            context.EmailVerificationTokens.Add(EmailVerificationToken.Create(new EmailVerificationTokenParams(
+                account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddHours(1),
+                EmailVerificationPurpose.ChangeEmail, "new-address@example.com")));
+            await context.SaveChangesAsync();
+        }
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/confirm-email-change", new ConfirmEmailChangeRequest(rawToken));
+
+        Assert.True(response.StatusCode == HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync());
+        Assert.False(response.Headers.Contains("Set-Cookie"));
+        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
+        await using AppDbContext verify = CreateDbContext();
+        Account stored = await verify.Accounts.SingleAsync(a => a.Username == "email-changer");
+        Assert.Equal("new-address@example.com", stored.Email);
+        Assert.Null(stored.PendingEmail);
+    }
+
+    [Fact]
+    public async Task ConfirmEmailChange_UnknownToken_Returns409()
+    {
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/confirm-email-change", new ConfirmEmailChangeRequest("unknown-token"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    // Anonymous surface of AuthController: adding a public action must be a deliberate edit of this list
+    // (and of the list in .claude/rules/authentication.md).
+    [Fact]
+    public void AuthController_AnonymousActions_MatchTheDeliberateList()
+    {
+        string[] anonymous = typeof(FeedbackHub.API.Controllers.AuthController)
+            .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.DeclaredOnly)
+            .Where(m => m.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).Length > 0)
+            .Select(m => m.Name)
+            .Order()
+            .ToArray();
+
+        string[] expected =
+        [
+            "ConfirmEmailChange", "ExternalLogin", "Login", "Refresh", "Register", "RegisterWithInvitation",
+            "ResendVerification", "VerifyEmail"
+        ];
+        Assert.Equal(expected, anonymous);
+
+        // A class-level attribute would make every future action anonymous without showing up in the list above.
+        Assert.Empty(typeof(FeedbackHub.API.Controllers.AuthController)
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true));
+    }
+
+    // TECH00 §4.9 / §11: the credential-guessing and mail-sending endpoints answer 429 past the limit.
+    [Fact]
+    public void RateLimitedActions_Always_UseTheAuthPolicy()
+    {
+        System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Public
+            | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly;
+        Type auth = typeof(FeedbackHub.API.Controllers.AuthController);
+        Type profile = typeof(FeedbackHub.API.Controllers.ProfileController);
+
+        static string? Policy(System.Reflection.MethodInfo method) =>
+            method.GetCustomAttributes(typeof(Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute), true)
+                .Cast<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()
+                .SingleOrDefault()?.PolicyName;
+
+        Assert.Equal("auth", Policy(profile.GetMethod("Update")!));
+        Assert.Equal("auth", Policy(profile.GetMethod("ResendEmailChange")!));
+        Assert.Equal("auth", Policy(auth.GetMethod("ConfirmEmailChange")!));
+
+        // Every other action that carries the attribute: the credential endpoints use "auth", Refresh its own.
+        foreach (System.Reflection.MethodInfo method in auth.GetMethods(flags))
+        {
+            string? policy = Policy(method);
+            if (policy is not null)
+            {
+                Assert.Equal(method.Name == "Refresh" ? "auth-refresh" : "auth", policy);
+            }
+        }
+    }
+
+    // RegisterWithInvitation
+
+    private const string RegisterWithInvitationPath = "/api/auth/register-with-invitation";
+
+    private async Task<Organization> SeedInvitationAsync(string email, string rawToken, bool suspended = false)
+    {
+        await using AppDbContext context = CreateDbContext();
+        Account owner = await AuthTestHelper.SeedConfirmedAccountAsync(
+            context, username: $"owner-{Guid.NewGuid():N}", email: $"owner-{Guid.NewGuid():N}@example.com");
+        Organization organization = await AuthTestHelper.SeedOrganizationAsync(context, name: "Bảo Minh");
+        await AuthTestHelper.SeedOrganizationMemberAsync(context, organization.Id, owner.Id);
+        IReadOnlyDictionary<SystemRoleKind, Role> roles =
+            await AuthTestHelper.SeedSystemRolesAsync(context, organization.Id);
+        await AuthTestHelper.SeedInvitationAsync(
+            context, organization.Id, email, roles[SystemRoleKind.Member].Id, rawToken);
+        if (suspended)
+        {
+            organization.Deactivate(new DeactivationParams(owner.Id, false, null, DateTime.UtcNow));
+            context.Organizations.Update(organization);
+            await context.SaveChangesAsync();
+        }
+
+        return organization;
+    }
+
+    private static object RegisterWithInvitationBody(string token, string username) =>
+        new { token, name = "Khách mời", username, password = "password123" };
+
+    // AC-57, AC-182; TECH00 §6.3: a session that is not "remembered", in the organization just joined.
+    [Fact]
+    public async Task RegisterWithInvitation_Joined_SetsSessionCookiesNotPersistentAndReturnsOrganization()
+    {
+        Organization organization = await SeedInvitationAsync("joined@example.com", "joined-token");
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            RegisterWithInvitationPath, RegisterWithInvitationBody("joined-token", "invitee-joined"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(organization.Id, body.GetProperty("organizationId").GetGuid());
+        Assert.Equal("Bảo Minh", body.GetProperty("organizationName").GetString());
+        Assert.Equal("Joined", body.GetProperty("invitationOutcome").GetString());
+        Assert.False(body.GetProperty("isSystemAdministrator").GetBoolean());
+        Assert.Equal("joined@example.com", body.GetProperty("account").GetProperty("email").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("accessToken").GetString()));
+
+        string[] cookies = [.. response.Headers.GetValues("Set-Cookie")];
+        Assert.Single(cookies, cookie => cookie.StartsWith("access_token=", StringComparison.Ordinal));
+        string refreshCookie = Assert.Single(cookies, cookie => cookie.StartsWith("refresh_token=", StringComparison.Ordinal));
+        Assert.DoesNotContain("expires=", refreshCookie, StringComparison.OrdinalIgnoreCase);
+
+        await using AppDbContext context = CreateDbContext();
+        Account account = await context.Accounts.SingleAsync(candidate => candidate.Username == "invitee-joined");
+        Assert.True(account.EmailConfirmed);
+        Assert.True(await context.OrganizationMembers.AnyAsync(member =>
+            member.OrganizationId == organization.Id && member.AccountId == account.Id && member.IsActive));
+        AuditLog joined = Assert.Single(await context.AuditLogs
+            .Where(log => log.OrganizationId == organization.Id && log.Kind == AuditLogKind.Event)
+            .ToListAsync());
+        Assert.Equal(nameof(AuditEventType.MemberJoined), joined.Action);
+        Assert.Equal(account.Id.ToString(), joined.UserId);
+        Assert.False(await context.OrganizationInvitations.AnyAsync());
+    }
+
+    // AC-333, BR-81 point 6: the account exists and is signed in outside the organization; the invitation waits.
+    [Fact]
+    public async Task RegisterWithInvitation_Suspended_ReturnsOutcomeAndNullOrganization()
+    {
+        Organization organization =
+            await SeedInvitationAsync("suspended@example.com", "suspended-token", suspended: true);
+
+        HttpResponseMessage response = await fixture.CreateTestClient().PostAsJsonAsync(
+            RegisterWithInvitationPath, RegisterWithInvitationBody("suspended-token", "invitee-suspended"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal("OrganizationSuspended", body.GetProperty("invitationOutcome").GetString());
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("organizationId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("organizationName").ValueKind);
+
+        await using AppDbContext context = CreateDbContext();
+        Account account = await context.Accounts.SingleAsync(candidate => candidate.Username == "invitee-suspended");
+        Assert.False(await context.OrganizationMembers.AnyAsync(member =>
+            member.OrganizationId == organization.Id && member.AccountId == account.Id));
+        Assert.True(await context.OrganizationInvitations.AnyAsync());
+    }
+
+    // Review Focus 4: a refused registration opens no session.
+    [Fact]
+    public async Task RegisterWithInvitation_UsernameTaken_Returns409WithoutSetCookie()
+    {
+        await SeedInvitationAsync("taken@example.com", "taken-token");
+        await using (AppDbContext context = CreateDbContext())
+        {
+            await AuthTestHelper.SeedConfirmedAccountAsync(context, username: "taken-user", email: "first@example.com");
+        }
+
+        HttpResponseMessage response = await fixture.CreateTestClient().PostAsJsonAsync(
+            RegisterWithInvitationPath, RegisterWithInvitationBody("taken-token", "TAKEN-user"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(ApplicationMessages.AccountUsernameAlreadyExists, await ErrorCodeAsync(response));
+        Assert.False(response.Headers.Contains("Set-Cookie"));
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.False(await verifyContext.Accounts.AnyAsync(account => account.Email == "taken@example.com"));
+        Assert.True(await verifyContext.OrganizationInvitations.AnyAsync());
+        Assert.False(await verifyContext.RefreshTokens.AnyAsync());
+    }
+
+    // F14: the request has no email; one sent anyway is ignored, so the link cannot verify another address.
+    [Fact]
+    public async Task RegisterWithInvitation_BodyWithEmail_UsesInvitationEmail()
+    {
+        await SeedInvitationAsync("invited@example.com", "email-token");
+
+        HttpResponseMessage response = await fixture.CreateTestClient().PostAsJsonAsync(RegisterWithInvitationPath, new
+        {
+            token = "email-token",
+            name = "Khách mời",
+            username = "invitee-email",
+            password = "password123",
+            email = "attacker@example.com"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using AppDbContext context = CreateDbContext();
+        Account account = await context.Accounts.SingleAsync(candidate => candidate.Username == "invitee-email");
+        Assert.Equal("invited@example.com", account.Email);
+        Assert.False(await context.Accounts.AnyAsync(candidate => candidate.Email == "attacker@example.com"));
+    }
+
+    // TECH00 §4.8: registration through an invitation counts against the "auth" bucket, not "invitation".
+    [Fact]
+    public void RegisterWithInvitation_UsesAuthRateLimitPolicy()
+    {
+        Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute? attribute =
+            typeof(FeedbackHub.API.Controllers.AuthController).GetMethod("RegisterWithInvitation")?
+                .GetCustomAttributes(typeof(Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute), true)
+                .Cast<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()
+                .SingleOrDefault();
+
+        Assert.Equal("auth", attribute?.PolicyName);
     }
 
     // ResendVerification
@@ -351,6 +600,31 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
     }
 
     // ExternalLogin
+
+    // AC-178: only the sign-in that created the account says so, so the invitation page accepts on its own once.
+    [Fact]
+    public async Task ExternalLogin_ResponseHasAccountCreated()
+    {
+        HttpClient client = fixture
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.AddScoped<IExternalAuthProvider>(_ => new FakeExternalAuthProvider(
+                    new ExternalUserInfo("google-new-user", "external-new@example.com", "Khách", true)))))
+            .CreateClient();
+        client.DefaultRequestHeaders.Add("X-TimeZone", "UTC");
+
+        HttpResponseMessage first = await client.PostAsJsonAsync(
+            "/api/auth/external/google", new ExternalLoginRequest("some-credential"));
+        HttpResponseMessage second = await client.PostAsJsonAsync(
+            "/api/auth/external/google", new ExternalLoginRequest("some-credential"));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        JsonElement created = await first.Content.ReadJsonElementAsync();
+        Assert.True(created.GetProperty("accountCreated").GetBoolean());
+        Assert.Equal("external-new@example.com", created.GetProperty("account").GetProperty("email").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(created.GetProperty("accessToken").GetString()));
+        Assert.False((await second.Content.ReadJsonElementAsync()).GetProperty("accountCreated").GetBoolean());
+    }
 
     [Fact]
     public async Task ExternalLogin_UnsupportedProvider_ReturnsBadRequest()
@@ -708,6 +982,488 @@ public sealed class AuthControllerTests(ApiFactoryFixture fixture) : IAsyncLifet
         HttpResponseMessage response = await client.GetAsync("/api/permissions");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // System administrator flag (API-27)
+
+    private async Task GrantSystemAdministratorAsync(Guid accountId)
+    {
+        await using AppDbContext context = CreateDbContext();
+        context.SystemAdministrators.Add(SystemAdministrator.Create(new SystemAdministratorParams(accountId)));
+        await context.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Login_SystemAdministrator_ResponseHasIsSystemAdministratorTrue()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        Account account;
+        await using (AppDbContext context = CreateDbContext())
+        {
+            account = await AuthTestHelper.SeedConfirmedAccountAsync(
+                context,
+                username: "system-admin-login",
+                email: "system-admin-login@example.com",
+                passwordHash: BCrypt.Net.BCrypt.HashPassword("correct-password", FastPasswordHasher.WorkFactor));
+        }
+
+        await GrantSystemAdministratorAsync(account.Id);
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("system-admin-login", "correct-password"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.True(body!.IsSystemAdministrator);
+        using JsonDocument json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("isSystemAdministrator").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SwitchOrganization_Response_HasIsSystemAdministrator(bool isSystemAdministrator)
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) = await SeedMemberAsync($"system-admin-switch-{isSystemAdministrator}");
+        if (isSystemAdministrator)
+        {
+            await GrantSystemAdministratorAsync(account.Id);
+        }
+
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.Equal(organization.Id, body!.OrganizationId);
+        Assert.Equal(isSystemAdministrator, body.IsSystemAdministrator);
+    }
+
+    // Organization access lost (TECH00 §6.5, QĐ-31)
+
+    private const string LostOrganizationName = "Lost Co";
+
+    private async Task<(Account Account, Organization Organization)> SeedMemberAsync(
+        string username, bool removed = false, bool suspended = false, string? password = null)
+    {
+        await using AppDbContext context = CreateDbContext();
+        Account account = await AuthTestHelper.SeedConfirmedAccountAsync(
+            context,
+            username: username,
+            email: $"{username}@example.com",
+            passwordHash: password is null ? "seeded-hash" : BCrypt.Net.BCrypt.HashPassword(password, FastPasswordHasher.WorkFactor));
+        Organization organization = await AuthTestHelper.SeedOrganizationAsync(context, name: LostOrganizationName);
+        OrganizationMember member = await AuthTestHelper.SeedOrganizationMemberAsync(
+            context, organization.Id, account.Id, SystemRoleKind.Member);
+        if (removed)
+        {
+            member.Deactivate();
+            context.OrganizationMembers.Update(member);
+        }
+
+        if (suspended)
+        {
+            organization.Deactivate(new DeactivationParams(account.Id, false, null, DateTime.UtcNow));
+            context.Organizations.Update(organization);
+        }
+
+        await context.SaveChangesAsync();
+        return (account, organization);
+    }
+
+    private async Task<Guid> SeedOrganizationRefreshTokenAsync(Account account, Guid organizationId, string rawToken)
+    {
+        await using AppDbContext context = CreateDbContext();
+        Guid familyId = Guid.NewGuid();
+        context.RefreshTokens.Add(RefreshToken.Create(new RefreshTokenParams(
+            account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddDays(1), null, null, true,
+            DateTime.UtcNow.AddHours(-2), organizationId, familyId)));
+        await context.SaveChangesAsync();
+        return familyId;
+    }
+
+    private async Task<Guid> SeedPersonalRefreshTokenAsync(Account account, string rawToken)
+    {
+        await using AppDbContext context = CreateDbContext();
+        Guid familyId = Guid.NewGuid();
+        context.RefreshTokens.Add(RefreshToken.Create(new RefreshTokenParams(
+            account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddDays(1), null, null, false,
+            DateTime.UtcNow, null, familyId)));
+        await context.SaveChangesAsync();
+        return familyId;
+    }
+
+    private async Task AssertRotatedIntoPersonalContextAsync(LoginResponse body, string oldRawToken, Guid familyId)
+    {
+        Assert.Null(body.OrganizationId);
+        Assert.Null(body.OrganizationName);
+        Assert.Empty(body.Permissions);
+        await using AppDbContext context = CreateDbContext();
+        RefreshToken oldToken = await context.RefreshTokens.SingleAsync(t => t.TokenHash == ComputeSha256(oldRawToken));
+        Assert.NotNull(oldToken.RevokedAt);
+        RefreshToken newToken = await context.RefreshTokens.SingleAsync(t => t.TokenHash == ComputeSha256(body.RefreshToken));
+        Assert.Null(newToken.RevokedAt);
+        Assert.Null(newToken.OrganizationId);
+        Assert.Equal(familyId, newToken.FamilyId);
+        Assert.True(newToken.IsPersistent);
+    }
+
+    // A removed member, or a suspended organization (AC-183, AC-199): the session survives in the personal context,
+    // so the client can show why the organization is gone instead of signing the person out.
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Refresh_RemovedMemberOrSuspendedOrganization_Returns200WithNullOrganizationId(
+        bool removed, bool suspended)
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) =
+            await SeedMemberAsync($"lost-refresh-{removed}-{suspended}", removed: removed, suspended: suspended);
+        Guid familyId = await SeedOrganizationRefreshTokenAsync(account, organization.Id, "lost-refresh-token");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/refresh", new RefreshTokenRequest("lost-refresh-token"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        await AssertRotatedIntoPersonalContextAsync(body!, "lost-refresh-token", familyId);
+    }
+
+    [Fact]
+    public async Task Refresh_LockedAccountOfRemovedMember_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) = await SeedMemberAsync("locked-removed-refresh", removed: true);
+        await SeedOrganizationRefreshTokenAsync(account, organization.Id, "locked-removed-refresh-token");
+        await using (AppDbContext context = CreateDbContext())
+        {
+            account.Deactivate();
+            context.Accounts.Update(account);
+            await context.SaveChangesAsync();
+        }
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/refresh", new RefreshTokenRequest("locked-removed-refresh-token"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(ApplicationMessages.InvalidRefreshToken, await ErrorCodeAsync(response));
+        await using AppDbContext verifyContext = CreateDbContext();
+        RefreshToken stored = Assert.Single(
+            await verifyContext.RefreshTokens.Where(t => t.AccountId == account.Id).ToListAsync());
+        Assert.Null(stored.RevokedAt);
+    }
+
+    // SwitchOrganization
+
+    [Fact]
+    public async Task SwitchOrganization_ActiveMember_Returns200WithOrganization()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) = await SeedMemberAsync("active-switch");
+        Guid sessionId = await SeedPersonalRefreshTokenAsync(account, "active-switch-token");
+        client.DefaultRequestHeaders.Authorization =
+            new("Bearer", AuthTestHelper.MintAccessTokenForSession(account, sessionId));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.Equal(organization.Id, body!.OrganizationId);
+        Assert.Equal(LostOrganizationName, body.OrganizationName);
+        await using AppDbContext verifyContext = CreateDbContext();
+        RefreshToken previous = await verifyContext.RefreshTokens
+            .SingleAsync(t => t.TokenHash == ComputeSha256("active-switch-token"));
+        Assert.NotNull(previous.RevokedAt);
+        RefreshToken issued = await verifyContext.RefreshTokens
+            .SingleAsync(t => t.TokenHash == ComputeSha256(body.RefreshToken));
+        Assert.Equal(sessionId, issued.FamilyId);
+        Assert.Equal(organization.Id, issued.OrganizationId);
+        Assert.Null(issued.RevokedAt);
+    }
+
+    // A session keeps its remember-me choice across a switch: the refresh cookie stays a session cookie unless asked.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SwitchOrganization_AfterLogin_KeepsTheRememberMeChoiceInTheRefreshCookie(bool keepLoggedIn)
+    {
+        string username = keepLoggedIn ? "switch-remembered" : "switch-not-remembered";
+        HttpClient client = fixture.CreateTestClient();
+        (_, Organization organization) = await SeedMemberAsync(username, password: "correct-password");
+        HttpResponseMessage login = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest(username, "correct-password", keepLoggedIn));
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        LoginResponse? loginBody = await login.Content.ReadJsonAsync<LoginResponse>();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", loginBody!.AccessToken);
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? switchBody = await response.Content.ReadJsonAsync<LoginResponse>();
+        await using (AppDbContext verifyContext = CreateDbContext())
+        {
+            RefreshToken issued = await verifyContext.RefreshTokens
+                .SingleAsync(t => t.TokenHash == ComputeSha256(switchBody!.RefreshToken));
+            Assert.Equal(keepLoggedIn, issued.IsPersistent);
+        }
+
+        string refreshCookie = Assert.Single(
+            response.Headers.GetValues("Set-Cookie"),
+            cookie => cookie.StartsWith("refresh_token=", StringComparison.Ordinal));
+        if (keepLoggedIn)
+        {
+            Assert.Contains("expires=", refreshCookie, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            Assert.DoesNotContain("expires=", refreshCookie, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("max-age=", refreshCookie, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    // A signed-out session must not come back to life through an access token that has not expired yet.
+    [Fact]
+    public async Task SwitchOrganization_AfterLogout_Returns401AndIssuesNoToken()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (_, Organization organization) = await SeedMemberAsync("switch-after-logout", password: "correct-password");
+        HttpResponseMessage login = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("switch-after-logout", "correct-password", false));
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        LoginResponse? loginBody = await login.Content.ReadJsonAsync<LoginResponse>();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", loginBody!.AccessToken);
+        HttpResponseMessage logout = await client.PostAsJsonAsync(
+            "/api/auth/logout", new RefreshTokenRequest(loginBody.RefreshToken));
+        Assert.True(logout.IsSuccessStatusCode);
+        await using AppDbContext countContext = CreateDbContext();
+        RefreshToken original = await countContext.RefreshTokens
+            .SingleAsync(t => t.TokenHash == ComputeSha256(loginBody.RefreshToken));
+        int rowsBefore = await countContext.RefreshTokens.CountAsync(t => t.FamilyId == original.FamilyId);
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.AuthenticatedUserRequired, body.GetProperty("code").GetString());
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.Equal(rowsBefore, await verifyContext.RefreshTokens.CountAsync(t => t.FamilyId == original.FamilyId));
+        Assert.DoesNotContain(
+            await verifyContext.RefreshTokens.Where(t => t.FamilyId == original.FamilyId).ToListAsync(),
+            t => t.RevokedAt == null);
+    }
+
+    [Fact]
+    public async Task SwitchOrganization_NullOrganization_Returns200WithoutOrganization()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) = await SeedMemberAsync("null-switch");
+        client.DefaultRequestHeaders.Authorization =
+            new("Bearer", AuthTestHelper.MintAccessToken(account, organization.Id));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(null));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.Null(body!.OrganizationId);
+        Assert.Null(body.OrganizationName);
+        Assert.Empty(body.Permissions);
+        await using AppDbContext verifyContext = CreateDbContext();
+        RefreshToken issued = await verifyContext.RefreshTokens
+            .SingleAsync(t => t.TokenHash == ComputeSha256(body.RefreshToken));
+        Assert.Null(issued.OrganizationId);
+    }
+
+    [Fact]
+    public async Task SwitchOrganization_Unauthenticated_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // AC-301 (API-28)
+    [Fact]
+    public async Task SwitchOrganization_SuspendedOrganization_Returns403SuspendedWithName()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (Account account, Organization organization) = await SeedMemberAsync("suspended-switch", suspended: true);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, body.GetProperty("code").GetString());
+        Assert.Equal(LostOrganizationName, body.GetProperty(ProblemExtensionKeys.OrganizationName).GetString());
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.False(await verifyContext.RefreshTokens.AnyAsync(t => t.AccountId == account.Id));
+    }
+
+    // AC-320: someone outside the suspended organization must not learn its name.
+    [Fact]
+    public async Task SwitchOrganization_NonMember_Returns403AccessDeniedWithoutName()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        (_, Organization organization) = await SeedMemberAsync("suspended-owner", suspended: true);
+        Account outsider;
+        await using (AppDbContext context = CreateDbContext())
+        {
+            outsider = await AuthTestHelper.SeedConfirmedAccountAsync(
+                context, username: "outsider-switch", email: "outsider-switch@example.com");
+        }
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(outsider));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(organization.Id));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        string raw = await response.Content.ReadAsStringAsync();
+        JsonElement body = await response.Content.ReadJsonElementAsync();
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.GetProperty("code").GetString());
+        Assert.False(body.TryGetProperty(ProblemExtensionKeys.OrganizationName, out _));
+        Assert.DoesNotContain(LostOrganizationName, raw, StringComparison.Ordinal);
+    }
+
+    // AC-184
+    [Fact]
+    public async Task Login_MemberOfOnlySuspendedOrganization_HasNoOrganization()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        await SeedMemberAsync("suspended-login", suspended: true, password: "correct-password");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("suspended-login", "correct-password"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        LoginResponse? body = await response.Content.ReadJsonAsync<LoginResponse>();
+        Assert.Null(body!.OrganizationId);
+        Assert.Null(body.OrganizationName);
+    }
+
+    // Locked account (TokenIssuer is the single place that refuses a session)
+
+    private sealed class FakeExternalAuthProvider(ExternalUserInfo userInfo) : IExternalAuthProvider
+    {
+        public string ProviderName => "google";
+
+        public Task<ExternalUserInfo> ValidateAsync(string credential, CancellationToken cancellationToken) =>
+            Task.FromResult(userInfo);
+    }
+
+    private async Task<Account> SeedLockedAccountAsync(string username, string password = "correct-password")
+    {
+        await using AppDbContext context = CreateDbContext();
+        Account account = await AuthTestHelper.SeedConfirmedAccountAsync(
+            context, username: username, email: $"{username}@example.com", passwordHash: null);
+        account.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(password, FastPasswordHasher.WorkFactor));
+        account.Deactivate();
+        context.Accounts.Update(account);
+        await context.SaveChangesAsync();
+        return account;
+    }
+
+    [Fact]
+    public async Task Login_LockedAccount_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        await SeedLockedAccountAsync("locked-login");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("locked-login", "correct-password"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refresh_LockedAccount_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        Account account = await SeedLockedAccountAsync("locked-refresh");
+        await using (AppDbContext context = CreateDbContext())
+        {
+            context.RefreshTokens.Add(RefreshToken.Create(new RefreshTokenParams(
+                account.Id, ComputeSha256("locked-refresh-token"), DateTime.UtcNow.AddDays(1), null, null, false, DateTime.UtcNow)));
+            await context.SaveChangesAsync();
+        }
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/refresh", new RefreshTokenRequest("locked-refresh-token"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task VerifyEmail_LockedAccount_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        const string rawToken = "raw-locked-verify-token";
+        await using (AppDbContext context = CreateDbContext())
+        {
+            Account account = Account.Create(new AccountParams("Locked", "locked-verify", "locked-verify@example.com"));
+            account.SetPasswordHash("hash");
+            account.Deactivate();
+            context.Accounts.Add(account);
+            context.EmailVerificationTokens.Add(EmailVerificationToken.Create(new EmailVerificationTokenParams(
+                account.Id, ComputeSha256(rawToken), DateTime.UtcNow.AddHours(1),
+                EmailVerificationPurpose.VerifyEmail, account.Email)));
+            await context.SaveChangesAsync();
+        }
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/verify-email", new VerifyEmailRequest(rawToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.False(await verifyContext.RefreshTokens.AnyAsync());
+    }
+
+    [Fact]
+    public async Task ExternalLogin_LinkedLockedAccount_Returns401()
+    {
+        Account account = await SeedLockedAccountAsync("locked-external");
+        await using (AppDbContext context = CreateDbContext())
+        {
+            context.ExternalLogins.Add(ExternalLogin.Create(new ExternalLoginParams(
+                account.Id, "google", "google-user-1", account.Email)));
+            await context.SaveChangesAsync();
+        }
+        HttpClient client = fixture
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.AddScoped<IExternalAuthProvider>(_ =>
+                    new FakeExternalAuthProvider(new ExternalUserInfo("google-user-1", account.Email, "Locked", true)))))
+            .CreateClient();
+        client.DefaultRequestHeaders.Add("X-TimeZone", "UTC");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/external/google", new ExternalLoginRequest("some-credential"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        await using AppDbContext verifyContext = CreateDbContext();
+        Assert.False(await verifyContext.RefreshTokens.AnyAsync());
+    }
+
+    [Fact]
+    public async Task SwitchOrganization_LockedAccount_Returns401()
+    {
+        HttpClient client = fixture.CreateTestClient();
+        Account account = await SeedLockedAccountAsync("locked-switch");
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account));
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/switch-organization", new SwitchOrganizationRequest(null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     private static async Task<string?> ErrorCodeAsync(HttpResponseMessage response)

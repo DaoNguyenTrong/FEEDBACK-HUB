@@ -1,8 +1,14 @@
 <script setup lang="ts">
+import type { ExternalLoginResponse } from '@/api/types'
+
 const { t } = useI18n()
 const clientId = getRuntimeConfig().googleClientId
 const ready = ref(false)
-const { error, showResendVerification, handleCredential } = useGoogleAuth()
+const props = defineProps<{
+  /** Takes over after a successful sign-in; without it the app goes to the redirect target or home. */
+  onSignedIn?: (response: ExternalLoginResponse) => void | Promise<void>
+}>()
+const { error, showResendVerification, handleCredential } = useGoogleAuth(props.onSignedIn)
 
 let scriptPromise: Promise<void> | null = null
 

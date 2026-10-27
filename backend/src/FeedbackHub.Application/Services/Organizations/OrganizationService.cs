@@ -11,23 +11,31 @@ namespace FeedbackHub.Application.Services.Organizations;
 public sealed class OrganizationService(
     IUnitOfWork unitOfWork,
     ICurrentUserService currentUserService,
-    ITenantAccessService tenantAccessService,
-    IPermissionResolver permissionResolver,
     IRoleService roleService) : IOrganizationService
 {
     public async Task<OrganizationDto> CreateAsync(CreateOrganizationRequest request, CancellationToken cancellationToken)
     {
         Guid accountId = GetCurrentAccountId();
 
-        string slug = request.Slug.Trim().ToLowerInvariant();
+        // BR-23: an account flagged for re-verification can still sign in, so being signed in proves nothing.
+        Account account = await unitOfWork.Repository<Account, Guid>().GetByIdAsync(accountId, cancellationToken)
+            ?? throw new UnauthorizedException(ApplicationMessages.AuthenticatedUserRequired);
+        if (!account.EmailConfirmed)
+        {
+            throw new ForbiddenException(ApplicationMessages.EmailNotConfirmed);
+        }
+
+        Organization organization = Organization.Create(new OrganizationParams(request.Name, request.Slug));
         IRepository<Organization, Guid> organizationRepository = unitOfWork.Repository<Organization, Guid>();
 
-        if (await organizationRepository.FirstOrDefaultAsync(o => o.Slug == slug, cancellationToken) is not null)
+        // Never names the organization holding the slug, whatever its status; the unique index backs this check.
+        Organization? slugHolder =
+            await organizationRepository.FirstOrDefaultAsync(o => o.Slug == organization.Slug, cancellationToken);
+        if (slugHolder is not null)
         {
             throw new ConflictException(ApplicationMessages.OrganizationSlugAlreadyExists);
         }
 
-        Organization organization = Organization.Create(new OrganizationParams(request.Name, request.Slug));
         await organizationRepository.AddAsync(organization, cancellationToken);
 
         IReadOnlyDictionary<SystemRoleKind, Role> systemRoles =
@@ -44,7 +52,8 @@ public sealed class OrganizationService(
 
         return new OrganizationDto(
             organization.Id, organization.Name, organization.Slug, organization.Status,
-            [ownerRole.Name], Permissions.All);
+            [ownerRole.Name], [RoleRefDto.From(ownerRole)],
+            SystemRoleDefaults.EffectivePermissionCodes(SystemRoleKind.Owner, []));
     }
 
     public async Task<IReadOnlyList<OrganizationDto>> ListMineAsync(CancellationToken cancellationToken)
@@ -54,20 +63,27 @@ public sealed class OrganizationService(
         IReadOnlyList<OrganizationMember> memberships = await unitOfWork.Repository<OrganizationMember, Guid>()
             .ListAsync(m => m.AccountId == accountId && m.IsActive, cancellationToken);
 
-        Dictionary<Guid, List<Role>> rolesByMembershipId = await LoadRolesByMembershipIdAsync(
-            memberships.Select(m => m.Id).ToList(), cancellationToken);
+        if (memberships.Count == 0)
+        {
+            return [];
+        }
+
+        Dictionary<Guid, List<Role>> rolesByMembershipId =
+            await LoadRolesByMembershipIdAsync(memberships, cancellationToken);
 
         ILookup<Guid, string> permissionCodesByRoleId = await LoadPermissionCodesByRoleIdAsync(
             rolesByMembershipId.Values.SelectMany(roles => roles), cancellationToken);
 
-        IRepository<Organization, Guid> organizationRepository = unitOfWork.Repository<Organization, Guid>();
+        List<Guid> organizationIds = memberships.Select(m => m.OrganizationId).Distinct().ToList();
+        Dictionary<Guid, Organization> organizationById = (await unitOfWork.Repository<Organization, Guid>()
+                .ListAsync(o => organizationIds.Contains(o.Id), cancellationToken))
+            .ToDictionary(o => o.Id);
+
         List<OrganizationDto> result = [];
 
         foreach (OrganizationMember membership in memberships)
         {
-            Organization? organization = await organizationRepository.GetByIdAsync(membership.OrganizationId, cancellationToken);
-
-            if (organization is null)
+            if (!organizationById.TryGetValue(membership.OrganizationId, out Organization? organization))
             {
                 continue;
             }
@@ -75,7 +91,7 @@ public sealed class OrganizationService(
             List<Role> roles = rolesByMembershipId.GetValueOrDefault(membership.Id, []);
             bool isOwner = roles.Any(role => role.SystemRoleKind == SystemRoleKind.Owner);
             HashSet<string> permissionCodes = isOwner
-                ? [.. Permissions.All]
+                ? [.. SystemRoleDefaults.EffectivePermissionCodes(SystemRoleKind.Owner, [])]
                 : roles.SelectMany(role => permissionCodesByRoleId[role.Id]).ToHashSet();
 
             result.Add(new OrganizationDto(
@@ -84,60 +100,20 @@ public sealed class OrganizationService(
                 organization.Slug,
                 organization.Status,
                 roles.Select(role => role.Name).ToList(),
+                roles.Select(RoleRefDto.From).ToList(),
                 permissionCodes.ToList()));
         }
 
         return result;
     }
 
-    public async Task<IReadOnlyList<OrganizationMemberDto>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken)
-    {
-        IReadOnlyList<OrganizationMember> members = await unitOfWork.Repository<OrganizationMember, Guid>()
-            .ListAsync(m => m.OrganizationId == organizationId && m.IsActive, cancellationToken);
-
-        Dictionary<Guid, List<Role>> rolesByMembershipId = await LoadRolesByMembershipIdAsync(
-            members.Select(m => m.Id).ToList(), cancellationToken);
-
-        IRepository<Account, Guid> accountRepository = unitOfWork.Repository<Account, Guid>();
-        List<OrganizationMemberDto> result = [];
-
-        foreach (OrganizationMember member in members)
-        {
-            Account? account = await accountRepository.GetByIdAsync(member.AccountId, cancellationToken);
-
-            if (account is not null)
-            {
-                List<Role> roles = rolesByMembershipId.GetValueOrDefault(member.Id, []);
-                result.Add(new OrganizationMemberDto(
-                    account.Id,
-                    account.Name,
-                    account.Email,
-                    roles.Select(role => role.Id).ToList(),
-                    roles.Select(role => role.Name).ToList()));
-            }
-        }
-
-        return result;
-    }
-
-    public async Task DeactivateAsync(Guid organizationId, CancellationToken cancellationToken)
-    {
-        IRepository<Organization, Guid> organizationRepository = unitOfWork.Repository<Organization, Guid>();
-        Organization organization = await organizationRepository.GetByIdAsync(organizationId, cancellationToken)
-            ?? throw new NotFoundException(nameof(Organization), organizationId);
-
-        organization.Deactivate();
-        organizationRepository.Update(organization);
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        await tenantAccessService.InvalidateOrganizationAsync(organizationId, cancellationToken);
-        await permissionResolver.InvalidateOrganizationAsync(organizationId, cancellationToken);
-    }
-
     private async Task<Dictionary<Guid, List<Role>>> LoadRolesByMembershipIdAsync(
-        IReadOnlyList<Guid> membershipIds, CancellationToken cancellationToken)
+        IReadOnlyList<OrganizationMember> memberships, CancellationToken cancellationToken)
     {
-        Dictionary<Guid, List<Role>> result = membershipIds.ToDictionary(id => id, _ => new List<Role>());
+        Dictionary<Guid, List<Role>> result = memberships.ToDictionary(m => m.Id, _ => new List<Role>());
+        Dictionary<Guid, Guid> organizationIdByMembershipId =
+            memberships.ToDictionary(m => m.Id, m => m.OrganizationId);
+        List<Guid> membershipIds = [.. result.Keys];
 
         if (membershipIds.Count == 0)
         {
@@ -157,7 +133,9 @@ public sealed class OrganizationService(
 
         foreach (OrganizationMemberRole memberRole in memberRoles)
         {
-            if (roleById.TryGetValue(memberRole.RoleId, out Role? role))
+            // No foreign key ties a member-role link to the member's organization, so a crossing link grants nothing.
+            if (roleById.TryGetValue(memberRole.RoleId, out Role? role)
+                && role.OrganizationId == organizationIdByMembershipId[memberRole.OrganizationMemberId])
             {
                 result[memberRole.OrganizationMemberId].Add(role);
             }

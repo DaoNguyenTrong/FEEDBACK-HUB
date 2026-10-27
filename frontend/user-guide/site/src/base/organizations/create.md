@@ -1,37 +1,44 @@
 ---
 title: Tạo tổ chức
-description: 'Tạo một tổ chức mới và trở thành chủ tổ chức.'
+description: 'Tạo một tổ chức mới và trở thành Chủ sở hữu của nó.'
 ---
 
 # Tạo tổ chức
 
-Tạo tổ chức khi nhóm hay đơn vị của bạn cần một không gian làm việc chung. Ai đã đăng nhập cũng tạo được, và người tạo trở thành chủ tổ chức (vai trò **Owner**).
+Tạo tổ chức khi nhóm hay đơn vị của bạn cần một không gian làm việc chung. Người tạo trở thành **Chủ sở hữu** của tổ chức.
+
+## Trước khi bắt đầu
+
+- Email của bạn đã được [xác minh](../getting-started/verify-email).
 
 ## Các bước
 
-1. Bấm **Tổ chức** ở thanh bên.
-2. Bấm **Tạo tổ chức** ở góc trên phải.
-3. Nhập **Tên** của tổ chức.
-4. Nhập **Định danh**: tên ngắn, không trùng với tổ chức nào khác, chỉ gồm chữ thường không dấu, số và dấu gạch ngang. Ví dụ `phong-kinh-doanh`.
-5. Bấm **Lưu**.
+1. Bấm nút ghi tên tổ chức ở góc trên bên trái, rồi bấm **Tạo tổ chức**. Nếu đang ở [trang chào](./welcome), bấm **Tạo tổ chức mới**.
+2. Nhập **Tên tổ chức**.
+3. Xem **Định danh ngắn**. Ứng dụng gợi ý từ tên bạn vừa gõ. Bạn sửa được; khi đã tự gõ vào ô này, tên không ghi đè lên nữa.
+4. Bấm **Tạo tổ chức**.
 
 <figure>
 
-![Hộp thoại Tạo tổ chức mới](/base/images/vi/organizations/create.jpg)
+![Bảng Tạo tổ chức](/base/images/vi/organizations/create.jpg)
 
-<figcaption>Hộp thoại Tạo tổ chức mới</figcaption>
+<figcaption>Bảng Tạo tổ chức</figcaption>
 </figure>
 
-| #   | Thành phần      |
-| --- | --------------- |
-| 1   | Ô **Tên**       |
-| 2   | Ô **Định danh** |
-| 3   | Nút **Lưu**     |
+| #   | Thành phần           |
+| --- | -------------------- |
+| 1   | Ô **Tên tổ chức**    |
+| 2   | Ô **Định danh ngắn** |
+| 3   | Nút **Tạo tổ chức**  |
+
+**Định danh ngắn** gồm chữ a–z, số 0–9 và dấu "-", bắt đầu và kết thúc bằng chữ hoặc số, không có hai dấu "-" liền nhau, dài từ 3 đến 50 ký tự. Định danh không đổi được sau khi tạo.
 
 ## Kết quả
 
-Ứng dụng báo **Đã tạo tổ chức** và mở ngay hộp thoại thành viên của tổ chức mới, để bạn [thêm thành viên](./add-member). Tổ chức có sẵn ba vai trò hệ thống: **Owner**, **Admin** và **Member**. Muốn làm việc trong tổ chức mới, [chuyển sang nó](./switch).
+Trang tải lại và bạn vào thẳng tổ chức mới; tên tổ chức hiện ở góc trên bên trái. Tổ chức có sẵn ba vai trò: **Chủ sở hữu**, **Admin** và **Member**, và bạn giữ vai trò **Chủ sở hữu**.
 
 ## Sự cố thường gặp
 
-- **Báo định danh đã tồn tại**: đã có tổ chức dùng định danh này. Chọn định danh khác.
+- **Báo "Định danh này đã được dùng."**: đã có tổ chức dùng định danh này. Chọn định danh khác.
+- **Báo "Bạn cần xác minh email trước khi làm việc này."**: bấm **Gửi lại email xác thực**, mở liên kết trong thư rồi tạo lại.
+- **Báo "Nhập tên tổ chức."**: ô **Tên tổ chức** đang trống.

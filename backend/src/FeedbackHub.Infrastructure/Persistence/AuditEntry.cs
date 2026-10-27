@@ -43,7 +43,8 @@ internal sealed class AuditEntry(EntityEntry entry)
             OrganizationId = (Entry.Entity as IHasOrganization)?.OrganizationId,
             IpAddress = IpAddress,
             UserAgent = UserAgent,
-            Timestamp = timestamp
+            Timestamp = timestamp,
+            Kind = AuditLogKind.Change
         };
     }
 }

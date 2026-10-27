@@ -12,10 +12,10 @@ const health = useHealthStore()
     </div>
     <div class="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-2xl items-center justify-center">
       <div
-        class="relative w-full rounded-3xl border border-surface-200 bg-surface-0 px-6 py-10 text-center shadow-[0_20px_55px_rgba(0,39,67,0.08)] dark:border-surface-800 dark:bg-surface-900 sm:px-10"
+        class="relative w-full rounded-xl border border-surface-200 bg-surface-0 px-6 py-10 text-center shadow-[0_20px_55px_var(--shadow-panel)] dark:border-surface-800 dark:bg-surface-900 sm:px-10"
       >
         <div
-          class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-xl font-semibold text-red-700 ring-1 ring-red-100 dark:bg-red-950/60 dark:text-red-200 dark:ring-red-900/70"
+          class="mx-auto flex h-16 w-16 items-center justify-center rounded-lg bg-red-50 text-xl font-semibold text-red-700 ring-1 ring-red-100 dark:bg-red-950/60 dark:text-red-200 dark:ring-red-900/70"
         >
           500
         </div>

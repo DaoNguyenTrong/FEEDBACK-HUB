@@ -1,17 +1,45 @@
-# Production, single-instance by default (CacheSettings:Provider=Memory, RealtimeSettings:Backplane=None).
-# This file does not run a Redis container — Redis is expected to be provided by the deploy environment.
-# To scale `api` beyond 1 replica: point ConnectionStrings:Redis at a Redis reachable from this compose
-# network (a managed service, or a host Redis via host.docker.internal + an `extra_hosts` entry on `api`),
-# then set CacheSettings:Provider=Redis and RealtimeSettings:Backplane=Redis in appsettings.json.
-# Use `abortConnect=false` in the connection string so `api` doesn't crash on boot if Redis lags.
+# Production, multi-instance ready: several `api` replicas share Redis (cache, SignalR backplane, rate
+# limits) and MinIO AIStor Free, single node (uploaded files). Redis and MinIO are required, not optional; the
+# API refuses to start in Production without them (ProductionTopologyValidator).
+#
+# Services: postgres, redis (noeviction, see .claude/decisions.md 2026-10-16), minio, a one-shot
+# `migrate` (applies EF migrations, then exits), api, web. `api` starts only after `migrate` succeeded and
+# runs with DatabaseSettings:MigrateOnStartup=false, so replicas never race on the schema.
 #
 # Setup:
 #   cp backend/src/FeedbackHub.API/appsettings.Example.json backend/src/FeedbackHub.API/appsettings.json
 #   # then edit appsettings.json: ConnectionStrings (Host=postgres), JwtSettings, CorsSettings,
-#   # EmailSettings, ExternalAuthSettings, FcmSettings with real production values
+#   # EmailSettings, ExternalAuthSettings, FcmSettings with real production values. The operator must set
+#   # EmailSettings:SecureSocket (SslOnConnect or StartTls) there.
 #   cp .env.prod.example .env.prod
-#   # then edit .env.prod: POSTGRES_USER/PASSWORD/DB
+#   # then edit .env.prod: POSTGRES_USER/PASSWORD/DB, MINIO_ROOT_USER/PASSWORD (also the API's MinIO keys)
+#   # and MINIO_LICENSE_FILE, the AIStor Free licence file (default ./minio.license, never committed).
+#   # MinIO publishes no port: the API reaches it on the compose network, browsers read public/ files through
+#   # `web` (/storage/public/).
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Configuration: the environment values below override appsettings.json, so to change the Redis or storage
+# endpoints edit this file or .env.prod, not appsettings.json. `migrate` and `api` share them (x-api-env).
+#
+# Scaling: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --scale api=N`.
+# `web`'s nginx proxies to `api:8080`; Docker DNS returns every replica, but nginx resolves the name once at
+# start and keeps those addresses. Restart `web` after scaling or redeploying `api` or `minio`
+# (`docker compose ... restart web`) so it sees the current addresses; `minio` must be running when `web`
+# restarts, or nginx cannot resolve the name and does not start.
+
+# Shared by `migrate` and `api`, so both build the host from the same configuration. `migrate` ignores
+# MigrateOnStartup: it always applies the migrations, then exits.
+x-api-env: &api-env
+  ASPNETCORE_ENVIRONMENT: Production
+  CacheSettings__Provider: Redis
+  RealtimeSettings__Backplane: Redis
+  RateLimiterSettings__Store: Redis
+  ConnectionStrings__Redis: redis:6379,abortConnect=false
+  StorageSettings__Provider: MinIO
+  MinioSettings__ServiceUrl: http://minio:9000
+  MinioSettings__AccessKey: ${MINIO_ROOT_USER}
+  MinioSettings__SecretKey: ${MINIO_ROOT_PASSWORD}
+  DatabaseSettings__MigrateOnStartup: "false"
 
 services:
   postgres:
@@ -29,21 +57,74 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:8-alpine
+    # noeviction is mandatory: cache generation counters must never be evicted (decisions.md 2026-10-16).
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - feedbackhub-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # AIStor Free: single node, no at-rest encryption (use host disk encryption if needed). Exits at start-up
+  # without the licence file.
+  minio:
+    image: quay.io/minio/aistor/minio:RELEASE.2026-09-19T17-05-25Z
+    command: server /data --console-address ":9001" --license /minio.license
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - feedbackhub-minio-data:/data
+      - ${MINIO_LICENSE_FILE:-./minio.license}:/minio.license:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot: applies EF migrations with the api image, then exits. `api` waits for it to complete.
+  migrate:
+    image: feedbackhub-api:prod
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["migrate"]
+    environment:
+      <<: *api-env
+    volumes:
+      - ./backend/src/FeedbackHub.API/appsettings.json:/app/appsettings.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
+    image: feedbackhub-api:prod
     build:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      <<: *api-env
       # Trusts X-Forwarded-For/Proto only from this compose network (the nginx `web` service) —
       # must match the `default` network subnet declared below.
       ForwardedHeadersSettings__KnownNetworks__0: 172.28.0.0/16
     volumes:
       - ./backend/src/FeedbackHub.API/appsettings.json:/app/appsettings.json:ro
-      - feedbackhub-api-uploads:/app/uploads
       - feedbackhub-api-logs:/app/logs
     depends_on:
       postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     # /api/health answers without the database or the X-TimeZone header. The aspnet image has no curl/wget,
     # so bash's /dev/tcp sends the one request. The Host header must pass AllowedHosts if you narrow it.
@@ -59,7 +140,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 60s # migrations run on startup
+      start_period: 20s # migrations run in the `migrate` service
     restart: unless-stopped
 
   web:
@@ -103,5 +184,6 @@ networks:
 
 volumes:
   feedbackhub-postgres-data:
-  feedbackhub-api-uploads:
+  feedbackhub-redis-data:
+  feedbackhub-minio-data:
   feedbackhub-api-logs:

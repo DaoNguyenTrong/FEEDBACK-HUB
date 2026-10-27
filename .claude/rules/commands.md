@@ -30,7 +30,7 @@ dotnet ef database update --project backend/src/FeedbackHub.Infrastructure --sta
 dotnet ef migrations add <MigrationName> --project backend/src/FeedbackHub.Infrastructure --startup-project backend/src/FeedbackHub.API
 ```
 
-In production, migrations are applied automatically on startup via `Database.MigrateAsync` unless `DatabaseSettings:MigrateOnStartup` is `false` — set it on every instance of a multi-instance deploy, and run the `migrate` command below once first, so instances starting together don't each run the same migration.
+In production, migrations never run on API startup: `DatabaseSettings:MigrateOnStartup` must be `false` (the production validator refuses to start otherwise), and the one-shot `migrate` service in `docker-compose.prod.yml` runs the `migrate` command below once before any API instance starts. Outside Development and Production (e.g. Staging), an API with that key `true` still applies migrations on startup via `Database.MigrateAsync`.
 
 ### One-shot CLI commands
 
@@ -39,6 +39,10 @@ In production, migrations are applied automatically on startup via `Database.Mig
 dotnet run --project backend/src/FeedbackHub.API -- migrate
 # In the production image
 dotnet FeedbackHub.API.dll migrate
+# Make or stop being a system administrator, by verified email. Idempotent (0 = done or nothing to do,
+# 1 = bad usage, 2 = no account has this email, 3 = the account's email is not verified)
+dotnet run --project backend/src/FeedbackHub.API -- grant-system-admin --email <email>
+dotnet run --project backend/src/FeedbackHub.API -- revoke-system-admin --email <email>
 ```
 
 `Program.cs` hands the arguments to `CliCommands.TryRunAsync` right after `Build()`: a first argument naming a registered `ICliCommand` (`backend/src/FeedbackHub.API/Commands/`) runs that command with the API's configuration and DI, in a scope of its own, and the process exits with its code — the web host, Hangfire and storage never start. Anything else (no arguments, host switches like `--urls`) starts the API as usual. New seed/import/admin commands implement `ICliCommand`, call Application services (the Infrastructure-only-in-`Program.cs` architecture rule applies to them too), and are added to `CliCommands.All`; exit code 1 means bad usage and prints the usage line.

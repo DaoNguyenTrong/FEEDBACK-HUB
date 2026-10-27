@@ -1,3 +1,4 @@
+using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Resources;
 using FeedbackHub.Domain.Entities;

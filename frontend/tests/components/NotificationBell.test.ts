@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
-import { NButton } from 'naive-ui'
 import NotificationBell from '@/components/NotificationBell.vue'
 import { renderComponent } from '../helpers/render'
 import { server } from '../../tests/helpers/msw/server'
@@ -53,17 +52,15 @@ describe('NotificationBell', () => {
     expect(wrapper.text().includes('5')).toBe(badgeShown)
   })
 
-  it('turns the bell icon white on the brand menu bar only', async () => {
+  it('keeps a 44 px bell target below the desktop width', async () => {
     server.use(http.get('*/api/notifications', emptyList))
-    const brand = await renderComponent(NotificationBell, {
-      props: { tone: 'on-brand' },
+    const { wrapper } = await renderComponent(NotificationBell, {
+      initialState: { notifications: { unreadCount: 0 } },
       global: { stubs: { teleport: true } },
     })
-    expect(brand.wrapper.getComponent(NButton).props('color')).toBe('#ffffff')
-    brand.wrapper.unmount()
 
-    const plain = await renderComponent(NotificationBell, { global: { stubs: { teleport: true } } })
-    expect(plain.wrapper.getComponent(NButton).props('color')).toBeUndefined()
+    const bell = wrapper.get(`button[aria-label="${i18n.global.t('notifications.title')}"]`)
+    expect(bell.classes()).toContain('max-desktop:size-11!')
   })
 
   it('shows the empty state when the list has no notifications', async () => {

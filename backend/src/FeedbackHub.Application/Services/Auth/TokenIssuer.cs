@@ -1,8 +1,12 @@
 using Microsoft.Extensions.Options;
+using FeedbackHub.Application.Common;
 using FeedbackHub.Application.Common.Interfaces;
 using FeedbackHub.Application.Common.Settings;
 using FeedbackHub.Application.Services.Accounts;
+using FeedbackHub.Application.Services.SystemAdministrators;
+using FeedbackHub.Application.Resources;
 using FeedbackHub.Domain.Entities;
+using FeedbackHub.Domain.Exceptions;
 
 namespace FeedbackHub.Application.Services.Auth;
 
@@ -10,6 +14,7 @@ internal sealed class TokenIssuer(
     IUnitOfWork unitOfWork,
     IJwtTokenService jwtTokenService,
     IPermissionResolver permissionResolver,
+    ISystemAdministratorResolver systemAdministratorResolver,
     IOptions<JwtSettings> jwtOptions,
     IOptions<StorageSettings> storageOptions) : ITokenIssuer
 {
@@ -20,8 +25,17 @@ internal sealed class TokenIssuer(
     {
         IReadOnlyList<OrganizationMember> memberships = await unitOfWork.Repository<OrganizationMember, Guid>()
             .ListAsync(m => m.AccountId == accountId && m.IsActive, cancellationToken);
+        if (memberships.Count == 0)
+        {
+            return null;
+        }
 
-        return memberships.Count == 1 ? memberships[0].OrganizationId : null;
+        // A suspended organization is never entered by default, so one active among suspended ones still wins (QĐ-26).
+        List<Guid> organizationIds = memberships.Select(m => m.OrganizationId).ToList();
+        IReadOnlyList<Organization> activeOrganizations = await unitOfWork.Repository<Organization, Guid>()
+            .ListAsync(o => organizationIds.Contains(o.Id) && o.Status, cancellationToken);
+
+        return activeOrganizations.Count == 1 ? activeOrganizations[0].Id : null;
     }
 
     public async Task<AuthResult> IssueTokensAsync(
@@ -34,6 +48,13 @@ internal sealed class TokenIssuer(
         Guid? familyId,
         CancellationToken cancellationToken)
     {
+        // The one place every sign-in path passes through, so a locked account gets no session from any of them.
+        // The login message, not a lock-specific one: it must not say more about the account than "invalid" does.
+        if (!account.Status)
+        {
+            throw new UnauthorizedException(ApplicationMessages.InvalidUsernameOrPassword);
+        }
+
         // A rotated token stays in its login's family, so the family is the session; a new login starts a new one.
         Guid sessionId = familyId is { } existingFamily && existingFamily != Guid.Empty ? existingFamily : Guid.NewGuid();
         string accessToken = jwtTokenService.GenerateAccessToken(account, organizationId, sessionId);
@@ -63,6 +84,9 @@ internal sealed class TokenIssuer(
             ? (await permissionResolver.GetEffectivePermissionsAsync(permissionOrgId, account.Id, cancellationToken)).ToList()
             : [];
 
+        bool isSystemAdministrator =
+            await systemAdministratorResolver.IsSystemAdministratorAsync(account.Id, cancellationToken);
+
         return new AuthResult(
             accessToken,
             refreshToken,
@@ -74,6 +98,7 @@ internal sealed class TokenIssuer(
             isPersistent,
             organizationId,
             organizationName,
-            permissions);
+            permissions,
+            isSystemAdministrator);
     }
 }

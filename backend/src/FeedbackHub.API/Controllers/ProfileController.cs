@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using FeedbackHub.Application.Services.Accounts;
 
 namespace FeedbackHub.API.Controllers;
@@ -22,9 +23,11 @@ public sealed class ProfileController(IAccountService accountService) : Controll
 
     /// <summary>Updates the profile of the currently authenticated user.</summary>
     [HttpPut]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(ProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ProfileDto>> Update(
         UpdateProfileRequest request,
         CancellationToken cancellationToken)
@@ -32,6 +35,30 @@ public sealed class ProfileController(IAccountService accountService) : Controll
         ProfileDto profile = await accountService.UpdateCurrentProfileAsync(request, cancellationToken);
 
         return Ok(profile);
+    }
+
+    /// <summary>Mails a new confirmation link for the pending email change.</summary>
+    [HttpPost("email/resend")]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ResendEmailChange(CancellationToken cancellationToken)
+    {
+        await accountService.ResendEmailChangeAsync(cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>Cancels the pending email change, if any.</summary>
+    [HttpDelete("email/pending")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CancelEmailChange(CancellationToken cancellationToken)
+    {
+        await accountService.CancelEmailChangeAsync(cancellationToken);
+
+        return NoContent();
     }
 
     /// <summary>

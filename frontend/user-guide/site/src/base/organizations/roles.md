@@ -1,84 +1,62 @@
 ---
-title: Quản lý vai trò
-description: 'Tạo, sửa và xoá vai trò, và chọn quyền cho từng vai trò.'
+title: Vai trò
+description: 'Xem các vai trò của tổ chức, tạo, sửa hoặc xoá vai trò tự tạo.'
 permission: organizations.roles.manage
 ---
 
-# Quản lý vai trò
+# Vai trò
 
-Vai trò là một nhóm quyền. Bạn giao vai trò cho thành viên thay vì giao từng quyền. Tạo vai trò riêng khi các vai trò có sẵn không khớp với cách nhóm bạn làm việc.
+Vai trò là một nhóm quyền giao cho thành viên. Tổ chức nào cũng có sẵn ba vai trò **Chủ sở hữu**, **Admin** và **Member**; bạn tạo thêm vai trò riêng khi cần.
 
-## Vai trò hệ thống
+## Trước khi bắt đầu
 
-Mỗi tổ chức có sẵn ba vai trò có nhãn **Hệ thống**. Không sửa hay xoá được chúng.
+- Đã chọn đúng tổ chức (xem [chuyển tổ chức](./switch)).
 
-| Vai trò    | Quyền                                              |
-| ---------- | -------------------------------------------------- |
-| **Owner**  | Chủ tổ chức, luôn có mọi quyền                     |
-| **Admin**  | **Quản lý thành viên**                             |
-| **Member** | Không có quyền quản lý; chỉ làm việc trong tổ chức |
+## Xem danh sách vai trò
 
-## Các quyền
+Bấm **Thành viên** ở thanh bên, rồi bấm tab **Vai trò**. Mỗi dòng có tên vai trò, các quyền của nó và số người đang giữ ("… người"). Vai trò **Chủ sở hữu** ghi "Mọi quyền"; vai trò chưa có quyền nào ghi "Không có quyền nào".
 
-| Quyền                  | Cho phép                                                                |
-| ---------------------- | ----------------------------------------------------------------------- |
-| **Quản lý tổ chức**    | [Ngưng hoạt động tổ chức](./deactivate)                                 |
-| **Quản lý thành viên** | [Thêm](./add-member), đổi vai trò và [xoá thành viên](./manage-members) |
-| **Quản lý vai trò**    | Tạo, sửa và xoá vai trò (trang này)                                     |
-
-::: warning
-Quyền **Quản lý tổ chức** cho phép ngưng hoạt động tổ chức, việc không thể hoàn tác. Chỉ giao nó cho người thật sự cần.
-:::
-
-Các quyền **Quản lý tệp**, **Quản lý khoá API**, **Xem nhật ký hoạt động** và **Quản lý cài đặt** chỉ có tác dụng khi hệ thống của bạn có các chức năng tương ứng.
-
-## Xem vai trò
-
-1. Bấm **Tổ chức** ở thanh bên.
-2. Ở dòng của tổ chức, bấm nút **Vai trò** (biểu tượng bánh răng).
-
-<figure>
-
-![Hộp thoại vai trò của tổ chức](/base/images/vi/organizations/roles.jpg)
-
-<figcaption>Hộp thoại vai trò</figcaption>
-</figure>
-
-| #   | Thành phần                                     |
-| --- | ---------------------------------------------- |
-| 1   | Nhãn **Hệ thống**: vai trò không sửa, xoá được |
-| 2   | Nút **Sửa vai trò**                            |
-| 3   | Nút xoá vai trò                                |
-| 4   | Nút **Tạo vai trò**                            |
+Dòng ghi **Chỉ xem** là vai trò bạn không sửa được. Vai trò có sẵn không sửa hay xoá được. Vai trò tự tạo mà bạn không có đủ mọi quyền trong đó cũng chỉ xem được: "Bạn không có đủ mọi quyền trong vai trò này nên chỉ xem được."
 
 ## Tạo vai trò
 
-1. Trong hộp thoại vai trò, bấm **Tạo vai trò**.
-2. Nhập **Tên** của vai trò.
-3. Ở mục **Quyền**, đánh dấu các quyền vai trò này được có.
-4. Bấm **Lưu**.
+1. Bấm **Tạo vai trò** ở góc trên phải (**Tạo** trên điện thoại). Bảng **Tạo vai trò** mở ra.
+2. Nhập **Tên vai trò** (tối đa 100 ký tự).
+3. Ở mục **Quyền**, tick các quyền vai trò này có. Bạn chỉ chọn được quyền mà bạn có.
+4. Bấm **Tạo vai trò**. Bấm **Hủy** để bỏ.
 
-<figure>
+## Sửa vai trò
 
-![Hộp thoại Tạo vai trò](/base/images/vi/organizations/role-form.jpg)
+1. Ở dòng của vai trò, bấm nút ba chấm (**Thao tác với vai trò** tên vai trò) rồi chọn **Sửa vai trò**.
+2. Đổi tên hoặc các quyền.
+3. Bấm **Lưu**.
 
-<figcaption>Hộp thoại Tạo vai trò</figcaption>
-</figure>
+## Xoá vai trò
 
-| #   | Thành phần          |
-| --- | ------------------- |
-| 1   | Ô **Tên**           |
-| 2   | Danh sách **Quyền** |
-| 3   | Nút **Lưu**         |
+1. Ở dòng của vai trò, bấm nút ba chấm rồi chọn **Xoá vai trò**.
+2. Ứng dụng hỏi "Xoá vai trò …?". Nếu có lời mời đang chờ với vai trò này, ứng dụng báo chúng sẽ không dùng được nữa. Bấm **Xoá vai trò** để xác nhận.
 
-Ứng dụng báo **Đã tạo vai trò**. Vai trò mới có thể chọn ngay khi thêm thành viên hoặc đổi vai trò.
+## Các quyền
 
-## Sửa hoặc xoá vai trò
+| Quyền                     | Cho phép                                      |
+| ------------------------- | --------------------------------------------- |
+| **Quản lý tổ chức**       | Đổi tên tổ chức và vô hiệu tổ chức.           |
+| **Quản lý thành viên**    | Mời, gỡ thành viên và đổi vai trò của họ.     |
+| **Quản lý vai trò**       | Tạo, sửa và xoá các vai trò tự tạo.           |
+| **Quản lý khoá API**      | Tạo và thu hồi khoá API của tổ chức.          |
+| **Xem nhật ký kiểm toán** | Xem lại ai đã làm gì trong tổ chức.           |
+| **Quản lý file**          | Quản lý các file đã tải lên của tổ chức.      |
+| **Quản lý cài đặt**       | Đổi các cài đặt chung của tổ chức.            |
+| **Quản trị FeedbackHub**  | Quản lý sản phẩm và mọi feedback của tổ chức. |
 
-- **Sửa**: bấm nút **Sửa vai trò** (biểu tượng cây bút) ở dòng của vai trò, đổi tên hoặc quyền, rồi bấm **Lưu**.
-- **Xoá**: bấm nút thùng rác ở dòng của vai trò, rồi bấm **Xác nhận**. Thành viên chỉ giữ vai trò này sẽ không còn vai trò nào; hãy [giao lại vai trò](./manage-members) cho họ.
+## Kết quả
+
+Ứng dụng báo "Đã tạo vai trò …", "Đã lưu vai trò …" hoặc "Đã xoá vai trò …", và danh sách cập nhật.
 
 ## Sự cố thường gặp
 
-- **Không thấy nút Vai trò ở dòng tổ chức**: bạn không có quyền **Quản lý vai trò** trong tổ chức đó.
-- **Vai trò không có nút sửa, xoá**: đó là vai trò **Hệ thống**.
+- **Báo "Nhập tên vai trò."**: ô **Tên vai trò** đang trống.
+- **Báo "Tên này đã có trong tổ chức."**: chọn tên khác.
+- **Báo "Tên này trùng tên một vai trò có sẵn."**: chọn tên khác với **Chủ sở hữu**, **Admin** và **Member**.
+- **Mục Xoá vai trò bị tắt và dòng ghi "Vai trò còn … người giữ. Đổi vai trò của họ hoặc gỡ họ khỏi tổ chức trước."**: đổi vai trò của những người đó trong trang [Thành viên](./members), hoặc gỡ họ, rồi xoá lại.
+- **Một quyền bị tắt trong danh sách**: bạn không có quyền đó nên không giao được.

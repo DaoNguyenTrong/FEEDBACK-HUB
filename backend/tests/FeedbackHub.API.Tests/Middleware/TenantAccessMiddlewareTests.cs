@@ -1,6 +1,10 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using FeedbackHub.API.Tests.TestSupport;
+using FeedbackHub.Application.Resources;
+using FeedbackHub.Application.Services.Organizations;
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Infrastructure.Persistence;
 
@@ -98,5 +102,147 @@ public sealed class TenantAccessMiddlewareTests(ApiFactoryFixture fixture) : IAs
         HttpResponseMessage response = await client.GetAsync("/api/organizations");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private async Task<(Account Account, Organization Organization)> SeedAsync(
+        bool member, bool memberLeft = false, bool organizationSuspended = false)
+    {
+        await using AppDbContext context = CreateDbContext();
+        Account account = await AuthTestHelper.SeedConfirmedAccountAsync(
+            context, username: $"tenant-{Guid.NewGuid():N}", email: $"tenant-{Guid.NewGuid():N}@example.com");
+        Organization organization = await AuthTestHelper.SeedOrganizationAsync(context, name: "Suspended Co");
+
+        if (member)
+        {
+            OrganizationMember membership =
+                await AuthTestHelper.SeedOrganizationMemberAsync(context, organization.Id, account.Id);
+            if (memberLeft)
+            {
+                membership.Deactivate();
+                context.OrganizationMembers.Update(membership);
+            }
+        }
+
+        if (organizationSuspended)
+        {
+            organization.Deactivate(new DeactivationParams(account.Id, false, null, DateTime.UtcNow));
+            context.Organizations.Update(organization);
+        }
+
+        await context.SaveChangesAsync();
+
+        return (account, organization);
+    }
+
+    private HttpClient CreateClientFor(Account account, Guid organizationId)
+    {
+        HttpClient client = fixture.CreateTestClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", AuthTestHelper.MintAccessToken(account, organizationId));
+        return client;
+    }
+
+    // AC-320, AC-183: the member of a suspended organization learns which one, beside the code.
+    [Fact]
+    public async Task TenantAccess_SuspendedOrganizationMember_Returns403SuspendedWithName()
+    {
+        (Account account, Organization organization) = await SeedAsync(member: true, organizationSuspended: true);
+        HttpClient client = CreateClientFor(account, organization.Id);
+
+        HttpResponseMessage response = await client.GetAsync("/api/notifications");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(403, body.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, body.RootElement.GetProperty("code").GetString());
+        Assert.Equal(organization.Name, body.RootElement.GetProperty("organizationName").GetString());
+        Assert.False(body.RootElement.TryGetProperty("extensions", out _));
+    }
+
+    // AC-320: someone removed from the organization never learns its name or that it is suspended.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TenantAccess_RemovedMember_Returns403AccessDeniedWithoutName(bool organizationSuspended)
+    {
+        (Account account, Organization organization) =
+            await SeedAsync(member: true, memberLeft: true, organizationSuspended: organizationSuspended);
+        HttpClient client = CreateClientFor(account, organization.Id);
+
+        HttpResponseMessage response = await client.GetAsync("/api/notifications");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        string raw = await response.Content.ReadAsStringAsync();
+        using JsonDocument body = JsonDocument.Parse(raw);
+        Assert.Equal(ApplicationMessages.OrganizationAccessDenied, body.RootElement.GetProperty("code").GetString());
+        Assert.False(body.RootElement.TryGetProperty("organizationName", out _));
+        Assert.DoesNotContain(organization.Name, raw);
+    }
+
+    // Paths no phase maps: whatever answers them, it is not this gate.
+    [Theory]
+    [InlineData("/api/system/__probe")]
+    [InlineData("/api/invitations/__probe/__probe")]
+    public async Task TenantAccess_SystemAndInvitationsPaths_AreExempt(string path)
+    {
+        (Account account, Organization organization) = await SeedAsync(member: true, organizationSuspended: true);
+        HttpClient client = CreateClientFor(account, organization.Id);
+
+        HttpResponseMessage response = await client.GetAsync(path);
+
+        string raw = await response.Content.ReadAsStringAsync();
+        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.DoesNotContain(ApplicationMessages.OrganizationAccessDenied, raw);
+        Assert.DoesNotContain(ApplicationMessages.OrganizationSuspended, raw);
+    }
+
+    // List and create must work once the token's organization is suspended or the membership is gone: that is how
+    // the client recovers (switches to another organization or creates one).
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task TenantAccess_OrganizationsPath_IsExempt(bool organizationSuspended, bool memberLeft)
+    {
+        (Account account, Organization organization) =
+            await SeedAsync(member: true, memberLeft: memberLeft, organizationSuspended: organizationSuspended);
+        HttpClient client = CreateClientFor(account, organization.Id);
+
+        HttpResponseMessage list = await client.GetAsync("/api/organizations");
+        HttpResponseMessage listWithSlash = await client.GetAsync("/api/organizations/");
+        HttpResponseMessage create = await client.PostAsJsonAsync(
+            "/api/organizations", new CreateOrganizationRequest("Công ty Mới", $"moi-{Guid.NewGuid():N}"));
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, listWithSlash.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+    }
+
+    // Only the list-and-create path itself is exempt; a route added under it is gated like any other.
+    [Theory]
+    [InlineData("/api/organizations/export")]
+    [InlineData("/api/organizations/__probe/__probe")]
+    public async Task TenantAccess_OrganizationsSubroute_IsNotExempt(string path)
+    {
+        (Account account, Organization organization) = await SeedAsync(member: true, organizationSuspended: true);
+        HttpClient client = CreateClientFor(account, organization.Id);
+
+        HttpResponseMessage response = await client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, body.RootElement.GetProperty("code").GetString());
+    }
+
+    // "/api/organizations" is exempt by exact path, so the singular path stays gated.
+    [Fact]
+    public async Task TenantAccess_SingularOrganizationPath_IsNotExempt()
+    {
+        (Account account, Organization organization) = await SeedAsync(member: true, organizationSuspended: true);
+        HttpClient client = CreateClientFor(account, organization.Id);
+
+        HttpResponseMessage response = await client.GetAsync("/api/organization/__probe");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(ApplicationMessages.OrganizationSuspended, body.RootElement.GetProperty("code").GetString());
     }
 }

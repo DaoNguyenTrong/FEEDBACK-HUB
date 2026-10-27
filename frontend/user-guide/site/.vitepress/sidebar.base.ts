@@ -37,13 +37,11 @@ export const baseChapters: Chapter[] = [
     items: [
       { slug: 'switch', text: { vi: 'Chuyển tổ chức', en: 'Switch organization' } },
       { slug: 'create', text: { vi: 'Tạo tổ chức', en: 'Create an organization' } },
-      { slug: 'add-member', text: { vi: 'Thêm thành viên', en: 'Add a member' } },
-      { slug: 'manage-members', text: { vi: 'Quản lý thành viên', en: 'Manage members' } },
-      { slug: 'roles', text: { vi: 'Quản lý vai trò', en: 'Manage roles' } },
-      {
-        slug: 'deactivate',
-        text: { vi: 'Ngưng hoạt động tổ chức', en: 'Deactivate an organization' },
-      },
+      { slug: 'welcome', text: { vi: 'Trang chào', en: 'The welcome page' } },
+      { slug: 'members', text: { vi: 'Thành viên', en: 'Members' } },
+      { slug: 'invitations', text: { vi: 'Lời mời', en: 'Invitations' } },
+      { slug: 'roles', text: { vi: 'Vai trò', en: 'Roles' } },
+      { slug: 'settings', text: { vi: 'Quản lý tổ chức', en: 'Organization management' } },
     ],
   },
   { slug: 'notifications', text: { vi: 'Thông báo', en: 'Notifications' }, hideable: true },
