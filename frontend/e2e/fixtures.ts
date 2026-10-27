@@ -16,6 +16,44 @@ export async function login(page: Page, username: string, password: string) {
   await page.locator('form button[type="submit"]').click()
 }
 
+/**
+ * Signs in, then makes `organizationName` the working organization, whichever way the app landed:
+ * inside another organization (switcher) or on the welcome page (organization list).
+ * An account that belongs to more than one organization does not always sign in to the same one.
+ */
+export async function loginInto(
+  page: Page,
+  username: string,
+  password: string,
+  organizationName = 'Dev',
+) {
+  await login(page, username, password)
+  const switcher = page.getByTestId('org-switcher-trigger')
+  const welcome = page.getByTestId('welcome-greeting')
+  await expect(switcher.or(welcome)).toBeVisible()
+
+  if (await welcome.isVisible()) {
+    const reloaded = page.waitForEvent('load')
+    await page
+      .getByTestId('welcome-organizations')
+      .getByRole('button', { name: new RegExp(`^${organizationName}( |$)`) })
+      .click()
+    await reloaded
+  } else if (!(await switcher.innerText()).includes(organizationName)) {
+    await switchTo(page, organizationName)
+  }
+  await expect(switcher).toContainText(organizationName)
+}
+
+/** Switches the working organization from the top-bar switcher; the app reloads on success. */
+export async function switchTo(page: Page, organizationName: string) {
+  await page.getByTestId('org-switcher-trigger').click()
+  const reloaded = page.waitForEvent('load')
+  await page.getByRole('menuitemradio', { name: new RegExp(`^${organizationName}( |$)`) }).click()
+  await reloaded
+  await expect(page.getByTestId('org-switcher-trigger')).toContainText(organizationName)
+}
+
 export async function logout(page: Page) {
   await page.locator('[data-testid="app-header-user-menu"]').click()
   await page.locator('[data-testid="user-menu-logout"]').click()
