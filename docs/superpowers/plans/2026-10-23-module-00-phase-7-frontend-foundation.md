@@ -150,12 +150,12 @@ Giá trị (chép từ *SystemLight* và *SystemDark*, không suy ra):
 
 Chữ (bảng *System* § Chữ): tiêu đề trang 18/700/1.3, tiêu đề mục 15/600/1.3, tiêu đề dòng 14/600/1.4, nội dung 14/400/1.5, thông tin phụ 13/500/1.4, chú thích 12/500/1.4, mã 12/400/1.5 mono. Khai bằng `--text-page-title`, `--text-section`, `--text-row`, `--text-body`, `--text-meta`, `--text-caption`, `--text-code` trong `@theme` (kèm `--line-height` và `--font-weight` tương ứng của Tailwind v4).
 
-- [ ] **Step 0: Kiểm điều kiện bắt đầu**
+- [x] **Step 0: Kiểm điều kiện bắt đầu**
 
 Run: `bun run --cwd frontend build-only && bun run --cwd frontend type-check`
 Expected: PASS, cùng `bun run --cwd frontend test:run`. Mỗi phần 3–6 kết thúc với frontend build và qua test (xem *Điều kiện bắt đầu*), nên ở đây không còn caller nào hỏng và phần này không xoá màn hình tổ chức cũ. Lệnh nào lỗi: dừng và báo controller, không tự xoá tệp.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 // tests/unit/theme/tokens.test.ts — đọc tailwind.css bằng import '?raw'
@@ -185,24 +185,24 @@ it('keeps hex and rgba colours out of every source file except the brand logo bu
 
 Bốn chỗ hiện có vi phạm được sửa trong Step 3: bóng `rgba(...)` của `ServerErrorScreen.vue`, `GuideAuthView.vue`, `NotFoundView.vue` đổi sang `shadow-[0_20px_55px_var(--shadow-panel)]` với `--shadow-panel` khai trong `tokens.ts`; `NotificationBell.vue` bỏ nhánh `tone === 'on-brand'` (thanh tím ngang bị bỏ ở Task 4) hoặc dùng `var(--color-on-accent)`. `AppSidebar.vue`, `AppHeader.vue` bị xoá ở Task 4; trong lúc chờ, thêm chúng tạm vào `ALLOWED` và Task 4 gỡ ra.
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- tests/unit/theme`
 Expected: FAIL (`tokens.ts` chưa có).
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - `bun add --cwd frontend @fontsource-variable/plus-jakarta-sans @fontsource-variable/jetbrains-mono`; import cả hai ở đầu `main.ts`. Không còn tham chiếu Google Fonts hay `Inter` (QĐ-24).
   - `tailwind.css`: bỏ thang `accent-*`, `leaf-*`; `@theme` khai biến theo vai trò của bảng trên (sáng), `.dark` khai lại giá trị tối; thang `primary-*`, `surface-*` giữ nguyên giá trị hiện tại nhưng chép vào `tokens.legacy` để test bao phủ; thêm `--radius-*`, `--ease-spring`, `--breakpoint-desktop: 75rem`, `--font-sans`, `--font-mono`, cỡ chữ ở trên.
   - `@utility glass-thin` / `glass-thick`: `background-color: var(--color-panel-thin|panel)`, `backdrop-filter: blur(24px|30px) saturate(150%|160%)`, viền `1px solid var(--color-line)`. Hai khối `@media (prefers-reduced-transparency: reduce)` và `@supports not (backdrop-filter: blur(1px))` đặt nền `*-solid`, `backdrop-filter: none`, và `[data-ambient] { display: none }`.
   - `naive-theme.ts`: dựng hai object overrides từ `tokens.light`/`tokens.dark` (không chuỗi màu nào viết tay); `common.fontFamily`, `fontFamilyMono`, `borderRadius: '0.75rem'`, `borderRadiusSmall: '0.5rem'`, `heightSmall/Medium/Large` như test; `popoverColor`, `modalColor`, `cardColor` = `raised`; `bodyColor` = `page`; `borderColor` = `control`.
   - `main.scss`: `body` dùng `var(--font-sans)`, `background-color: var(--color-page)`, `color: var(--color-ink)`; bỏ `.dark body` cố định màu cũ. Thanh cuộn dùng `--color-line`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: `bun run --cwd frontend test:run -- tests/unit/theme` rồi bốn lệnh kiểm ở Global Constraints.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(frontend): add the Lớp kính design tokens as the single source for Tailwind and Naive`
+- [x] **Step 5: Commit** `feat(frontend): add the Lớp kính design tokens as the single source for Tailwind and Naive`
 
 ### Task 2: Thành phần dùng chung của bảng *Components*
 
@@ -236,7 +236,7 @@ Expected: PASS.
   - `tests/helpers/viewport.ts`: `stubViewport(width: number): { setWidth(width: number): void }` — giả `window.matchMedia` cho mọi truy vấn `min-width`/`max-width` (rem × 16) và báo listener khi đổi.
   - Locale: nhóm `errorCodes` (rỗng, phần 8 điền), `common.close` nếu chưa có.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('InlineConfirm')
@@ -262,19 +262,19 @@ it('keeps success toasts for 5 seconds and pauses them on hover')
 it('keeps error toasts until closed')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- InlineNotice InlineConfirm AppSheet EmptyState StatusLabel use-control-size error-message feedback-naive`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *ComponentsLight/Dark* (§ Thay cho hộp thoại, § Trống, đang tải, § Điều khiển và trạng thái). Nút trong `InlineConfirm` cỡ theo `useControlSize()`; nút xác nhận `tone='danger'` dùng `danger-solid` (thao tác không hoàn tác), `'neutral'` dùng `accent`. Chuyển `tests/layouts/AppLayout.test.ts` sang dùng `stubViewport`.
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *ComponentsLight/Dark* (§ Thay cho hộp thoại, § Trống, đang tải, § Điều khiển và trạng thái). Nút trong `InlineConfirm` cỡ theo `useControlSize()`; nút xác nhận `tone='danger'` dùng `danger-solid` (thao tác không hoàn tác), `'neutral'` dùng `accent`. Chuyển `tests/layouts/AppLayout.test.ts` sang dùng `stubViewport`.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(frontend): add inline notice, inline confirm, sheet and empty state from the Components board`
+- [x] **Step 5: Commit** `feat(frontend): add inline notice, inline confirm, sheet and empty state from the Components board`
 
 ### Task 3: Quyền vào route một chỗ, nhóm menu "Tổ chức" và "Hệ thống", `isSystemAdministrator`
 
@@ -310,7 +310,7 @@ Expected: PASS.
   - Store `auth`: `isSystemAdministrator: Ref<boolean>`, đặt trong `setAuth` từ `response.isSystemAdministrator`, về `false` trong `clearAuth`. Chỉ để hiện nhóm "Hệ thống"; máy chủ vẫn kiểm từng request (API-27).
   - Locale: `nav.groups.organization` (vi "Tổ chức", en "Organization"), `nav.groups.system` (vi "Hệ thống", en "System").
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('routeAccess')
@@ -329,19 +329,19 @@ describe('auth store')
 it('sets isSystemAdministrator from the login response and clears it on clearAuth')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- route-access guards use-sidebar-menu stores/auth`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Sửa đoạn `meta.permission` trong `frontend-conventions.md`: "`useSidebarMenu` ẩn mục; mở thẳng URL khi thiếu quyền thì giữ URL và hiện mẫu *Không đủ quyền* (`AccessProblemState`); `meta.requiresOrganization` đưa người ở ngữ cảnh cá nhân về `useHomeRoute()`; `meta.systemAdministrator` cho trang admin hệ thống. Tất cả chỉ là cổng giao diện, endpoint vẫn phải có policy." Cập nhật test guard cũ đang khẳng định "chuyển về home khi thiếu quyền".
+- [x] **Step 3: Cài đặt** theo Interfaces. Sửa đoạn `meta.permission` trong `frontend-conventions.md`: "`useSidebarMenu` ẩn mục; mở thẳng URL khi thiếu quyền thì giữ URL và hiện mẫu *Không đủ quyền* (`AccessProblemState`); `meta.requiresOrganization` đưa người ở ngữ cảnh cá nhân về `useHomeRoute()`; `meta.systemAdministrator` cho trang admin hệ thống. Tất cả chỉ là cổng giao diện, endpoint vẫn phải có policy." Cập nhật test guard cũ đang khẳng định "chuyển về home khi thiếu quyền".
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(frontend): decide route access in one place and add the organization and system menu groups`
+- [x] **Step 5: Commit** `feat(frontend): decide route access in one place and add the organization and system menu groups`
 
 ### Task 4: Khung chỉ còn rail (*AppShell*), bỏ năm chế độ menu
 
@@ -372,7 +372,7 @@ Expected: PASS.
   - Locale mới: `nav.openMenu` (vi "Mở menu", en "Open menu"), `nav.goTo` (vi "Đi tới…", en "Go to…"), `layout.userMenu.appearance` (vi "Giao diện", en "Appearance"). Link hướng dẫn dùng lại khoá `userGuide` mà `AppHeader.vue` đang dùng.
   - Gỡ `AppSidebar.vue`, `AppHeader.vue` khỏi `ALLOWED` của `no-raw-colors.test.ts` (Task 1).
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('AppRail')
@@ -403,19 +403,19 @@ describe('layout store')
 it('starts every panel closed and touches no storage')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- tests/layouts tests/unit/stores/layout-store`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *AppShellLight/Dark* (ba khoảng). Dùng CodeGraph blast radius (`codegraph explore "AppSidebar AppHeader AppTopMenu PageTitle layout-preferences sidebar-theme"`) để tìm mọi caller trong `.vue` trước khi xoá (Serena không thấy caller `.vue`, `.claude/rules/serena.md`). Trang tự đặt `h1` của mình; thanh trên không còn tiêu đề hay breadcrumb.
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *AppShellLight/Dark* (ba khoảng). Dùng CodeGraph blast radius (`codegraph explore "AppSidebar AppHeader AppTopMenu PageTitle layout-preferences sidebar-theme"`) để tìm mọi caller trong `.vue` trước khi xoá (Serena không thấy caller `.vue`, `.claude/rules/serena.md`). Trang tự đặt `h1` của mình; thanh trên không còn tiêu đề hay breadcrumb.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(frontend): replace the five menu modes with the AppShell rail, top bar and slide-in menu`
+- [x] **Step 5: Commit** `feat(frontend): replace the five menu modes with the AppShell rail, top bar and slide-in menu`
 
 ### Task 5: Bộ chọn tổ chức trên thanh trên
 
@@ -440,7 +440,7 @@ Expected: PASS.
   - Factory `makeOrganization` thêm `myRoles: [{ id: 'role-owner', name: 'Owner', systemKind: 'Owner' }]`.
   - Locale: `organizations.switcherTitle` (vi "Tổ chức của bạn", en "Your organizations"), `organizations.suspended` (vi "Tạm ngừng", en "Suspended"), `organizations.backToWelcome` (vi "Về trang chào", en "Back to welcome page"), `organizations.create` (vi "Tạo tổ chức", en "Create organization").
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('roleDisplayName')
@@ -463,19 +463,19 @@ it('keeps Back to welcome page available when every organization is suspended')
 it('shows the mapped error and stays open when switching fails')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- OrgSwitcher role-name`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces, đặt `OrgSwitcher` vào slot `organization` của `AppTopBar`. Bàn phím theo mẫu menu WAI-ARIA như `UserMenu.vue` (mũi tên di chuyển, `Esc` đóng và trả tiêu điểm về nút).
+- [x] **Step 3: Cài đặt** theo Interfaces, đặt `OrgSwitcher` vào slot `organization` của `AppTopBar`. Bàn phím theo mẫu menu WAI-ARIA như `UserMenu.vue` (mũi tên di chuyển, `Esc` đóng và trả tiêu điểm về nút).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(frontend): add the organization switcher with suspended organizations dimmed`
+- [x] **Step 5: Commit** `feat(frontend): add the organization switcher with suspended organizations dimmed`
 
 ### Task 6: `ProfilePanel.vue` thay `ProfileDialog.vue` (*ProfileEmail*)
 
@@ -495,7 +495,7 @@ Expected: PASS.
   - mỗi lần mở: tải lại hồ sơ, xoá ô mật khẩu hiện tại.
   - Khác duy nhất: vỏ là `AppSheet` (`title = t('profile.title')`) thay `n-modal`; nút trong form cỡ theo `useControlSize()`.
 
-- [ ] **Step 1: Đổi tên và viết test thất bại**
+- [x] **Step 1: Đổi tên và viết test thất bại**
 
 `git mv` hai tệp, đổi `import`, `describe('ProfilePanel')`, `openDialog` → `openPanel` trong test; giữ nguyên mọi `it` hiện có (cả nhóm `email change` và `avatar`). Thêm:
 
@@ -507,21 +507,21 @@ it('keeps the session when the current password is wrong')                // Rev
 it('reloads the profile and clears the current password when reopened')  // Review Focus 5
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- ProfilePanel AppLayout`
 Expected: FAIL (bốn test mới; vỏ vẫn là `n-modal`).
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
 
 Thay `n-modal` bằng `AppSheet`; `AppLayout` gắn `<ProfilePanel v-model:visible="layout.profileOpen" />` (vẫn gắn ở `AppLayout`, không trong menu tài khoản, để đổi khoảng màn hình không làm mất form đang sửa). Cập nhật `docs/feature-map.md` mục *Hồ sơ và phiên đăng nhập*.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: `bun run --cwd frontend test:run`, rồi ba lệnh kiểm còn lại.
 Expected: PASS, gồm `tests/unit/api/client.test.ts` (401 cấp form không refresh).
 
-- [ ] **Step 5: Commit** `refactor(profile): move the profile dialog into a side panel and bottom sheet`
+- [x] **Step 5: Commit** `refactor(profile): move the profile dialog into a side panel and bottom sheet`
 
 ### Task 7: `AccessProblemState`, trang 404 trong khung, kiểm tổng
 
@@ -549,7 +549,7 @@ Expected: PASS, gồm `tests/unit/api/client.test.ts` (401 cấp form không ref
     - `accessProblem.goHome`: vi "Về trang chủ", en "Go to home".
   - Route `not-found` (`/:pathMatch(.*)*`) là con của layout `/`, `meta.requiresAuth: true`; `NotFoundView` chỉ render `<AccessProblemState kind="not-found" />`. Khách gõ đường dẫn lạ → đăng nhập → quay lại thấy 404 trong khung.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('accessProblemOf')
@@ -571,12 +571,12 @@ it('never renders the problem detail, title or extensions of a 404')            
 
 `guard-integration.test.ts`: route lạ khi đã đăng nhập → `not-found` trong layout; khi chưa đăng nhập → `login?redirect=<đường dẫn>`.
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- access-problem AccessProblemState AppLayout guard-integration`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *OrgContext* (§ Không tìm thấy, § Không đủ quyền, ba khoảng). Thêm vào `e2e/guards.spec.ts`:
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *OrgContext* (§ Không tìm thấy, § Không đủ quyền, ba khoảng). Thêm vào `e2e/guards.spec.ts`:
   - `signed-in user opening an unknown path sees Not found inside the app shell` (thấy rail và chữ "Not found");
   - đổi test cũ `/organizations` sang một đường dẫn còn tồn tại có `requiresAuth`, vì phần 8 Task 1 xoá route `organizations`.
 
@@ -587,22 +587,22 @@ Thêm mục `## Khung ứng dụng và design system` vào `docs/feature-map.md`
 - test đã có;
 - cách kiểm: ba khoảng màn hình, sáng/tối, giảm trong suốt, tổ chức tạm ngừng mờ trong bộ chọn.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Kiểm e2e cục bộ**
+- [x] **Step 5: Kiểm e2e cục bộ**
 
 Run: `scripts/dev-up.sh`, rồi `bun run --cwd frontend test:e2e`
 Expected: PASS (`auth`, `guards`, `logout`, `profile-sessions`).
 
-- [ ] **Step 6: Chạy gate đầy đủ**
+- [x] **Step 6: Chạy gate đầy đủ**
 
 Run: `scripts/test-gate.sh`
 Expected: PASS.
 
-- [ ] **Step 7: Commit** `feat(frontend): show shared not-found and no-permission states inside the app shell`
+- [x] **Step 7: Commit** `feat(frontend): show shared not-found and no-permission states inside the app shell`
 
 ---
 

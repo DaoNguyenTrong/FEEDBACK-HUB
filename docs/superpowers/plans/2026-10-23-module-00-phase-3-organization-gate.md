@@ -163,7 +163,7 @@ Bảng của phần 1, cập nhật theo quyết định của người điều 
   - `public sealed class SystemAdministratorActor(IUnitOfWork unitOfWork)` với `Task<ActorKind> ResolveAsync(Guid organizationId, Guid accountId, CancellationToken cancellationToken)`.
   - Trả `ActorKind.Account` khi có dòng `organization_members` `IsActive` của đúng tổ chức và tài khoản đó, ngược lại `ActorKind.SystemAdministrator`. Đọc thẳng qua `IUnitOfWork`, không qua `ITenantAccessService` hay cache.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Domain: AuditEventTests
@@ -195,19 +195,19 @@ AuditEvent_HasNoPublicConstructorOrFactoryTakingOrganizationGuid
 AuditTrailNamespace_DependsOnNoOtherServiceNamespace
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~AuditEventTests|FullyQualifiedName~AuditEventCatalogTests|FullyQualifiedName~SystemAdministratorActorTests|FullyQualifiedName~ArchitectureTests"`
 Expected: FAIL (các kiểu chưa tồn tại).
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. `Validate` so tập khoá đúng bằng tập khai báo (không thiếu, không thừa), rồi kiểu từng giá trị, rồi quy tắc người làm.
+- [x] **Step 3: Cài đặt** theo Interfaces. `Validate` so tập khoá đúng bằng tập khai báo (không thiếu, không thừa), rồi kiểu từng giá trị, rồi quy tắc người làm.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(audit): add the closed audit event catalogue and an event bound to its subject`
+- [x] **Step 5: Commit** `feat(audit): add the closed audit event catalogue and an event bound to its subject`
 
 ### Task 2: Lõi nhật ký kiểm toán (2/2): `AuditTrail`, cột `kind`, `actor_kind` (M9)
 
@@ -242,7 +242,7 @@ Expected: PASS.
     - nới `audit_logs.action` từ varchar(20) lên varchar(50), vì `OrganizationDeactivated` dài 23 ký tự. Nới cột không ảnh hưởng code cũ;
     - chỉ mục một phần `IX_audit_logs_event_keyset` trên `(organization_id, "timestamp" DESC, id DESC) WHERE kind = 'Event'`.
 
-- [ ] **Step 1: Viết test thất bại (Testcontainers)**
+- [x] **Step 1: Viết test thất bại (Testcontainers)**
 
 ```csharp
 RecordAsync_ThenSaveChanges_WritesOneEventRowFromTheEvent
@@ -259,22 +259,22 @@ Migration_RowInsertedWithoutKind_DefaultsToChange    // INSERT thô không có c
 AuditTrail_Constructor_TakesNoTenantOrUserContext
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests/FeedbackHub.Infrastructure.Tests -m:1 --filter "FullyQualifiedName~AuditTrailTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt**
+- [x] **Step 3: Cài đặt**
   - `RecordAsync` gọi `AuditEventCatalog.Validate` trước, rồi thêm dòng. Không gọi `SaveChangesAsync`.
   - `AuditLogConfiguration`: `Kind` lưu chuỗi (`HasConversion<string>()`, `HasMaxLength(10)`), `ActorKind` `HasMaxLength(20)`, `Action` `HasMaxLength(50)`, thêm chỉ mục một phần bằng `HasIndex(...).IsDescending(false, true, true).HasFilter("kind = 'Event'").HasDatabaseName("IX_audit_logs_event_keyset")`.
   - Sinh migration. Kiểm `Up` có `defaultValue: "Change"` cho `kind` và chỉ thêm hay nới cột, không đụng dữ liệu.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(audit): record semantic audit events in the same save as the change (M9)`
+- [x] **Step 5: Commit** `feat(audit): record semantic audit events in the same save as the change (M9)`
 
 ### Task 3: `Organization` kiểm định danh, chỉ đổi tên, vô hiệu và kích hoạt lại (M1)
 
@@ -306,7 +306,7 @@ Expected: PASS.
     - en "The identifier may use only lowercase letters a–z, digits and single hyphens between them, and must be 3–50 characters long."
   - M1: cột `organizations."DeactivatedAt"` timestamptz null, `"DeactivatedByAccountId"` uuid null (không FK), `"DeactivatedBySystemAdministrator"` boolean not null default `false`, `"DeactivationReason"` varchar(500) null.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Domain
@@ -325,19 +325,19 @@ SaveAndLoad_DeactivationFields_RoundTrip
 Rename_LegacySlugOutsideFormat_SavesWithoutRecheck       // INSERT thô slug "Old_Slug", tải, Update tên, SaveChanges → slug giữ nguyên
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~OrganizationTests|FullyQualifiedName~OrganizationPersistenceTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Sửa các chỗ gọi cũ cho biên dịch được: `OrganizationService.DeactivateAsync` tạm truyền `DeactivationParams(callerId, false, null, now)`; Task 10 xoá hàm này. Sinh migration, kiểm `Up` chỉ thêm cột.
+- [x] **Step 3: Cài đặt** theo Interfaces. Sửa các chỗ gọi cũ cho biên dịch được: `OrganizationService.DeactivateAsync` tạm truyền `DeactivationParams(callerId, false, null, now)`; Task 10 xoá hàm này. Sinh migration, kiểm `Up` chỉ thêm cột.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~Organization"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(organizations): validate the identifier at creation and record who deactivated (M1)`
+- [x] **Step 5: Commit** `feat(organizations): validate the identifier at creation and record who deactivated (M1)`
 
 ### Task 4: `GetAccessAsync` ba trạng thái, lưới cuối `TenantAccessMiddleware` ghi mã
 
@@ -369,7 +369,7 @@ Expected: PASS.
     - ghi `CodedProblemDetails` qua `ApiProblemDetailsFactory`: `NotMember` → 403 `OrganizationAccessDenied`; `Suspended` → 403 `OrganizationSuspended` kèm `organizationName`;
     - danh sách miễn trừ thêm `/api/invitations` và `/api/system` (TECH00 §5.1), giữ `/api/auth`, `/api/organizations`, `/api/permissions`. `/api/organization` (số ít) không được miễn: `StartsWithSegments` so theo đoạn nên `/api/organizations` không che nó.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Infrastructure (Testcontainers)
@@ -386,19 +386,19 @@ TenantAccess_SystemAndInvitationsPaths_AreExempt                          // kh�
 ForbiddenException_WithExtensions_AreWrittenToProblemDetails
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~TenantAccessServiceTests|FullyQualifiedName~MiddlewareTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Tên tổ chức cho `Suspended` đọc bằng `IUnitOfWork.Repository<Organization, Guid>().GetByIdAsync` chỉ ở nhánh từ chối.
+- [x] **Step 3: Cài đặt** theo Interfaces. Tên tổ chức cho `Suspended` đọc bằng `IUnitOfWork.Repository<Organization, Guid>().GetByIdAsync` chỉ ở nhánh từ chối.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(auth): tell a suspended organization apart from lost membership`
+- [x] **Step 5: Commit** `feat(auth): tell a suspended organization apart from lost membership`
 
 ### Task 5: Cổng tổ chức `OrganizationContextAuthorizationHandler`
 
@@ -440,7 +440,7 @@ Expected: PASS.
   - `AuthorizationResultHandler`: khi Forbidden, lấy `CodedAuthorizationFailureReason` đầu tiên trong `authorizeResult.AuthorizationFailure?.FailureReasons`, ghi `CodedProblemDetails` với đúng status, mã và extension `organizationName` (nếu có). Không có lý do mang mã thì giữ 403 `OrganizationAccessDenied` như nay.
   - `ApplicationMessages.ResourceNotFound`. Chữ: vi "Không tìm thấy.", en "Not found." Không nêu loại hay id đối tượng.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Infrastructure: OrganizationContextAuthorizationHandlerTests
@@ -462,21 +462,21 @@ ApiKeys_SuspendedOrganizationMemberWithoutPermission_Returns403Suspended   // t�
 ApiKeys_NonMemberOfSuspendedOrganization_Returns403WithoutName
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~OrganizationContextAuthorizationHandlerTests|FullyQualifiedName~OrganizationPermissionPolicyProviderTests|FullyQualifiedName~AuthorizationResultHandlerTests|FullyQualifiedName~FilesControllerTests|FullyQualifiedName~ApiKeysControllerTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Không đạt thì gọi `context.Fail(new CodedAuthorizationFailureReason(...))`, không chỉ `return`. Sửa đoạn policy trong `authentication.md`:
+- [x] **Step 3: Cài đặt** theo Interfaces. Không đạt thì gọi `context.Fail(new CodedAuthorizationFailureReason(...))`, không chỉ `return`. Sửa đoạn policy trong `authentication.md`:
   - liệt kê `ActiveOrganizationMember`, `ActiveOrganizationMemberOrNotFound`, `SignedInUser`, `SystemAdministrator` (Task 7);
   - một câu nêu thứ tự cổng: chưa đăng nhập, không phải thành viên, tạm ngừng, thiếu quyền.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(auth): gate active-organization requests in BR-77 order with a code per denial`
+- [x] **Step 5: Commit** `feat(auth): gate active-organization requests in BR-77 order with a code per denial`
 
 ### Task 6: Phiên: refresh về `org_id = null`, chuyển tổ chức, tổ chức mặc định
 
@@ -496,7 +496,7 @@ Expected: PASS.
   - `SwitchOrganizationAsync` (API-28): `NotMember` → `ForbiddenException(OrganizationAccessDenied)`; `Suspended` → `ForbiddenException(OrganizationSuspended, { ["organizationName"] = organization.Name })`.
   - `ResolveDefaultOrganizationIdAsync`: chỉ đếm tổ chức `Status == true`. Đúng một → id đó; còn lại → `null` (QĐ-26).
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application
@@ -515,19 +515,19 @@ SwitchOrganization_NonMember_Returns403AccessDeniedWithoutName
 Login_MemberOfOnlySuspendedOrganization_HasNoOrganization                   // AC-184
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~AuthServiceTests|FullyQualifiedName~TokenIssuerTests|FullyQualifiedName~AuthControllerTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces.
+- [x] **Step 3: Cài đặt** theo Interfaces.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(auth): keep the session without an organization when access to it is lost`
+- [x] **Step 5: Commit** `feat(auth): keep the session without an organization when access to it is lost`
 
 ### Task 7: Admin hệ thống: bảng (M2), resolver có cache, policy, `isSystemAdministrator` (API-27)
 
@@ -563,7 +563,7 @@ Expected: PASS.
   - `ApplicationMessages.SystemAdministratorRequired`. Chữ: vi "Chỉ admin hệ thống làm được việc này.", en "Only a system administrator can do this."
   - `AuthResult` và `LoginResponse` thêm `bool IsSystemAdministrator` (tham số cuối). `TokenIssuer.IssueTokensAsync` là chỗ duy nhất đặt giá trị, qua resolver.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Infrastructure
@@ -581,19 +581,19 @@ Login_SystemAdministrator_ResponseHasIsSystemAdministratorTrue
 SwitchOrganization_Response_HasIsSystemAdministrator
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~SystemAdministrator|FullyQualifiedName~TokenIssuerTests|FullyQualifiedName~AuthControllerTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Sinh migration, kiểm `Up` chỉ tạo bảng.
+- [x] **Step 3: Cài đặt** theo Interfaces. Sinh migration, kiểm `Up` chỉ tạo bảng.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(auth): add system administrators with a cached policy and the login flag (M2)`
+- [x] **Step 5: Commit** `feat(auth): add system administrators with a cached policy and the login flag (M2)`
 
 ### Task 8: API-24–API-26, danh sách tổ chức, vô hiệu và kích hoạt lại cho admin hệ thống
 
@@ -639,7 +639,7 @@ Expected: PASS.
     - `POST {id:guid}/deactivate` → 204;
     - `POST {id:guid}/reactivate` → 204.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application
@@ -671,19 +671,19 @@ Reactivate_KeepsMembersAndRoles                                            // AC
 SystemRoutes_AreExactlyTheThreeOrganizationActions                         // không route HTTP nào ghi system_administrators (T8, AC-51, AC-52)
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~SystemOrganization"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Test `SystemRoutes_AreExactlyTheThreeOrganizationActions` đọc `EndpointDataSource` của host test: mọi route bắt đầu bằng `api/system` đúng ba cặp (phương thức, mẫu route) trên.
+- [x] **Step 3: Cài đặt** theo Interfaces. Test `SystemRoutes_AreExactlyTheThreeOrganizationActions` đọc `EndpointDataSource` của host test: mọi route bắt đầu bằng `api/system` đúng ba cặp (phương thức, mẫu route) trên.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(system): let system administrators list, deactivate and reactivate organizations`
+- [x] **Step 5: Commit** `feat(system): let system administrators list, deactivate and reactivate organizations`
 
 ### Task 9: Lệnh CLI `grant-system-admin`, `revoke-system-admin`
 
@@ -722,7 +722,7 @@ Expected: PASS.
     - "No account has this email."
     - "This account's email is not verified. Ask the person to verify it, then run the command again."
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application
@@ -739,19 +739,19 @@ Grant_Output_DoesNotContainEmail
 Revoke_ThenNextRequest_Returns403                                           // GET api/system/organizations: 200 trước, 403 sau (AC-52)
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~SystemAdministratorServiceTests|FullyQualifiedName~SystemAdminCommandsTests|FullyQualifiedName~CliCommandsTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo mẫu `MigrateCommand`, `SeedDevCommand`: lệnh chỉ đọc đối số, gọi service, in, trả mã.
+- [x] **Step 3: Cài đặt** theo mẫu `MigrateCommand`, `SeedDevCommand`: lệnh chỉ đọc đối số, gọi service, in, trả mã.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(cli): grant and revoke system administrators from the server only`
+- [x] **Step 5: Commit** `feat(cli): grant and revoke system administrators from the server only`
 
 ### Task 10: Tổ chức của tôi và tổ chức đang làm việc (API-01–API-05)
 
@@ -800,7 +800,7 @@ Expected: PASS.
     - `POST deactivate` → `Permissions.OrganizationManage`, 204.
   - API-04 bỏ qua mọi trường ngoài `name`, kể cả `slug`, như mọi trường lạ: `RenameOrganizationRequest` không có trường `slug`. Thân chỉ có `slug` thì `Name` rỗng → 400 `OrganizationNameRequired`. Thân có cả `name` lẫn `slug` thì đổi tên, `slug` không đổi.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```csharp
 // Application
@@ -842,19 +842,19 @@ ListMine_MyRolesCarrySystemKindAsName                                        // 
 DeleteOrganization_OldRoute_Returns404                                       // route đã bỏ (QĐ-06)
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `dotnet test backend/tests -m:1 --filter "FullyQualifiedName~OrganizationServiceTests|FullyQualifiedName~OrganizationContextServiceTests|FullyQualifiedName~UnitOfWorkUniqueViolationTests|FullyQualifiedName~OrganizationsControllerTests|FullyQualifiedName~CurrentOrganizationControllerTests"`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. Xoá `OrganizationService.DeactivateAsync` cùng test của nó. Giữ `GetMembersAsync` và các route `{id}` thành viên, vai trò: phần 4 thay chúng.
+- [x] **Step 3: Cài đặt** theo Interfaces. Xoá `OrganizationService.DeactivateAsync` cùng test của nó. Giữ `GetMembersAsync` và các route `{id}` thành viên, vai trò: phần 4 thay chúng.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(organizations): read, rename and deactivate the working organization`
+- [x] **Step 5: Commit** `feat(organizations): read, rename and deactivate the working organization`
 
 ### Task 11: Contract, frontend tối thiểu, feature map, quyết định, gate
 
@@ -880,7 +880,7 @@ Expected: PASS.
     - QĐ-15: admin hệ thống trong bảng riêng, chỉ CLI ghi, policy tra có cache;
     - QĐ-31: refresh mất quyền vào tổ chức thì phát token `org_id = null`.
 
-- [ ] **Step 1: Export contract và sinh lại client**
+- [x] **Step 1: Export contract và sinh lại client**
 
 Run:
 - `dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true`
@@ -888,21 +888,21 @@ Run:
 
 Expected: `openapi.json` có `api/organization`, `api/organization/deactivate`, ba route `api/system/organizations`, `isSystemAdministrator`, `myRoles`; không còn `DELETE api/organizations/{id}`.
 
-- [ ] **Step 2: Sửa frontend cho biên dịch được**, rồi chạy:
+- [x] **Step 2: Sửa frontend cho biên dịch được**, rồi chạy:
 - `bun run --cwd frontend build-only`
 - `bun run --cwd frontend type-check`
 - `bun run --cwd frontend test:run`
 
 Expected: PASS.
 
-- [ ] **Step 3: Ghi feature map và quyết định** theo Interfaces.
+- [x] **Step 3: Ghi feature map và quyết định** theo Interfaces.
 
-- [ ] **Step 4: Chạy gate đầy đủ**
+- [x] **Step 4: Chạy gate đầy đủ**
 
 Run: `scripts/test-gate.sh`
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `chore(contract): export the organization gate and system admin contract`
+- [x] **Step 5: Commit** `chore(contract): export the organization gate and system admin contract`
 
 ### Lệch nhỏ khai trong PR
 

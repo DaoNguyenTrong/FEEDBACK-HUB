@@ -115,7 +115,7 @@ Bảng của phần 1, cập nhật theo quyết định của người điều 
     - `errorCodes.OrganizationSlugAlreadyExists`: vi "Định danh này đã được dùng.", en "This identifier is already taken.";
     - `errorCodes.EmailNotConfirmed`: vi "Bạn cần xác minh email trước khi làm việc này.", en "Verify your email before doing this.".
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('suggestSlug')
@@ -138,19 +138,19 @@ it('offers to resend the verification email on EmailNotConfirmed')
 it('requires a name before calling the server')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- slug-suggestion CreateOrganizationSheet stores/organizations`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *AppShell* (panel bên phải ở 1280, tấm trượt toàn chiều ngang ở 834, từ dưới ở 390) và *OrgContext* § "Tạo tổ chức, định danh bị trùng".
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *AppShell* (panel bên phải ở 1280, tấm trượt toàn chiều ngang ở 834, từ dưới ở 390) và *OrgContext* § "Tạo tổ chức, định danh bị trùng".
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(organizations): create an organization with a suggested short identifier`
+- [x] **Step 5: Commit** `feat(organizations): create an organization with a suggested short identifier`
 
 ### Task 2: Trang chào và tổ chức tạm ngừng hay mất quyền giữa chừng (§6.5)
 
@@ -191,7 +191,7 @@ Expected: PASS.
     - có `consumeSuspendedNotice()` → `InlineNotice tone="info"` (theo bảng *OrgContext*, người dùng duyệt 2026-10-23): "{name} vừa tạm ngừng hoạt động. Việc bạn vừa làm chưa được thực hiện. Liên hệ admin hệ thống FeedbackHub để mở lại." (AC-199, AC-301). Bảng *OrgContext* đã có câu cuối.
   - Locale `welcome.*` cho các câu trên và `welcome.systemOrganizations` (vi "Các tổ chức", en "Organizations") (en: "Hi {name}", "Choose an organization to continue", "No organization yet? Create one, or ask a manager to send you an invitation by email.", "Create a new organization", "Or ask a manager to send you an invitation by email.", "{names} is suspended. Contact the FeedbackHub system administrator to reopen it.", "{name} has just been suspended. What you just did wasn't carried out. Contact the FeedbackHub system administrator to reopen it.").
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('organization-context store')
@@ -223,19 +223,19 @@ it('opens /system/organizations from the link')
 it('shows the dimmed organization with its label after leaving the one just deactivated')   // P8-3, trong switcher
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- organization-context client guards WelcomeView stores/auth`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces. `main.ts` gọi `setOrganizationAccessHandler((p) => useOrganizationContextStore().handleAccessProblem(p))` sau khi cài Pinia. Không thêm reset theo từng store: việc tải lại trang lo phần đó (`frontend-conventions.md` § Session and Organization Exits).
+- [x] **Step 3: Cài đặt** theo Interfaces. `main.ts` gọi `setOrganizationAccessHandler((p) => useOrganizationContextStore().handleAccessProblem(p))` sau khi cài Pinia. Không thêm reset theo từng store: việc tải lại trang lo phần đó (`frontend-conventions.md` § Session and Organization Exits).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(organizations): add the welcome page and leave a suspended or lost organization`
+- [x] **Step 5: Commit** `feat(organizations): add the welcome page and leave a suspended or lost organization`
 
 ### Task 3: *Quản lý tổ chức* và hộp thoại *Vô hiệu tổ chức* (*OrgSettings*)
 
@@ -268,7 +268,7 @@ Expected: PASS.
     - `errorCodes.OrganizationNameRequired` (vi "Nhập tên tổ chức.", en "Enter the organization name."), `errorCodes.DeactivationReasonRequired` (vi "Nhập lý do.", en "Enter a reason."), `nav.organizationSettings` (vi "Quản lý tổ chức", en "Organization settings").
   - Dòng gợi ý "Gửi kèm email báo các Chủ sở hữu." dưới ô lý do **không** hiện cho tới khi TECH05 gửi email thật (đã chốt 1). Ô *Lý do* vẫn có: bắt buộc với admin hệ thống (BR-54), không bắt buộc với người khác (BR-52). TECH05 đưa dòng này trở lại.
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('DeactivateOrganizationDialog')
@@ -288,19 +288,19 @@ it('shows the not-found or no-permission state when loading fails')             
 it('never shows the reason hint about an email to owners')       // ẩn tới khi TECH05 gửi thư thật; cũng ở SystemOrganizationsView
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- OrganizationSettingsView DeactivateOrganizationDialog`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *OrgSettings* (1280: cột nội dung tối đa 720 px; 834; 390: nút *Lưu* rộng hết dòng dưới ô).
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *OrgSettings* (1280: cột nội dung tối đa 720 px; 834; 390: nút *Lưu* rộng hết dòng dưới ô).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(organizations): rename or deactivate the current organization`
+- [x] **Step 5: Commit** `feat(organizations): rename or deactivate the current organization`
 
 ### Task 4: Tab *Thành viên*: danh sách, đổi vai trò, gỡ, rời (*Members*)
 
@@ -344,7 +344,7 @@ Expected: PASS.
     - `CannotRemoveSelf`: vi "Bạn không thể tự gỡ mình khỏi tổ chức. Hãy dùng Rời tổ chức.", en "You can't remove yourself. Use Leave organization.";
     - `LastOwnerCannotLeave`: câu Chủ sở hữu duy nhất ở trên (en "You are the only owner. Give the owner role to someone else before you leave.").
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('OrganizationPeopleTabs')
@@ -369,19 +369,19 @@ it('reloads the list after a 404 on change roles or remove')
 it('shows the not-found state when the member list returns 404')                        // AC-122
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- MembersView MemberRow OrganizationPeopleTabs organization-people`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *Members* (1280: menu dòng, đổi vai trò trong dòng, xác nhận gỡ; 834; 390: thành viên thường chỉ thấy tên và vai trò, khối rời tổ chức, khối Chủ sở hữu cuối cùng).
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *Members* (1280: menu dòng, đổi vai trò trong dòng, xác nhận gỡ; 834; 390: thành viên thường chỉ thấy tên và vai trò, khối rời tổ chức, khối Chủ sở hữu cuối cùng).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(members): list members, change their roles, remove them and leave the organization`
+- [x] **Step 5: Commit** `feat(members): list members, change their roles, remove them and leave the organization`
 
 ### Task 5: Tab *Lời mời* và tấm trượt *Mời thành viên*
 
@@ -417,7 +417,7 @@ Expected: PASS.
   - `InvitationsView`: `OrganizationPeopleTabs active="invitations"` (nút *Mời thành viên* mở tấm trượt) + danh sách + *Xem thêm*. Trống → `EmptyState` "Chưa có lời mời nào đang chờ" / "Lời mời bạn gửi sẽ nằm ở đây cho tới khi được dùng, bị thu hồi hoặc hết hạn." + nút *Mời thành viên* (AC-274). Toast *Mời lại*: "Đã gửi lại lời mời. Lời mời có hạn đến {time}".
   - Locale `invitations.*`, `errorCodes.InvitationEmailAlreadyMember`, `errorCodes.FieldEmailAddress` (vi "Email cần có dạng ten@congty.vn.", en "Enter an email like name@company.com."), `errorCodes.InvitationEmailDeliveryFailed` (vi "Chưa gửi được lời mời. Hãy thử lại.", en "The invitation wasn't sent. Please try again.").
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('formatDateTime')
@@ -441,19 +441,19 @@ it('replaces the row with the new invitation after Resend')
 it('reloads after a 404 on revoke')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- InvitationsView InvitationRow InviteMemberSheet date-format organization-people`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *Members* § Tab Lời mời (đang chờ, xác nhận thu hồi, bị từ chối, đang gửi lại, hết hạn, bị khoá) ở ba khoảng; panel *Mời thành viên* bên phải ở 1280, tấm trượt toàn chiều ngang ở 834, từ dưới ở 390.
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *Members* § Tab Lời mời (đang chờ, xác nhận thu hồi, bị từ chối, đang gửi lại, hết hạn, bị khoá) ở ba khoảng; panel *Mời thành viên* bên phải ở 1280, tấm trượt toàn chiều ngang ở 834, từ dưới ở 390.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(invitations): send, resend, revoke and delete invitations from the members page`
+- [x] **Step 5: Commit** `feat(invitations): send, resend, revoke and delete invitations from the members page`
 
 ### Task 6: Tab *Vai trò* và câu mô tả quyền (*Roles*)
 
@@ -497,7 +497,7 @@ Expected: PASS.
   - `RolesView`: `OrganizationPeopleTabs active="roles"` (nút *Tạo vai trò*) + danh sách. Toast "Đã tạo vai trò {name}", "Đã lưu vai trò {name}", "Đã xoá vai trò {name}". 409 `RoleHasHolders` khi xoá → dòng lý do trong `RoleRow` rồi tải lại danh sách.
   - Locale `roles.*` (giữ nguyên khối `roles.systemKind.*` của phần 4 Task 1: test backend `Names_MatchFrontendLocales` đọc nó), `permissions.*` theo bảng trên, `errorCodes` cho sáu mã nói trên (en: "That name is already used in this organization.", "That name belongs to a built-in role.", "Built-in roles can't be edited or deleted.", "Unknown permission.", "This role is still held by members.").
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('permission names')
@@ -520,19 +520,19 @@ it('deletes a role after the inline confirmation')
 it('shows the not-found or no-permission state when the role list fails to load')         // AC-300, AC-313
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- RolesView RoleRow RoleSheet permission-label permissions organization-people`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *Roles* (1280: panel *Tạo vai trò*; 834: *Sửa vai trò* thành tấm trượt toàn chiều ngang; 390: xác nhận xoá, tạo vai trò chưa nhập tên, tên dài được rút gọn bằng `truncate` kèm `title`).
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *Roles* (1280: panel *Tạo vai trò*; 834: *Sửa vai trò* thành tấm trượt toàn chiều ngang; 390: xác nhận xoá, tạo vai trò chưa nhập tên, tên dài được rút gọn bằng `truncate` kèm `title`).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(roles): manage custom roles with a description for every permission`
+- [x] **Step 5: Commit** `feat(roles): manage custom roles with a description for every permission`
 
 ### Task 7: Trang công khai *Nhận lời mời* `/invite` (*InviteAccept*)
 
@@ -568,7 +568,7 @@ Expected: PASS.
   - Xong luồng (vào tổ chức, hoặc trạng thái cuối không dùng được nữa) thì xoá `invitation-token`.
   - Locale `invite.*`, `errorCodes.InvitationExpired`, `InvitationNoLongerValid`, `InvitationWrongAccount`, `InvitationOrganizationSuspended` (chữ trùng tiêu đề trạng thái).
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('InviteView')
@@ -591,19 +591,19 @@ it('sets the session from register-with-invitation')
 it('logs out to the login page with the given redirect')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- InviteView stores/auth`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *InviteAccept* (1280: form tạo tài khoản và bốn thẻ trạng thái; 834: đã đăng nhập đúng tài khoản; 390: tên đăng nhập trùng, đang dùng tài khoản khác), `AmbientBackdrop strength="full"`. `api/client.ts` không refresh-và-gửi-lại cho `/api/invitations/lookup` (endpoint ẩn danh; một 401 ở đó không có nghĩa phiên hết hạn). `register-with-invitation` đã được miễn vì nằm dưới `/api/auth/`; `/api/invitations/accept` giữ hành vi refresh bình thường.
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *InviteAccept* (1280: form tạo tài khoản và bốn thẻ trạng thái; 834: đã đăng nhập đúng tài khoản; 390: tên đăng nhập trùng, đang dùng tài khoản khác), `AmbientBackdrop strength="full"`. `api/client.ts` không refresh-và-gửi-lại cho `/api/invitations/lookup` (endpoint ẩn danh; một 401 ở đó không có nghĩa phiên hết hạn). `register-with-invitation` đã được miễn vì nằm dưới `/api/auth/`; `/api/invitations/accept` giữ hành vi refresh bình thường.
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(invitations): open, register with and accept an invitation from its link`
+- [x] **Step 5: Commit** `feat(invitations): open, register with and accept an invitation from its link`
 
 ### Task 8: *Các tổ chức* của admin hệ thống (*SysOrgs*)
 
@@ -626,7 +626,7 @@ Expected: PASS.
   - Sau API-25 trên chính tổ chức đang làm việc, request kế tiếp nhận `OrganizationSuspended` và Task 2 lo phần còn lại; trang này không xử lý riêng.
   - Locale `systemOrganizations.*`, `nav.systemOrganizations` (vi "Các tổ chức", en "Organizations"), `errorCodes.SystemAdministratorRequired` (vi "Chỉ admin hệ thống FeedbackHub làm được việc này.", en "Only a FeedbackHub system administrator can do this.").
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('SystemOrganizationsView')
@@ -641,19 +641,19 @@ it('is hidden from the rail and shows the no-permission state for a non-administ
 it('opens for a system administrator whose token has an empty org_id and the rail shows only system items')   // P8-2
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- SystemOrganizationsView`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *SysOrgs* (1280: đang xác nhận kích hoạt lại, hộp thoại vô hiệu; 834; 390).
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *SysOrgs* (1280: đang xác nhận kích hoạt lại, hộp thoại vô hiệu; 834; 390).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: lệnh ở Step 2, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(system): list, deactivate and reactivate organizations as a system administrator`
+- [x] **Step 5: Commit** `feat(system): list, deactivate and reactivate organizations as a system administrator`
 
 ### Task 9: *Nhật ký kiểm toán* (*AuditLog*)
 
@@ -700,7 +700,7 @@ Expected: PASS.
   - Đổi tổ chức tải lại trang (`useOrganizationSwitch`), nên danh sách và con trỏ cũ không còn; không thêm xử lý riêng (TECH00 §6.8 bước 2).
   - Locale `auditLog.*`, `nav.auditLog` (vi "Nhật ký kiểm toán", en "Audit log"), `errorCodes.InvalidCursor` (vi "Không tải được phần tiếp theo. Hãy tải lại trang.", en "Couldn't load more. Reload the page.").
 
-- [ ] **Step 1: Viết test thất bại**
+- [x] **Step 1: Viết test thất bại**
 
 ```ts
 describe('useCursorList')
@@ -725,19 +725,19 @@ it('shows the no-permission state on 403 OrganizationAccessDenied')            /
 it('offers Retry after a load failure')
 ```
 
-- [ ] **Step 2: Chạy test, phải thất bại**
+- [x] **Step 2: Chạy test, phải thất bại**
 
 Run: `bun run --cwd frontend test:run -- AuditLogView use-cursor-list audit-sentence`
 Expected: FAIL.
 
-- [ ] **Step 3: Cài đặt** theo Interfaces và bảng *AuditLog* (1280, 834, 390; trạng thái đang tải, không tải được, trống).
+- [x] **Step 3: Cài đặt** theo Interfaces và bảng *AuditLog* (1280, 834, 390; trạng thái đang tải, không tải được, trống).
 
-- [ ] **Step 4: Chạy lại, phải qua**
+- [x] **Step 4: Chạy lại, phải qua**
 
 Run: `TZ=UTC bun run --cwd frontend test:run -- AuditLogView use-cursor-list audit-sentence`, rồi bốn lệnh kiểm.
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `feat(audit-log): show the organization's audit log as plain sentences`
+- [x] **Step 5: Commit** `feat(audit-log): show the organization's audit log as plain sentences`
 
 ### Task 10: E2E cho luồng nhiều trang, feature map, gate
 
@@ -749,7 +749,7 @@ Expected: PASS.
 - Consumes: tài khoản `seed-dev` (`e2e-admin` là Chủ sở hữu tổ chức "Dev", `e2e-user` là thành viên), Mailpit của `scripts/dev-up.sh` (API `GET {E2E_MAILPIT_URL}api/v1/search?query=to:"<email>"`, `GET …/api/v1/message/{ID}`).
 - Produces: `latestInvitationLink(email: string): Promise<string>` trong `e2e/mailpit.ts` (đọc thư mới nhất gửi tới `email`, lấy link `#/invite?token=`; thử lại tối đa 10 lần cách 500 ms).
 
-- [ ] **Step 1: Viết spec**
+- [x] **Step 1: Viết spec**
 
 ```ts
 // e2e/organizations.spec.ts (locale en)
@@ -767,12 +767,12 @@ test('an invitee registers from the emailed link and joins Dev as Member')      
 test('a signed-in different account sees only the wrong-account message')           // AC-306
 ```
 
-- [ ] **Step 2: Chạy e2e cục bộ**
+- [x] **Step 2: Chạy e2e cục bộ**
 
 Run: `scripts/dev-up.sh`, rồi `bun run --cwd frontend test:e2e`
 Expected: PASS (spec cũ và hai spec mới).
 
-- [ ] **Step 3: Cập nhật `docs/feature-map.md`**
+- [x] **Step 3: Cập nhật `docs/feature-map.md`**
 
 Thêm các mục theo cấu trúc hiện có (PRD, Vào bằng, Frontend, Backend, Test đã có, Dữ liệu test, Cách kiểm tra):
 - *Tổ chức: tạo, chuyển, trang chào, tạm ngừng*;
@@ -785,12 +785,12 @@ Thêm các mục theo cấu trúc hiện có (PRD, Vào bằng, Frontend, Backen
 
 Gỡ mọi nhắc tới `OrganizationsView`, `OrganizationMembersDialog`, `OrganizationRolesDialog`.
 
-- [ ] **Step 4: Chạy gate đầy đủ**
+- [x] **Step 4: Chạy gate đầy đủ**
 
 Run: `scripts/test-gate.sh`
 Expected: PASS.
 
-- [ ] **Step 5: Commit** `test(e2e): cover creating organizations and joining by invitation; map module 00 screens`
+- [x] **Step 5: Commit** `test(e2e): cover creating organizations and joining by invitation; map module 00 screens`
 
 ---
 
