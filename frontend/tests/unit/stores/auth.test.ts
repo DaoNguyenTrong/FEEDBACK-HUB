@@ -84,6 +84,50 @@ describe('useAuthStore', () => {
     expect(auth.hasPermission('organizations.manage')).toBe(false)
   })
 
+  it('sets the session from register-with-invitation and returns the outcome', async () => {
+    let body: unknown
+    server.use(
+      http.post('*/api/auth/register-with-invitation', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({
+          ...makeAuthResponse(),
+          invitationOutcome: 'Joined',
+          organizationId: 'org-1',
+          organizationName: 'Acme',
+          permissions: ['organizations.members.manage'],
+        })
+      }),
+    )
+    const auth = useAuthStore()
+
+    const response = await auth.registerWithInvitation({
+      token: 'tok',
+      name: 'Jane',
+      username: 'jane',
+      password: 'Password123!',
+    })
+
+    expect(body).toEqual({ token: 'tok', name: 'Jane', username: 'jane', password: 'Password123!' })
+    expect(response.invitationOutcome).toBe('Joined')
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.organizationId).toBe('org-1')
+    expect(auth.permissions).toEqual(['organizations.members.manage'])
+  })
+
+  it('externalLogin returns whether the account was just created', async () => {
+    server.use(
+      http.post('*/api/auth/external/google', () =>
+        HttpResponse.json({ ...makeAuthResponse(), accountCreated: true }),
+      ),
+    )
+    const auth = useAuthStore()
+
+    const response = await auth.externalLogin('google', { credential: 'c' })
+
+    expect(response.accountCreated).toBe(true)
+    expect(auth.isAuthenticated).toBe(true)
+  })
+
   describe('logout', () => {
     beforeEach(() => {
       vi.mocked(reloadToLogin).mockClear()
@@ -98,6 +142,17 @@ describe('useAuthStore', () => {
 
       expect(store.isAuthenticated).toBe(false)
       expect(reloadToLogin).toHaveBeenCalledWith()
+    })
+
+    it('logs out to the login page with the given redirect', async () => {
+      server.use(http.post('*/api/auth/logout', () => new HttpResponse(null, { status: 204 })))
+      const store = useAuthStore()
+      store.setAuth(makeAuthResponse())
+
+      await store.logout(undefined, { redirect: '/invite' })
+
+      expect(store.isAuthenticated).toBe(false)
+      expect(reloadToLogin).toHaveBeenCalledWith({ redirect: '/invite' })
     })
 
     it('still clears auth and reloads when the logout request fails', async () => {

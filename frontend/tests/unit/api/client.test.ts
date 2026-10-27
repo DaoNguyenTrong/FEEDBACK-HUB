@@ -348,6 +348,34 @@ describe('apiClient interceptors', () => {
     expect(calls).toBe(2)
   })
 
+  it('does not refresh on an invitation lookup 401, but does on accept', async () => {
+    let refreshCalls = 0
+    let acceptCalls = 0
+
+    server.use(
+      http.post('*/api/invitations/lookup', () => new HttpResponse(null, { status: 401 })),
+      http.post('*/api/invitations/accept', () => {
+        acceptCalls++
+        return acceptCalls === 1
+          ? new HttpResponse(null, { status: 401 })
+          : HttpResponse.json({ organizationId: 'o1', organizationName: 'Acme' })
+      }),
+      http.post('*/api/auth/refresh', () => {
+        refreshCalls++
+        return HttpResponse.json(makeAuthResponse())
+      }),
+    )
+
+    const apiClient = await loadApiClient()
+
+    await expect(apiClient.post('/api/invitations/lookup', { token: 't' })).rejects.toBeDefined()
+    expect(refreshCalls).toBe(0)
+
+    await apiClient.post('/api/invitations/accept', { token: 't' })
+    expect(refreshCalls).toBe(1)
+    expect(acceptCalls).toBe(2)
+  })
+
   it('does not refresh on a logout 401', async () => {
     let refreshCalls = 0
 

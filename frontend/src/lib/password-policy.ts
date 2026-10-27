@@ -4,3 +4,4 @@
  * never to login or the current password: those may predate the policy.
  */
 export const PASSWORD_MIN_LENGTH = 8
+export const PASSWORD_MAX_LENGTH = 100

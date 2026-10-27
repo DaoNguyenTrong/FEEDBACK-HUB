@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RouteRecordRaw } from 'vue-router'
 import { useGoogleAuth } from '@/composables/use-google-auth'
 import { makeAuthResponse } from '../../helpers/msw/fixtures'
@@ -32,6 +32,27 @@ describe('useGoogleAuth', () => {
     await result.handleCredential('fake-id-token')
 
     expect(router.currentRoute.value.name).toBe('home')
+
+    app.unmount()
+  })
+
+  it('hands the response to onSignedIn instead of leaving the page', async () => {
+    server.use(
+      http.post('*/api/auth/external/google', () =>
+        HttpResponse.json({ ...makeAuthResponse(), accountCreated: true }),
+      ),
+    )
+    const onSignedIn = vi.fn()
+
+    const { result, app, router } = await withSetup(
+      () => useGoogleAuth(onSignedIn),
+      '/login',
+      ROUTES,
+    )
+    await result.handleCredential('fake-id-token')
+
+    expect(onSignedIn).toHaveBeenCalledWith(expect.objectContaining({ accountCreated: true }))
+    expect(router.currentRoute.value.name).toBe('login')
 
     app.unmount()
   })

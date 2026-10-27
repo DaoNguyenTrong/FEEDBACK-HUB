@@ -77,6 +77,7 @@ export interface LocaleSchema {
     serverErrorTitle: string
     serverErrorDescription: string
     serverErrorRetry: string
+    tooManyRequests: string
   }
   auth: {
     login: string
@@ -326,6 +327,22 @@ export interface LocaleSchema {
     justSuspended: string
     systemOrganizations: string
   }
+  invite: {
+    title: string
+    summary: string
+    emailHint: string
+    passwordHint: string
+    submit: string
+    hasAccount: string
+    emailTaken: string
+    accept: string
+    loadFailed: string
+    wrongAccount: { title: string; signOut: string }
+    emailNotConfirmed: { title: string; text: string }
+    expired: { title: string; text: string }
+    noLongerValid: { title: string; text: string }
+    suspended: { title: string; text: string }
+  }
   organizations: {
     switcherTitle: string
     suspended: string
@@ -457,6 +474,10 @@ const en: LocaleSchema = {
     UnknownPermissionCode: 'Unknown permission.',
     RoleHasHolders: 'This role is still held by members.',
     FieldMaxLength: 'The role name can be at most 100 characters.',
+    InvitationExpired: 'This invitation has expired',
+    InvitationNoLongerValid: 'This invitation can no longer be used',
+    InvitationWrongAccount: "This invitation isn't for the account you are using",
+    InvitationOrganizationSuspended: 'The organization is suspended',
   },
   accessProblem: {
     notFoundTitle: 'Not found',
@@ -475,6 +496,7 @@ const en: LocaleSchema = {
     serverErrorDescription:
       'The service is temporarily unavailable or unreachable. It usually recovers on its own — try again in a moment.',
     serverErrorRetry: 'Try again',
+    tooManyRequests: 'Too many attempts. Wait a moment and try again.',
   },
   auth: {
     login: 'Login',
@@ -715,6 +737,37 @@ const en: LocaleSchema = {
     justSuspended:
       "{name} has just been suspended. What you just did wasn't carried out. Contact the FeedbackHub system administrator to reopen it.",
     systemOrganizations: 'Organizations',
+  },
+  invite: {
+    title: 'Invitation to {org}',
+    summary: 'You were invited as {role}. The invitation is valid until {time}.',
+    emailHint: "Email from the invitation. It can't be changed.",
+    passwordHint: '{min} to {max} characters.',
+    submit: 'Create account and join',
+    hasAccount: 'Already have an account? Sign in',
+    emailTaken: 'This email already has an account. Sign in to accept the invitation.',
+    accept: 'Accept invitation',
+    loadFailed: "We couldn't open this invitation. Check your connection and try again.",
+    wrongAccount: {
+      title: "This invitation isn't for the account you are using",
+      signOut: 'Sign out to use another account',
+    },
+    emailNotConfirmed: {
+      title: 'Verify your email before using the invitation',
+      text: 'Open the verification email in your inbox, then open this invitation again.',
+    },
+    expired: {
+      title: 'This invitation has expired',
+      text: 'The invitation expired at {time}. Ask an organization manager to send it again.',
+    },
+    noLongerValid: {
+      title: 'This invitation can no longer be used',
+      text: 'It may have been revoked, or you may have received a newer one. Open the latest invitation email.',
+    },
+    suspended: {
+      title: '{org} is suspended',
+      text: 'The invitation is still valid until {time}. You can accept it once the organization is active again.',
+    },
   },
   organizations: {
     switcherTitle: 'Your organizations',

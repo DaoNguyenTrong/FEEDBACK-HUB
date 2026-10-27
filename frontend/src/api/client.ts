@@ -160,6 +160,9 @@ const AUTHENTICATED_AUTH_PREFIXES = ['/api/auth/sessions/']
 function isAuthFlowRequest(url?: string) {
   if (!url) return false
   const path = url.split('?')[0] ?? url
+  // Anonymous endpoint (the invitation link is opened signed out too): a 401 here says nothing
+  // about the session, so it must not trigger a refresh or clear the auth state.
+  if (path === '/api/invitations/lookup') return true
   if (
     AUTHENTICATED_AUTH_URLS.has(path) ||
     AUTHENTICATED_AUTH_PREFIXES.some((prefix) => path.startsWith(prefix))
