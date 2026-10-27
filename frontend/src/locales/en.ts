@@ -156,6 +156,7 @@ export interface LocaleSchema {
     members: string
     invitations: string
     roles: string
+    systemOrganizations: string
     profile: string
     openMenu: string
     groups: {
@@ -189,6 +190,20 @@ export interface LocaleSchema {
     lockReasonInsufficientRole: string
     emptyTitle: string
     emptyDescription: string
+    showingOf: string
+  }
+  systemOrganizations: {
+    title: string
+    count: string
+    members: string
+    deactivated: string
+    deactivate: string
+    reactivate: string
+    actionsFor: string
+    reactivateConfirm: string
+    reactivateDetail: string
+    deactivatedToast: string
+    reactivatedToast: string
     showingOf: string
   }
   members: {
@@ -458,6 +473,7 @@ const en: LocaleSchema = {
     EmailNotConfirmed: 'Verify your email before doing this.',
     OrganizationNameRequired: 'Enter the organization name.',
     DeactivationReasonRequired: 'Enter a reason.',
+    SystemAdministratorRequired: 'Only a FeedbackHub system administrator can do this.',
     OwnerOnlyOperation: 'Only an Owner can do this.',
     InsufficientRolePermissions: "You don't have every permission of this role.",
     OrganizationCannotRemoveLastOwner: 'The organization needs at least one owner.',
@@ -584,6 +600,7 @@ const en: LocaleSchema = {
     members: 'Members',
     invitations: 'Invitations',
     roles: 'Roles',
+    systemOrganizations: 'Organizations',
     profile: 'Profile',
     openMenu: 'Open menu',
     groups: {
@@ -848,6 +865,21 @@ const en: LocaleSchema = {
     emptyDescription:
       'Invitations you send will appear here until they are used, revoked or expired.',
     showingOf: 'Showing {shown} of {total} invitations',
+  },
+  systemOrganizations: {
+    title: 'Organizations',
+    count: '{n} organizations',
+    members: '{n} members',
+    deactivated: 'Deactivated',
+    deactivate: 'Deactivate',
+    reactivate: 'Reactivate',
+    actionsFor: 'Actions for {name}',
+    reactivateConfirm: 'Reactivate {name}?',
+    reactivateDetail:
+      'Members can get back in right away. Everything returns to how it was, except what has expired.',
+    deactivatedToast: 'Deactivated {name}',
+    reactivatedToast: 'Reactivated {name}',
+    showingOf: 'Showing {shown} of {total}',
   },
   members: {
     self: 'you',

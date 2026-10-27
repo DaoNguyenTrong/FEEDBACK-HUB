@@ -63,6 +63,7 @@ const vi: LocaleSchema = {
     EmailNotConfirmed: 'Bạn cần xác minh email trước khi làm việc này.',
     OrganizationNameRequired: 'Nhập tên tổ chức.',
     DeactivationReasonRequired: 'Nhập lý do.',
+    SystemAdministratorRequired: 'Chỉ admin hệ thống FeedbackHub làm được việc này.',
     OwnerOnlyOperation: 'Chỉ Chủ sở hữu làm được việc này.',
     InsufficientRolePermissions: 'Bạn không có đủ quyền của vai trò này.',
     OrganizationCannotRemoveLastOwner: 'Tổ chức cần còn ít nhất một Chủ sở hữu.',
@@ -187,6 +188,7 @@ const vi: LocaleSchema = {
     members: 'Thành viên',
     invitations: 'Lời mời',
     roles: 'Vai trò',
+    systemOrganizations: 'Các tổ chức',
     profile: 'Hồ sơ cá nhân',
     openMenu: 'Mở menu',
     groups: {
@@ -417,6 +419,21 @@ const vi: LocaleSchema = {
       access: 'Thành viên không vào được tổ chức.',
       data: 'Dữ liệu giữ nguyên. Bạn kích hoạt lại được bất cứ lúc nào.',
     },
+  },
+  systemOrganizations: {
+    title: 'Các tổ chức',
+    count: '{n} tổ chức',
+    members: '{n} thành viên',
+    deactivated: 'Đã vô hiệu',
+    deactivate: 'Vô hiệu',
+    reactivate: 'Kích hoạt lại',
+    actionsFor: 'Thao tác với {name}',
+    reactivateConfirm: 'Kích hoạt lại {name}?',
+    reactivateDetail:
+      'Thành viên vào lại được ngay. Mọi thứ trở lại như trước, trừ những gì đã hết hạn.',
+    deactivatedToast: 'Đã vô hiệu {name}',
+    reactivatedToast: 'Đã kích hoạt lại {name}',
+    showingOf: 'Đang hiện {shown} trên {total}',
   },
   members: {
     self: 'bạn',
