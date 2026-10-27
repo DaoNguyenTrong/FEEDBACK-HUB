@@ -79,6 +79,10 @@ const vi: LocaleSchema = {
     UnknownPermissionCode: 'Quyền không hợp lệ.',
     RoleHasHolders: 'Vai trò vẫn còn người giữ.',
     FieldMaxLength: 'Tên vai trò tối đa 100 ký tự.',
+    InvitationExpired: 'Lời mời đã hết hạn',
+    InvitationNoLongerValid: 'Lời mời này không còn dùng được',
+    InvitationWrongAccount: 'Lời mời này không dành cho tài khoản bạn đang dùng',
+    InvitationOrganizationSuspended: 'Tổ chức đang tạm ngừng hoạt động',
   },
   accessProblem: {
     notFoundTitle: 'Không tìm thấy',
@@ -97,6 +101,7 @@ const vi: LocaleSchema = {
     serverErrorDescription:
       'Dịch vụ tạm thời không khả dụng hoặc không thể kết nối. Hệ thống thường tự khôi phục — vui lòng thử lại sau giây lát.',
     serverErrorRetry: 'Thử lại',
+    tooManyRequests: 'Bạn thao tác quá nhanh. Đợi một chút rồi thử lại.',
   },
   auth: {
     login: 'Đăng nhập',
@@ -332,6 +337,37 @@ const vi: LocaleSchema = {
     justSuspended:
       '{name} vừa tạm ngừng hoạt động. Việc bạn vừa làm chưa được thực hiện. Liên hệ admin hệ thống FeedbackHub để mở lại.',
     systemOrganizations: 'Các tổ chức',
+  },
+  invite: {
+    title: 'Lời mời vào {org}',
+    summary: 'Bạn được mời với vai trò {role}. Lời mời có hạn đến {time}.',
+    emailHint: 'Email theo lời mời, không đổi được.',
+    passwordHint: 'Từ {min} đến {max} ký tự.',
+    submit: 'Tạo tài khoản và tham gia',
+    hasAccount: 'Đã có tài khoản? Đăng nhập',
+    emailTaken: 'Email này đã có tài khoản. Hãy đăng nhập để nhận lời mời.',
+    accept: 'Chấp nhận lời mời',
+    loadFailed: 'Chưa mở được lời mời này. Hãy kiểm tra kết nối rồi thử lại.',
+    wrongAccount: {
+      title: 'Lời mời này không dành cho tài khoản bạn đang dùng',
+      signOut: 'Đăng xuất để dùng tài khoản khác',
+    },
+    emailNotConfirmed: {
+      title: 'Cần xác minh email trước khi dùng lời mời',
+      text: 'Mở thư xác minh trong hộp thư của bạn rồi mở lại lời mời này.',
+    },
+    expired: {
+      title: 'Lời mời đã hết hạn',
+      text: 'Lời mời hết hạn lúc {time}. Nhờ người quản lý của tổ chức gửi lại lời mời.',
+    },
+    noLongerValid: {
+      title: 'Lời mời này không còn dùng được',
+      text: 'Lời mời có thể đã bị thu hồi, hoặc bạn đã nhận được lời mời mới hơn. Hãy mở email mời mới nhất.',
+    },
+    suspended: {
+      title: '{org} đang tạm ngừng hoạt động',
+      text: 'Lời mời vẫn còn hạn đến {time}. Bạn có thể nhận lời khi tổ chức hoạt động lại.',
+    },
   },
   organizations: {
     switcherTitle: 'Tổ chức của bạn',

@@ -141,6 +141,13 @@ const router = createRouter({
       component: () => import('@/views/VerifyEmailView.vue'),
     },
     {
+      // Public: the invitation link is opened from a mail, signed in or not. No `guestOnly`: a
+      // signed-in invitee accepts here, and the page itself says what to do for the wrong account.
+      path: '/invite',
+      name: 'invite',
+      component: () => import('@/views/InviteView.vue'),
+    },
+    {
       // Public like /verify-email: the link is opened from a mail, signed in or not.
       path: '/confirm-email-change',
       name: 'confirm-email-change',

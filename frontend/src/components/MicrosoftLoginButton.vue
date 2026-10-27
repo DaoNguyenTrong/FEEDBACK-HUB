@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import type { ExternalLoginResponse } from '@/api/types'
+
 import { PublicClientApplication } from '@azure/msal-browser'
 
 const { t } = useI18n()
 const { microsoftClientId: clientId, microsoftTenantId: tenantId } = getRuntimeConfig()
 const ready = ref(false)
-const { error, showResendVerification, handleCredential } = useMicrosoftAuth()
+const props = defineProps<{
+  /** Takes over after a successful sign-in; without it the app goes to the redirect target or home. */
+  onSignedIn?: (response: ExternalLoginResponse) => void | Promise<void>
+}>()
+const { error, showResendVerification, handleCredential } = useMicrosoftAuth(props.onSignedIn)
 
 let msalInstance: PublicClientApplication | null = null
 
