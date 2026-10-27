@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteMeta } from 'vue-router'
-import { BuildingCommunity, Home, Settings, Users } from '@vicons/tabler'
+import { BuildingCommunity, Home, ListDetails, Settings, Users } from '@vicons/tabler'
 import { Permissions } from '@/lib/permissions'
 import { routeAccess } from '@/lib/route-access'
 import type { RouteAccessContext } from '@/lib/route-access'
@@ -105,6 +105,22 @@ const router = createRouter({
               icon: Settings,
               group: 'organization',
               order: 20,
+            },
+          },
+        },
+        {
+          path: 'organization/audit-log',
+          name: 'organization-audit-log',
+          component: () => import('@/views/organization/AuditLogView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresOrganization: true,
+            permission: Permissions.AuditLogsView,
+            sidebar: {
+              labelKey: 'nav.auditLog',
+              icon: ListDetails,
+              group: 'organization',
+              order: 30,
             },
           },
         },
