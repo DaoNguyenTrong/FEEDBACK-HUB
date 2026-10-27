@@ -192,7 +192,9 @@ const vi: LocaleSchema = {
     currentPassword: 'Mật khẩu hiện tại',
     newPassword: 'Mật khẩu mới',
     changePassword: 'Đổi mật khẩu',
-    personalInfo: 'Thông tin cá nhân',
+    passwordTab: 'Mật khẩu',
+    personalInfo: 'Thông tin',
+    sessionsTabShort: 'Phiên',
     avatarChange: 'Đổi ảnh',
     avatarRemove: 'Xóa ảnh',
     avatarUpdated: 'Đã cập nhật ảnh đại diện',
@@ -243,12 +245,14 @@ const vi: LocaleSchema = {
   },
   confirmEmailChange: {
     confirming: 'Đang xác nhận email mới…',
-    success: 'Đã đổi email.',
+    success: 'Đã đổi email',
+    successBody: 'Từ giờ tài khoản dùng email {email} để đăng nhập và nhận thư.',
+    successBodyNoEmail: 'Email của tài khoản đã được đổi thành công.',
     noLongerValid: 'Liên kết đổi email không còn hiệu lực.',
     alreadyTaken: 'Đã có tài khoản sử dụng email này.',
     missingToken: 'Liên kết đổi email bị thiếu hoặc không đúng định dạng.',
     failed: 'Không thể xác nhận đổi email lúc này. Vui lòng thử lại.',
-    backToApp: 'Về ứng dụng',
+    backToApp: 'Mở FeedbackHub',
   },
   roles: {
     systemKind: { Owner: 'Chủ sở hữu', Admin: 'Admin', Member: 'Member' },
@@ -295,7 +299,8 @@ const vi: LocaleSchema = {
     save: 'Lưu',
     renamed: 'Đã đổi tên thành {name}',
     deactivateTitle: 'Vô hiệu tổ chức',
-    deactivateText: 'Tạm ngừng toàn bộ tổ chức ngay lập tức. Dữ liệu được giữ nguyên.',
+    deactivateText:
+      'Tạm ngừng toàn bộ hoạt động của {name}. Dữ liệu giữ nguyên. Chỉ admin hệ thống FeedbackHub kích hoạt lại được.',
     deactivateAction: 'Vô hiệu tổ chức',
   },
   deactivateOrganization: {
@@ -324,6 +329,7 @@ const vi: LocaleSchema = {
   members: {
     self: 'bạn',
     actions: 'Thao tác',
+    actionsFor: 'Thao tác với {name}',
     changeRoles: 'Đổi vai trò',
     leave: 'Rời tổ chức',
     remove: 'Gỡ khỏi tổ chức',

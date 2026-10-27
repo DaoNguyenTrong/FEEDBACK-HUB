@@ -565,24 +565,7 @@ watch(visible, (open) => {
             </div>
           </n-form-item>
 
-          <n-form-item
-            class="sm:col-span-2"
-            :show-label="false"
-            :feedback="profileErrors.address || undefined"
-            :validation-status="profileErrors.address ? 'error' : undefined"
-          >
-            <div class="w-full space-y-1.5">
-              <label class="text-sm font-medium text-ink">
-                {{ t('profile.address') }}
-              </label>
-              <n-input
-                v-model:value="profileForm.address"
-                type="text"
-                class="w-full"
-                :placeholder="t('profile.addressPlaceholder')"
-              />
-            </div>
-          </n-form-item>
+          <!-- Address field hidden from UI; stored value is preserved and sent on save. -->
 
           <div class="sm:col-span-2">
             <n-button
@@ -598,7 +581,7 @@ watch(visible, (open) => {
         </n-form>
       </n-tab-pane>
 
-      <n-tab-pane v-if="hasPassword" name="changePassword" :tab="t('profile.changePassword')">
+      <n-tab-pane v-if="hasPassword" name="changePassword" :tab="t('profile.passwordTab')">
         <n-form
           ref="passwordFormRef"
           :model="passwordForm"
@@ -664,7 +647,11 @@ watch(visible, (open) => {
         </n-form>
       </n-tab-pane>
 
-      <n-tab-pane name="sessions" :tab="t('profile.sessionsTitle')">
+      <n-tab-pane name="sessions">
+        <template #tab>
+          <span class="sm:hidden">{{ t('profile.sessionsTabShort') }}</span>
+          <span class="hidden sm:inline">{{ t('profile.sessionsTitle') }}</span>
+        </template>
         <div class="pt-3">
           <div class="flex items-center justify-end">
             <n-button
@@ -742,7 +729,7 @@ watch(visible, (open) => {
         </div>
       </n-tab-pane>
 
-      <n-tab-pane name="notifications" :tab="t('pushNotifications.title')">
+      <n-tab-pane name="notifications" :tab="t('notifications.title')">
         <div class="pt-3">
           <p v-if="!push.isSupported.value" class="text-sm text-ink-muted">
             {{ t('pushNotifications.notSupported') }}

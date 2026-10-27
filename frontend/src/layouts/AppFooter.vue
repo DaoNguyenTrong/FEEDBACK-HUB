@@ -1,19 +1,8 @@
 <script setup lang="ts">
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const version = __APP_VERSION__
 // Polling is owned by App.vue (app-wide); the footer only reflects the shared state.
-const { status, apiVersion, apiBuildTimestamp } = storeToRefs(useHealthStore())
-
-const formattedBuildTime = computed(() => {
-  if (!apiBuildTimestamp.value) return null
-  return new Intl.DateTimeFormat(locale.value, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(apiBuildTimestamp.value))
-})
+const { status } = storeToRefs(useHealthStore())
 
 const statusDotClass = computed(() => {
   if (status.value === 'online') return 'bg-success'
@@ -31,24 +20,16 @@ const statusDotClass = computed(() => {
       <span class="hidden sm:inline">{{ t('app.version', { version }) }}</span>
     </div>
 
-    <div class="flex items-center gap-2">
-      <span v-if="apiVersion" class="hidden sm:inline">
-        {{ t('app.apiVersion', { version: apiVersion }) }}
-      </span>
-      <span v-if="formattedBuildTime" class="hidden sm:inline">
-        {{ t('app.apiBuildTime', { time: formattedBuildTime }) }}
-      </span>
-      <n-tooltip trigger="hover" placement="top">
-        <template #trigger>
-          <span
-            class="h-2 w-2 shrink-0 rounded-full"
-            :class="statusDotClass"
-            role="status"
-            :aria-label="t(`app.apiStatus.${status}`)"
-          />
-        </template>
-        {{ t(`app.apiStatus.${status}`) }}
-      </n-tooltip>
-    </div>
+    <n-tooltip trigger="hover" placement="top">
+      <template #trigger>
+        <span
+          class="h-2 w-2 shrink-0 rounded-full"
+          :class="statusDotClass"
+          role="status"
+          :aria-label="t(`app.apiStatus.${status}`)"
+        />
+      </template>
+      {{ t(`app.apiStatus.${status}`) }}
+    </n-tooltip>
   </footer>
 </template>

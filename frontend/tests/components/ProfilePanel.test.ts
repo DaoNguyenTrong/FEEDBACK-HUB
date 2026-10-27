@@ -224,14 +224,15 @@ describe('ProfilePanel', () => {
     await placeholderInput(wrapper, en.profile.namePlaceholder).setValue('  Jane Doe  ')
     await placeholderInput(wrapper, en.profile.phonePlaceholder).setValue('  ')
     await placeholderInput(wrapper, en.profile.positionPlaceholder).setValue('')
-    await placeholderInput(wrapper, en.profile.addressPlaceholder).setValue('')
+    // Address field is hidden from the UI; the loaded value ('123 Main St' from makeProfile) is
+    // preserved and sent unchanged — not cleared.
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
     expect(requestBody?.name).toBe('Jane Doe')
     expect(requestBody?.phone).toBeNull()
     expect(requestBody?.position).toBeNull()
-    expect(requestBody?.address).toBeNull()
+    expect(requestBody?.address).toBe('123 Main St')
   })
 
   it('re-fills the form and shows a success toast when the update succeeds', async () => {

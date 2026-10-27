@@ -10,6 +10,7 @@ const authStore = useAuthStore()
 
 const status = ref<'confirming' | 'success' | 'error'>('confirming')
 const errorMessage = ref('')
+const confirmedEmail = ref<string | null>(null)
 
 function extractToken(raw: unknown): string | null {
   return typeof raw === 'string' && raw.trim().length > 0 ? raw : null
@@ -42,6 +43,7 @@ async function confirm() {
     await getAuth().authConfirmEmailChange({ token })
     status.value = 'success'
     await reloadProfile()
+    confirmedEmail.value = authStore.account?.email ?? null
   } catch (error) {
     const code = error instanceof ApiError ? error.problem.code : undefined
     if (code === 'EmailChangeLinkNoLongerValid') {
@@ -82,12 +84,23 @@ onMounted(confirm)
           </div>
 
           <div v-else class="mt-8 space-y-5">
+            <div v-if="status === 'success'" data-testid="confirm-email-change-result">
+              <p class="text-lg font-semibold text-ink">{{ t('confirmEmailChange.success') }}</p>
+              <p class="mt-2 text-sm text-ink-muted">
+                {{
+                  confirmedEmail
+                    ? t('confirmEmailChange.successBody', { email: confirmedEmail })
+                    : t('confirmEmailChange.successBodyNoEmail')
+                }}
+              </p>
+            </div>
             <n-alert
-              :type="status === 'success' ? 'success' : 'error'"
+              v-else
+              type="error"
               :show-icon="false"
               data-testid="confirm-email-change-result"
             >
-              {{ status === 'success' ? t('confirmEmailChange.success') : errorMessage }}
+              {{ errorMessage }}
             </n-alert>
             <RouterLink
               class="block text-center text-sm font-medium text-primary-600 hover:underline dark:text-primary-200"

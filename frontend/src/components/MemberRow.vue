@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DotsVertical } from '@vicons/tabler'
 import type { OrganizationMemberDto } from '@/api/types'
 import { ApiError } from '@/api/types'
 import { errorMessage } from '@/lib/error-message'
@@ -171,7 +172,7 @@ function roleOptionDisabledReason(roleId: string): string | null {
 
 <template>
   <div
-    class="rounded-lg border border-line bg-surface px-4 py-3"
+    class="border-b border-line px-4 py-3 last:border-b-0"
     :data-testid="`member-row-${member.accountId}`"
   >
     <div class="flex items-start gap-3">
@@ -183,14 +184,14 @@ function roleOptionDisabledReason(roleId: string): string | null {
         {{ initials }}
       </div>
 
-      <!-- Info -->
+      <!-- Info: name + email -->
       <div class="min-w-0 flex-1">
         <p class="text-sm font-medium text-ink">
           {{ member.accountName }}
           <span v-if="member.isSelf" class="text-ink-muted">({{ $t('members.self') }})</span>
         </p>
         <p v-if="member.email" class="text-xs text-ink-muted">{{ member.email }}</p>
-        <p class="text-xs text-ink-muted">{{ roleNames }}</p>
+        <p v-if="roleNames" class="text-xs text-ink-muted sm:hidden">{{ roleNames }}</p>
 
         <!-- Lock reason -->
         <p
@@ -200,6 +201,11 @@ function roleOptionDisabledReason(roleId: string): string | null {
         >
           {{ lockReasonText }}
         </p>
+      </div>
+
+      <!-- Roles column -->
+      <div class="hidden shrink-0 sm:block">
+        <p class="text-xs text-ink-muted">{{ roleNames }}</p>
       </div>
 
       <!-- Actions -->
@@ -226,16 +232,13 @@ function roleOptionDisabledReason(roleId: string): string | null {
           </n-button>
         </template>
 
-        <!-- Another member's row: dropdown menu -->
+        <!-- Another member's row: icon-only dropdown menu -->
         <n-dropdown
           v-else-if="member.canChangeRoles || member.canRemove"
           trigger="click"
           :options="[
             ...(member.canChangeRoles
               ? [{ label: $t('members.changeRoles'), key: 'change-roles' }]
-              : []),
-            ...(member.canChangeRoles && member.canRemove
-              ? [{ type: 'divider' as const, key: 'd1' }]
               : []),
             ...(member.canRemove
               ? [{ label: $t('members.remove'), key: 'remove', props: { class: 'text-danger' } }]
@@ -248,8 +251,18 @@ function roleOptionDisabledReason(roleId: string): string | null {
             }
           "
         >
-          <n-button size="small" secondary data-testid="member-menu">
-            {{ $t('members.actions') }}
+          <n-button
+            size="small"
+            secondary
+            circle
+            class="max-desktop:min-h-11 max-desktop:min-w-11"
+            data-testid="member-menu"
+            :aria-label="$t('members.actionsFor', { name: member.accountName })"
+            aria-haspopup="menu"
+          >
+            <template #icon>
+              <n-icon><DotsVertical /></n-icon>
+            </template>
           </n-button>
         </n-dropdown>
       </div>

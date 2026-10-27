@@ -203,7 +203,9 @@ function showDeactivateFailure(error: unknown) {
 
       <section class="flex flex-col gap-3" data-testid="org-settings-deactivate">
         <h2 class="text-row text-ink">{{ t('organizationSettings.deactivateTitle') }}</h2>
-        <p class="text-body text-ink-muted">{{ t('organizationSettings.deactivateText') }}</p>
+        <p class="text-body text-ink-muted">
+          {{ t('organizationSettings.deactivateText', { name: organization.name }) }}
+        </p>
         <n-button
           secondary
           type="error"

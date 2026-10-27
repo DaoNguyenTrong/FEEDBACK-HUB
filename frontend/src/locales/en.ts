@@ -166,6 +166,7 @@ export interface LocaleSchema {
   members: {
     self: string
     actions: string
+    actionsFor: string
     changeRoles: string
     leave: string
     remove: string
@@ -194,7 +195,9 @@ export interface LocaleSchema {
     currentPassword: string
     newPassword: string
     changePassword: string
+    passwordTab: string
     personalInfo: string
+    sessionsTabShort: string
     avatarChange: string
     avatarRemove: string
     avatarUpdated: string
@@ -245,6 +248,8 @@ export interface LocaleSchema {
   confirmEmailChange: {
     confirming: string
     success: string
+    successBody: string
+    successBodyNoEmail: string
     noLongerValid: string
     alreadyTaken: string
     missingToken: string
@@ -518,7 +523,9 @@ const en: LocaleSchema = {
     currentPassword: 'Current password',
     newPassword: 'New password',
     changePassword: 'Change password',
-    personalInfo: 'Personal information',
+    passwordTab: 'Password',
+    personalInfo: 'Profile',
+    sessionsTabShort: 'Sessions',
     avatarChange: 'Change photo',
     avatarRemove: 'Remove photo',
     avatarUpdated: 'Profile photo updated',
@@ -569,12 +576,14 @@ const en: LocaleSchema = {
   },
   confirmEmailChange: {
     confirming: 'Confirming your new email…',
-    success: 'Your email has been changed.',
+    success: 'Email changed',
+    successBody: 'This account now uses {email} to sign in and receive mail.',
+    successBodyNoEmail: 'Your account email has been changed successfully.',
     noLongerValid: 'This email change link is no longer valid.',
     alreadyTaken: 'An account with this email already exists.',
     missingToken: 'This email change link is missing or malformed.',
     failed: 'Unable to confirm the email change right now. Please try again.',
-    backToApp: 'Back to the app',
+    backToApp: 'Open FeedbackHub',
   },
   roles: {
     systemKind: { Owner: 'Owner', Admin: 'Admin', Member: 'Member' },
@@ -622,7 +631,8 @@ const en: LocaleSchema = {
     save: 'Save',
     renamed: 'Renamed to {name}',
     deactivateTitle: 'Deactivate organization',
-    deactivateText: 'Suspends the whole organization at once. Data is kept.',
+    deactivateText:
+      'Suspend all activity in {name}. Data is kept. Only a FeedbackHub system administrator can reactivate it.',
     deactivateAction: 'Deactivate organization',
   },
   deactivateOrganization: {
@@ -654,6 +664,7 @@ const en: LocaleSchema = {
   members: {
     self: 'you',
     actions: 'Actions',
+    actionsFor: 'Actions for {name}',
     changeRoles: 'Change roles',
     leave: 'Leave organization',
     remove: 'Remove from organization',

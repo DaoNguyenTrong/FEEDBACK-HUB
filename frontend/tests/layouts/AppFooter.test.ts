@@ -53,13 +53,14 @@ describe('AppFooter', () => {
     expect(dot.classes()).not.toContain('bg-danger')
   })
 
-  it('shows the online status dot and API version when the store reports "online"', async () => {
+  it('shows the online status dot when the store reports "online"', async () => {
     const { wrapper } = await renderComponent(AppFooter, {
       initialState: { health: { status: 'online', apiVersion: '3.1.4' } },
     })
 
     expect(wrapper.find('[role="status"]').classes()).toContain('bg-success')
-    expect(wrapper.text()).toContain(i18n.global.t('app.apiVersion', { version: '3.1.4' }))
+    // API version is not shown in the footer (SA decision: remove API version and build time)
+    expect(wrapper.text()).not.toContain(i18n.global.t('app.apiVersion', { version: '3.1.4' }))
   })
 
   it('shows a red status dot when the store reports "offline"', async () => {
@@ -78,21 +79,14 @@ describe('AppFooter', () => {
     expect(wrapper.find('[role="status"]').classes()).toContain('bg-danger')
   })
 
-  it('formats and shows the API build time when the store has one', async () => {
+  it('does not show the API build time even when the store has one', async () => {
+    // SA decision: footer shows only app name, version, and status dot — no API build time.
     const { wrapper } = await renderComponent(AppFooter, {
       initialState: { health: { status: 'online', apiBuildTimestamp: '2026-02-02T00:00:00Z' } },
     })
 
-    expect(wrapper.text()).toMatch(
+    expect(wrapper.text()).not.toMatch(
       new RegExp(`${escapeRegExp(i18n.global.t('app.apiBuildTime', { time: '' }))}.*2026`),
     )
-  })
-
-  it('omits the build-time text when the store has no build timestamp', async () => {
-    const { wrapper } = await renderComponent(AppFooter, {
-      initialState: { health: { status: 'online', apiBuildTimestamp: null } },
-    })
-
-    expect(wrapper.text()).not.toContain(i18n.global.t('app.apiBuildTime', { time: '' }))
   })
 })
