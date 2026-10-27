@@ -2,7 +2,13 @@ import { flushPromises } from '@vue/test-utils'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useOrganizationPeopleStore } from '@/stores/organization-people'
-import { makeInvitation, makeMember, makeRoleOption } from '../../factories/organization'
+import {
+  makeInvitation,
+  makeMember,
+  makePermission,
+  makeRole,
+  makeRoleOption,
+} from '../../factories/organization'
 import { makeAccount } from '../../helpers/msw/fixtures'
 import { server } from '../../helpers/msw/server'
 import { setupTestPinia, storeIn } from '../../helpers/pinia'
@@ -236,5 +242,92 @@ describe('organization-people store — invitations', () => {
     await store.revokeOrDelete('inv-1')
 
     expect(store.invitations.items).toHaveLength(0)
+  })
+})
+
+describe('organization-people store — roles', () => {
+  let pinia: ReturnType<typeof setupTestPinia>
+
+  beforeEach(() => {
+    pinia = setupTestPinia()
+  })
+  afterEach(() => {
+    server.resetHandlers()
+  })
+
+  it('loads the roles into roles', async () => {
+    server.use(
+      http.get('*/api/organization/roles', () =>
+        HttpResponse.json([makeRole({ id: 'r1' }), makeRole({ id: 'r2' })]),
+      ),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.loadRoles()
+
+    expect(store.roles.map((r) => r.id)).toEqual(['r1', 'r2'])
+  })
+
+  it('loads the permission catalog once', async () => {
+    let calls = 0
+    server.use(
+      http.get('*/api/permissions', () => {
+        calls += 1
+        return HttpResponse.json([makePermission(Permissions.FilesManage)])
+      }),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.loadPermissionCatalog()
+    await store.loadPermissionCatalog()
+
+    expect(calls).toBe(1)
+    expect(store.permissionCatalog).toEqual([{ code: Permissions.FilesManage }])
+  })
+
+  it('sends the name and permission codes on createRole and adds the role to the list', async () => {
+    let body: unknown
+    server.use(
+      http.post('*/api/organization/roles', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(makeRole({ id: 'new', name: 'Support' }))
+      }),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.createRole('Support', [Permissions.FilesManage])
+
+    expect(body).toEqual({ name: 'Support', permissionCodes: [Permissions.FilesManage] })
+    expect(store.roles.map((r) => r.id)).toEqual(['new'])
+  })
+
+  it('replaces the role in the list on updateRole', async () => {
+    server.use(
+      http.get('*/api/organization/roles', () =>
+        HttpResponse.json([makeRole({ id: 'r1', name: 'Old' })]),
+      ),
+      http.put('*/api/organization/roles/r1', () =>
+        HttpResponse.json(makeRole({ id: 'r1', name: 'New' })),
+      ),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.loadRoles()
+    await store.updateRole('r1', 'New', [])
+
+    expect(store.roles.map((r) => r.name)).toEqual(['New'])
+  })
+
+  it('removes the role from the list on deleteRole', async () => {
+    server.use(
+      http.get('*/api/organization/roles', () => HttpResponse.json([makeRole({ id: 'r1' })])),
+      http.delete('*/api/organization/roles/r1', () => new HttpResponse(null, { status: 204 })),
+    )
+
+    const store = storeIn(pinia, useOrganizationPeopleStore)
+    await store.loadRoles()
+    await store.deleteRole('r1')
+
+    expect(store.roles).toHaveLength(0)
   })
 })

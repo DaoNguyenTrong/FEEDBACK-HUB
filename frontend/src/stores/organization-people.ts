@@ -1,10 +1,18 @@
 import { getCurrentOrganization } from '@/api/generated/current-organization/current-organization'
-import type { InvitationDto, OrganizationMemberDto, RoleOptionDto } from '@/api/types'
+import { getPermissions } from '@/api/generated/permissions/permissions'
+import type {
+  InvitationDto,
+  OrganizationMemberDto,
+  PermissionDto,
+  RoleDto,
+  RoleOptionDto,
+} from '@/api/types'
 import { toPagedResult } from '@/lib/paged-result'
 import { Permissions } from '@/lib/permissions'
 
 export const useOrganizationPeopleStore = defineStore('organization-people', () => {
   const client = getCurrentOrganization()
+  const permissionsClient = getPermissions()
   const auth = useAuthStore()
 
   // ── Members (manual lazy list — useLazyList id-field requirement prevents clean nesting) ──
@@ -238,6 +246,39 @@ export const useOrganizationPeopleStore = defineStore('organization-people', () 
     }
   }
 
+  // ── Roles ─────────────────────────────────────────────────────────────────
+
+  const roles = ref<RoleDto[]>([])
+  const permissionCatalog = ref<PermissionDto[]>([])
+  const _catalogLoaded = ref(false)
+
+  async function loadRoles() {
+    roles.value = await client.currentOrganizationListRoles()
+  }
+
+  async function loadPermissionCatalog() {
+    if (_catalogLoaded.value) return
+    permissionCatalog.value = await permissionsClient.permissionsGetAll()
+    _catalogLoaded.value = true
+  }
+
+  async function createRole(name: string, permissionCodes: string[]) {
+    const created = await client.currentOrganizationCreateRole({ name, permissionCodes })
+    roles.value = [...roles.value, created]
+    return created
+  }
+
+  async function updateRole(roleId: string, name: string, permissionCodes: string[]) {
+    const updated = await client.currentOrganizationUpdateRole(roleId, { name, permissionCodes })
+    roles.value = roles.value.map((r) => (r.id === roleId ? updated : r))
+    return updated
+  }
+
+  async function deleteRole(roleId: string) {
+    await client.currentOrganizationDeleteRole(roleId)
+    roles.value = roles.value.filter((r) => r.id !== roleId)
+  }
+
   return {
     members,
     roleOptions,
@@ -250,5 +291,12 @@ export const useOrganizationPeopleStore = defineStore('organization-people', () 
     resend,
     isResending,
     revokeOrDelete,
+    roles,
+    permissionCatalog,
+    loadRoles,
+    loadPermissionCatalog,
+    createRole,
+    updateRole,
+    deleteRole,
   }
 })

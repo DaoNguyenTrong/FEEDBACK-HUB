@@ -285,6 +285,36 @@ export interface LocaleSchema {
   }
   roles: {
     systemKind: { Owner: string; Admin: string; Member: string }
+    create: string
+    createShort: string
+    edit: string
+    delete: string
+    actionsFor: string
+    allPermissions: string
+    noPermissions: string
+    holders: string
+    viewOnly: string
+    viewOnlyMissingPermissions: string
+    deleteBlockedHasHolders: string
+    deleteConfirmMessage: string
+    deleteConfirmDetail: string
+    nameLabel: string
+    nameRequired: string
+    permissionsLabel: string
+    grantableOnly: string
+    created: string
+    saved: string
+    deleted: string
+  }
+  permissions: {
+    organizations_manage: { name: string; description: string }
+    organizations_members_manage: { name: string; description: string }
+    organizations_roles_manage: { name: string; description: string }
+    apikeys_manage: { name: string; description: string }
+    auditlogs_view: { name: string; description: string }
+    files_manage: { name: string; description: string }
+    settings_manage: { name: string; description: string }
+    feedbackhub_admin: { name: string; description: string }
   }
   welcome: {
     greeting: string
@@ -308,14 +338,6 @@ export interface LocaleSchema {
     resendVerification: string
     slug: string
     slugHint: string
-    permissionOrganizationManage: string
-    permissionOrganizationMembersManage: string
-    permissionOrganizationRolesManage: string
-    permissionFilesManage: string
-    permissionApiKeysManage: string
-    permissionAuditLogsView: string
-    permissionSettingsManage: string
-    permissionFeedbackHubAdmin: string
   }
   organizationSettings: {
     title: string
@@ -429,6 +451,12 @@ const en: LocaleSchema = {
     InvitationEmailAlreadyMember: 'This person is already a member of {org}.',
     FieldEmailAddress: 'Enter an email like name@company.com.',
     InvitationEmailDeliveryFailed: "The invitation wasn't sent. Please try again.",
+    OrganizationRoleNameAlreadyExists: 'That name is already used in this organization.',
+    RoleNameReservedForSystemRole: 'That name belongs to a built-in role.',
+    OrganizationSystemRoleImmutable: "Built-in roles can't be edited or deleted.",
+    UnknownPermissionCode: 'Unknown permission.',
+    RoleHasHolders: 'This role is still held by members.',
+    FieldMaxLength: 'The role name can be at most 100 characters.',
   },
   accessProblem: {
     notFoundTitle: 'Not found',
@@ -617,6 +645,63 @@ const en: LocaleSchema = {
   },
   roles: {
     systemKind: { Owner: 'Owner', Admin: 'Admin', Member: 'Member' },
+    create: 'Create role',
+    createShort: 'Create',
+    edit: 'Edit role',
+    delete: 'Delete role',
+    actionsFor: 'Actions for role {name}',
+    allPermissions: 'All permissions',
+    noPermissions: 'No permissions',
+    holders: '{n} person | {n} people',
+    viewOnly: 'View only',
+    viewOnlyMissingPermissions:
+      "You don't have every permission in this role, so you can only view it.",
+    deleteBlockedHasHolders:
+      'This role is still held by {n} person. Change their role or remove them from the organization first. | This role is still held by {n} people. Change their roles or remove them from the organization first.',
+    deleteConfirmMessage: 'Delete role {name}?',
+    deleteConfirmDetail:
+      '{n} pending invitation with this role will no longer work. | {n} pending invitations with this role will no longer work.',
+    nameLabel: 'Role name',
+    nameRequired: 'Enter a role name.',
+    permissionsLabel: 'Permissions',
+    grantableOnly: 'You can only pick permissions you have.',
+    created: 'Created role {name}',
+    saved: 'Saved role {name}',
+    deleted: 'Deleted role {name}',
+  },
+  permissions: {
+    organizations_manage: {
+      name: 'Manage organization',
+      description: 'Rename and deactivate the organization.',
+    },
+    organizations_members_manage: {
+      name: 'Manage members',
+      description: 'Invite and remove members and change their roles.',
+    },
+    organizations_roles_manage: {
+      name: 'Manage roles',
+      description: 'Create, edit and delete custom roles.',
+    },
+    apikeys_manage: {
+      name: 'Manage API keys',
+      description: "Create and revoke the organization's API keys.",
+    },
+    auditlogs_view: {
+      name: 'View audit log',
+      description: 'See who did what in the organization.',
+    },
+    files_manage: {
+      name: 'Manage files',
+      description: 'Manage the files uploaded to the organization.',
+    },
+    settings_manage: {
+      name: 'Manage settings',
+      description: "Change the organization's general settings.",
+    },
+    feedbackhub_admin: {
+      name: 'FeedbackHub administration',
+      description: 'Manage products and all feedback of the organization.',
+    },
   },
   welcome: {
     greeting: 'Hi {name}',
@@ -643,14 +728,6 @@ const en: LocaleSchema = {
     slug: 'Short identifier',
     slugHint: "Can't be changed after creation.",
     resendVerification: 'Resend verification email',
-    permissionOrganizationManage: 'Manage organization',
-    permissionOrganizationMembersManage: 'Manage members',
-    permissionOrganizationRolesManage: 'Manage roles',
-    permissionFilesManage: 'Manage files',
-    permissionApiKeysManage: 'Manage API keys',
-    permissionAuditLogsView: 'View audit logs',
-    permissionSettingsManage: 'Manage settings',
-    permissionFeedbackHubAdmin: 'FeedbackHub administration',
   },
   organizationSettings: {
     title: 'Organization management',

@@ -82,6 +82,17 @@ const router = createRouter({
           },
         },
         {
+          path: 'organization/members/roles',
+          name: 'organization-roles',
+          component: () => import('@/views/organization/RolesView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresOrganization: true,
+            permission: Permissions.OrganizationRolesManage,
+            activeMenu: 'organization-members',
+          },
+        },
+        {
           path: 'organization/settings',
           name: 'organization-settings',
           component: () => import('@/views/organization/OrganizationSettingsView.vue'),
