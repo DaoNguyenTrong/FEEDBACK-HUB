@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteMeta } from 'vue-router'
-import { Home, Settings, Users } from '@vicons/tabler'
+import { BuildingCommunity, Home, Settings, Users } from '@vicons/tabler'
 import { Permissions } from '@/lib/permissions'
 import { routeAccess } from '@/lib/route-access'
 import type { RouteAccessContext } from '@/lib/route-access'
@@ -105,6 +105,23 @@ const router = createRouter({
               icon: Settings,
               group: 'organization',
               order: 20,
+            },
+          },
+        },
+        {
+          // No `requiresOrganization`: a system administrator opens it from any context, even with an
+          // empty `org_id`.
+          path: 'system/organizations',
+          name: 'system-organizations',
+          component: () => import('@/views/system/SystemOrganizationsView.vue'),
+          meta: {
+            requiresAuth: true,
+            systemAdministrator: true,
+            sidebar: {
+              labelKey: 'nav.systemOrganizations',
+              icon: BuildingCommunity,
+              group: 'system',
+              order: 10,
             },
           },
         },
