@@ -14,11 +14,11 @@ The application helps you work with your colleagues in each organization: manage
 <figcaption>The application's main screen</figcaption>
 </figure>
 
-| #   | Element                                                                  |
-| --- | ------------------------------------------------------------------------ |
-| 1   | Sidebar: the main sections                                               |
-| 2   | Top bar: where you are, notifications, appearance settings, account menu |
-| 3   | The content of the open section                                          |
+| #   | Element                                                                   |
+| --- | ------------------------------------------------------------------------- |
+| 1   | Sidebar: the main sections                                                |
+| 2   | Top bar: organization switcher, quick search, notifications, account menu |
+| 3   | The content of the open section                                           |
 
 ::: tip
 Type a keyword into **Search** at the top of the page.

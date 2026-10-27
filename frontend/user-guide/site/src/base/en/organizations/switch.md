@@ -1,50 +1,41 @@
 ---
 title: Switch organization
-description: 'Choose the organization to work in, or go back to your personal workspace.'
+description: 'Choose the organization to work in, or go back to the welcome page.'
 ---
 
 # Switch organization
 
-You can belong to several organizations. At any moment you work in one of them, or in your **Personal workspace** (no organization). The data and permissions you see belong to the one selected.
+You can belong to several organizations. At any moment you work in one of them, and the data and permissions you see belong to the one selected. Its name is always shown at the top left. When no organization is selected, this button reads **Personal workspace**.
 
-## Switch from the account menu
+## Steps
 
-1. At the top right, click your avatar. The places you can work in (**Personal workspace** and your organizations) are listed at the top of the menu.
-2. Choose the organization to switch to. The current one has a check mark.
-
-<figure>
-
-![The account menu with the list of organizations](/base/images/en/organizations/switch.jpg)
-
-<figcaption>The organization menu</figcaption>
-</figure>
-
-| #   | Element                                                    |
-| --- | ---------------------------------------------------------- |
-| 1   | Your avatar; click to open the menu                        |
-| 2   | An organization you are a member of                        |
-| 3   | **Manage organizations**: opens the **Organizations** page |
-
-## Switch from the Organizations page
-
-1. Click **Organizations** in the sidebar (or **Manage organizations** in the menu above).
-2. On the organization's row, click **Switch organization**.
+1. Click the button with the organization's name at the top left. The **Your organizations** panel opens.
+2. Choose the organization to switch to. Under each name is your role in it; the current one has a check mark.
 
 <figure>
 
-![The Organizations page listing your organizations](/base/images/en/organizations/list.jpg)
+![The Your organizations panel listing organizations](/base/images/en/organizations/switch.jpg)
 
-<figcaption>The Organizations page</figcaption>
+<figcaption>The organization panel</figcaption>
 </figure>
 
-| #   | Element                            |
-| --- | ---------------------------------- |
-| 1   | The **New organization** button    |
-| 2   | Status: **Active** or **Inactive** |
-| 3   | The **Switch organization** button |
+| #   | Element                                                        |
+| --- | -------------------------------------------------------------- |
+| 1   | The button with the current organization's name; click to open |
+| 2   | An organization you are a member of                            |
+| 3   | **Back to welcome page**: opens the [welcome page](./welcome)  |
+| 4   | **Create organization**: opens the [create](./create) panel    |
 
-Under each name are the organization's slug and **Your role** in it.
+On a phone the list opens as a panel of its own instead of a small window.
+
+## Suspended organizations
+
+An organization that was [deactivated](./settings) appears dimmed in the list, with a **Suspended** tag. Clicking it does not switch.
 
 ## Result
 
-The page reloads in the new organization. Its name appears next to your avatar at the top right (on small screens, open the account menu to see it).
+The page reloads on the **Home** of the organization you chose. You don't have to sign in again. If you choose the organization you are already in, the panel just closes.
+
+## Common problems
+
+- **An error message shows at the top of the panel and the page doesn't change**: the switch didn't happen, and you are still in the current organization. Choose it again.

@@ -9,7 +9,7 @@ for (const locale of locales) {
     await capture.open(locale)
     await capture.annotate([
       { selector: '[data-testid="app-sidebar"] nav', n: 1, at: 'top-right' },
-      { selector: '[data-testid="app-header-title"]', n: 2, at: 'after' },
+      { selector: 'header', n: 2, at: 'below' },
       { selector: 'main', n: 3 },
     ])
     await capture.blur([account])
@@ -59,13 +59,10 @@ for (const locale of locales) {
   test(`interface-controls [${locale}]`, async ({ capture }) => {
     await capture.open(locale)
     await capture.annotate([
-      { selector: '[data-testid="app-header-toggle"]', n: 1, at: 'below' },
-      { selector: '[data-testid="app-header-title"]', n: 2, at: 'after' },
-      { selector: '[data-testid="app-header-palette"]', n: 3, at: 'below' },
-      { selector: '[data-testid="app-header-user-guide"]', n: 4, at: 'below' },
-      { selector: 'header .n-badge', n: 5, at: 'below' },
-      { selector: '[data-testid="app-header-settings"]', n: 6, at: 'below' },
-      { selector: account, n: 7, at: 'below' },
+      { selector: '[data-testid="org-switcher-trigger"]', n: 1, at: 'below' },
+      { selector: '[data-testid="app-header-palette"]', n: 2, at: 'below' },
+      { selector: 'header .n-badge', n: 3, at: 'below' },
+      { selector: account, n: 4, at: 'below' },
     ])
     await capture.blur([account])
     await capture.shot({ locale, chapter, name: 'interface-controls', clip: 'header', pad: 48 })
