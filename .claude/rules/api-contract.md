@@ -15,6 +15,8 @@ Read this when changing a backend endpoint, request/response DTO, or header cont
 
 ### Regenerating after a backend contract change
 
+`scripts/sync-contract.sh` does both steps below, then `build-only` and `type-check` (so every broken call site shows up), and prints the `openapi.json` diff stat. The raw steps:
+
 ```bash
 # 1. Backend: re-export the spec (writes shared/openapi/openapi.json)
 dotnet build backend/src/FeedbackHub.API/FeedbackHub.API.csproj --no-restore -m:1 -p:OpenApiGenerateDocumentsOnBuild=true
