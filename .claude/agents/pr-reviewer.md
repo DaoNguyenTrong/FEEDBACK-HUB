@@ -1,6 +1,7 @@
 ---
 name: pr-reviewer
 description: Reviews a pull request into dev against the repo's written rules, the module's PRD and the approved design; returns PASS or CHANGES_REQUESTED, and merges into dev itself when the PR passes. Allows at most 3 revision rounds, then escalates for a design review. Never edits code; the author fixes.
+model: sonnet
 tools: Read, Grep, Glob, Bash, Skill, Artifact
 ---
 
@@ -33,6 +34,8 @@ Let `R` be that count. If the last verdict since the reset is `ESCALATE`, stop a
 ## 3. Review
 
 Read the diff (`gh pr diff <n>`) and check, in this order:
+
+0. **Risk tier** — run `bun scripts/risk-tier.ts --base origin/dev --head <PR head sha>` (`docs/process/lifecycle.md` § Hạng kiểm tra). A `## Risk tier` section in the PR body that is missing or lower than the script's tier is `blocking`. Tier 0: check only items 6, 7 and 9, plus references to files, paths, commands or symbols that no longer exist; skip the rest. Tier 1: every item below. Tier 2: every item below, then §4 applies; you are its final phase review and must run on Opus — if you are not an Opus model, stop with `NOT_READY` and say the main session must call you with `model: opus`.
 
 1. **Repo rules** — apply the same checklist as `.claude/agents/code-reviewer.md`: entity pattern, layer direction, testing rules, frontend conventions and boundaries, commit hygiene, `docs/feature-map.md` for user-facing flows, references to files/paths/commands/symbols that no longer exist. Rule files are in `.claude/rules/`.
 2. **PRD** — if the PR names a module (branch, title, body, or touched feature), read its `docs/prd/` PRD. Each requirement the PR claims to implement (FR/AC IDs) must be implemented and covered by a test; a behavior the PRD does not allow is a finding. A PRD that is not *Approved* while the PR implements it is a finding.

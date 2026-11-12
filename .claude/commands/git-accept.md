@@ -1,5 +1,5 @@
 ---
-description: Merge the current branch's docs-only PR into dev when the gate passes (required CI green, agent review without blocking findings, docs-only scope)
+description: Merge the current branch's docs-only PR into dev when the gate passes (required CI green, PRD approval check and diff read without blocking findings, docs-only scope)
 ---
 
 Merge a docs-only pull request into `dev` through a gate. This is the merge path for docs-only PRs; other PRs into `dev` go through the `pr-reviewer` agent, and any merge outside `dev` (hotfix, release) needs the user's explicit order (`AGENTS.md` § Commits). The gate runs on the client, so it is not a hard control: it only enforces the process.
@@ -41,17 +41,18 @@ gh pr view <number> --json statusCheckRollup --jq '.statusCheckRollup[] | "\(.na
 
 ### 4. Review gate
 
-Dispatch the `code-reviewer` subagent (Agent tool, `subagent_type: code-reviewer`) and give it the PR number, so it reviews `gh pr diff <number>`. It checks the docs against the rules they describe (for example, a doc that names a file or command that no longer exists) and labels each finding `blocking` or `non-blocking`.
+A docs-only PR is tier 0 (`docs/process/lifecycle.md` § Hạng kiểm tra): no agent review. Instead:
 
-When the PR sets a PRD under `docs/prd/` to *Approved*, also tell it to check the approval order in that PRD's change log (`docs/prd/README.md` § Quy trình, step 4). For the approved version, a `business-analyst` review row must come before the user-approval row, and no content change may follow the user-approval row. Changes to the link and metadata rows are exempt (`docs/process/lifecycle.md`, *Thay đổi sau khi đã duyệt*). A missing BA row, or a content change after the approval, is `blocking`.
+1. Run `bun scripts/check-prd-approval.ts` on every changed `docs/prd/*.md` other than `README.md` and `_template.md`. It checks an *Approved* PRD's change log: a `BA review` row before the last user-approval row of the current version, and only `metadata` rows after it (`docs/prd/README.md` § Quy trình, step 4). Any line it prints is `blocking`.
+2. Read the diff (`gh pr diff <number>`) yourself for files, commands, symbols or `§` references that no longer exist. Each one is `blocking`.
 
-Post its output as a PR comment so the decision is on record:
+Post the script output and "đã đọc diff: <findings or Không có>" as a PR comment so the decision is on record:
 
 ```bash
 gh pr comment <number> --body-file <file>
 ```
 
-Write the body to the scratchpad directory, not `/tmp`. Any finding labelled `blocking` → stop and report it. Non-blocking findings do not stop the merge.
+Write the body to the scratchpad directory, not `/tmp`. Any `blocking` finding → stop and report it.
 
 ### 5. Merge
 
