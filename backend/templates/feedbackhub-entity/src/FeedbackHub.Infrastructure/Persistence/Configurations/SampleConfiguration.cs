@@ -17,7 +17,7 @@ public sealed class SampleConfiguration : IEntityTypeConfiguration<Sample>
 
         builder.Property(entity => entity.Name)
             .HasColumnName("name")
-            .HasMaxLength(200)
+            .HasMaxLength(Sample.NameMaxLength)
             .IsRequired();
 
         builder.Property(entity => entity.CreatedAt)

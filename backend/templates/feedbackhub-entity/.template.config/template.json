@@ -49,9 +49,6 @@
       "value": "org-scoped"
     }
   },
-  "forms": {
-    "global": { "identifier": "identity" }
-  },
   "constraints": {},
   "postActions": []
 }

@@ -109,7 +109,7 @@ public class SampleServiceTests
     // GetAllAsync
 
     [Fact]
-    public async Task GetAllAsync_OrdersByCreatedAtDescending()
+    public async Task GetAllAsync_TwoRows_OrdersByCreatedAtDescending()
     {
         Fixture f = CreateFixture();
         Sample older = CreateEntity("Older");
@@ -230,4 +230,20 @@ public class SampleServiceTests
 
         f.Repo.DidNotReceive().Delete(Arg.Any<Sample>());
     }
+//#if (OrgScoped)
+
+    [Fact]
+    public async Task DeleteAsync_OtherOrganizationsRow_ThrowsNotFoundAndDoesNotSave()
+    {
+        Fixture f = CreateFixture();
+        Sample theirs = CreateEntity("Theirs", Guid.NewGuid());
+        Seed(f, theirs);
+
+        await ApplicationAssert.AssertNotFoundAsync<Sample>(
+            theirs.Id, () => f.Service.DeleteAsync(theirs.Id, CancellationToken.None));
+
+        f.Repo.DidNotReceive().Delete(Arg.Any<Sample>());
+        await f.UnitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+//#endif
 }

@@ -10,6 +10,8 @@ public sealed class Sample : BaseEntity<Guid>, IHasOrganization
 public sealed class Sample : BaseEntity<Guid>
 //#endif
 {
+    public const int NameMaxLength = 200;
+
     private Sample()
     {
     }
@@ -37,7 +39,7 @@ public sealed class Sample : BaseEntity<Guid>
 
     public void Update(SampleParams p)
     {
-        if (string.IsNullOrWhiteSpace(p.Name))
+        if (string.IsNullOrWhiteSpace(p.Name) || p.Name.Trim().Length > NameMaxLength)
         {
             throw new DomainException(DomainMessages.SampleNameRequired);
         }

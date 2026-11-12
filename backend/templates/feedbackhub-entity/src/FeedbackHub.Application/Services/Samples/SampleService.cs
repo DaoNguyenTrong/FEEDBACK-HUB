@@ -1,5 +1,7 @@
 using FeedbackHub.Application.Common.Interfaces;
+//#if (OrgScoped)
 using FeedbackHub.Application.Resources;
+//#endif
 using FeedbackHub.Domain.Entities;
 using FeedbackHub.Domain.Exceptions;
 using FeedbackHub.Domain.Interfaces;

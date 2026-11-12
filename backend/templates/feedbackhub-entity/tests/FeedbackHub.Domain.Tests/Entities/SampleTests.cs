@@ -28,7 +28,7 @@ public class SampleTests
     }
 
     [Fact]
-    public void Create_TrimsName()
+    public void Create_PaddedName_TrimsName()
     {
         Sample entity = CreateEntity(new SampleParams(Name: "  First  "));
 
@@ -43,6 +43,22 @@ public class SampleTests
         SampleParams p = ValidParams() with { Name = name };
 
         DomainAssert.ThrowsWithMessage(DomainMessages.SampleNameRequired, () => CreateEntity(p));
+    }
+
+    [Fact]
+    public void Create_WithNameOverMaxLength_ThrowsDomainException()
+    {
+        SampleParams p = ValidParams() with { Name = new string('a', Sample.NameMaxLength + 1) };
+
+        DomainAssert.ThrowsWithMessage(DomainMessages.SampleNameRequired, () => CreateEntity(p));
+    }
+
+    [Fact]
+    public void Create_WithNameAtMaxLength_Succeeds()
+    {
+        Sample entity = CreateEntity(ValidParams() with { Name = new string('a', Sample.NameMaxLength) });
+
+        Assert.Equal(Sample.NameMaxLength, entity.Name.Length);
     }
 //#if (OrgScoped)
 
