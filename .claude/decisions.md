@@ -10,6 +10,10 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-10-26 — The app's fonts are bundled from Fontsource packages, not loaded from a font CDN
+
+A CDN request on every page sends each visitor's IP address to a third party and breaks an offline or air-gapped deployment. Plus Jakarta Sans and JetBrains Mono are under the SIL OFL 1.1, which allows bundling and redistribution, and the licence text ships in each npm package. Rejected: Google Fonts, and system fonts only, which would not render the design language's type.
+
 ### 2026-10-23 — A profile email change waits in `PendingEmail` until the link sent to the new address is opened, and one `EmailConfirmed` predicate gates every email-trust decision
 
 An unproven address must not open invitations, match an external account or grant system administrator, and the old `Email` stays until confirmation so the account never loses its sign-in route. Rejected: changing `Email` at once with `EmailConfirmed = false` (a typo locks the person out of password sign-in while the unproven address holds the unique slot), a separate change-request table (an entity for one field), and a verified flag per external login (two predicates for one question).
@@ -21,10 +25,6 @@ Email verification issued a session without any status check, so a locked accoun
 ### 2026-10-23 — Audit excludes chosen properties (the password hash and the account's lock columns) instead of whole entities, and an entry with no organization is never returned
 
 A password hash has no audit value, while excluding the whole `Account` entity would lose the history of email changes. Rejected: masking the hash when entries are returned (it would still sit in the database and its backups), and excluding `Account` entirely.
-
-### 2026-10-26 — The app's fonts are bundled from Fontsource packages, not loaded from a font CDN
-
-A CDN request on every page sends each visitor's IP address to a third party and breaks an offline or air-gapped deployment. Plus Jakarta Sans and JetBrains Mono are under the SIL OFL 1.1, which allows bundling and redistribution, and the licence text ships in each npm package. Rejected: Google Fonts, and system fonts only, which would not render the design language's type.
 
 ### 2026-10-23 — Organization administration takes the organization only from the JWT; no route carries an organization id
 
