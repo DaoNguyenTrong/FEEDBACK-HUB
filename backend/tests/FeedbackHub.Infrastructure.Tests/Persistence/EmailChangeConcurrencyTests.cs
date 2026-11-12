@@ -18,6 +18,7 @@ public sealed class EmailChangeConcurrencyTests(PostgresContainerFixture fixture
     private static async Task<Guid> SeedAccountWithPendingAsync(AppDbContext context, string tag, string pending)
     {
         Account account = Account.Create(new AccountParams($"Account {tag}", $"user-{tag}", $"{tag}@example.com"));
+        account.SetPasswordHash("hash");
         account.RequestEmailChange(pending);
         context.Accounts.Add(account);
         await context.SaveChangesAsync();
