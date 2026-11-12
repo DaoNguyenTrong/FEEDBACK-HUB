@@ -50,7 +50,7 @@ public class SampleTests
     {
         SampleParams p = ValidParams() with { Name = new string('a', Sample.NameMaxLength + 1) };
 
-        DomainAssert.ThrowsWithMessage(DomainMessages.SampleNameRequired, () => CreateEntity(p));
+        DomainAssert.ThrowsWithMessage(DomainMessages.SampleNameTooLong, () => CreateEntity(p));
     }
 
     [Fact]

@@ -39,9 +39,14 @@ public sealed class Sample : BaseEntity<Guid>
 
     public void Update(SampleParams p)
     {
-        if (string.IsNullOrWhiteSpace(p.Name) || p.Name.Trim().Length > NameMaxLength)
+        if (string.IsNullOrWhiteSpace(p.Name))
         {
             throw new DomainException(DomainMessages.SampleNameRequired);
+        }
+
+        if (p.Name.Trim().Length > NameMaxLength)
+        {
+            throw new DomainException(DomainMessages.SampleNameTooLong);
         }
 
         Name = p.Name.Trim();
