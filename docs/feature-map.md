@@ -96,7 +96,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Lời mời
 
-- **PRD:** PRD00-FR-25, FR-61, BR-81: bước 1 AC-273 (mời lại thay lời mời cũ); bước 2 AC-59, AC-117 (lời mời đã thu hồi báo không còn hiệu lực); bước 3 AC-57 (vào thẳng với vai trò đã mời), AC-182 (email coi là đã xác minh); bước 4 AC-306 (sai tài khoản), AC-351 (email chưa xác minh).
+- **PRD:** PRD00-FR-25, FR-45, FR-61, BR-81: bước 1 AC-273 (mời lại thay lời mời cũ); bước 2 AC-59, AC-117 (lời mời đã thu hồi báo không còn hiệu lực); bước 3 AC-57 (vào thẳng với vai trò đã mời), AC-182 (email coi là đã xác minh); bước 4 AC-306 (sai tài khoản), AC-351 (email chưa xác minh); FR-45 (admin hệ thống vào tổ chức qua lời mời, làm việc như thành viên thường) AC-135 (không tự thêm mình): phủ ở test backend, không có bước kiểm tra tay.
 - **Vào bằng:** gửi và quản lý lời mời ở mục _Thành viên và lời mời_; người được mời mở link trong thư ở mục _Nhận lời mời_. Gọi API bằng token của thành viên tổ chức đang làm việc có quyền `organizations.members.manage`; hai API công khai (lookup, register-with-invitation) và accept (cần đăng nhập) do trang `#/invite?token=...` gọi.
 - **Backend:**
   - API-10 đến API-13: `GET/POST /api/organization/invitations`, `POST /api/organization/invitations/{id}/resend`, `DELETE /api/organization/invitations/{id}` → `CurrentOrganizationController` → `IInvitationService`
@@ -169,7 +169,7 @@ Bản đồ tính năng theo góc nhìn người dùng: vào bằng đâu, code 
 
 ## Tổ chức: tạo, chuyển, trang chào, tạm ngừng
 
-- **PRD:** PRD00-FR-03, FR-24, FR-63: AC-04 (chuyển sang tổ chức khác không đăng nhập lại), AC-56 (tạo tổ chức, vào thẳng tổ chức mới), AC-73 (tổ chức tạm ngừng mờ, bấm không chuyển), AC-281 (định danh gợi ý từ tên, sửa được).
+- **PRD:** PRD00-FR-03, FR-24, FR-31, FR-54, FR-63: AC-04 (chuyển sang tổ chức khác không đăng nhập lại), AC-56 (tạo tổ chức, vào thẳng tổ chức mới), AC-73 (tổ chức tạm ngừng mờ, bấm không chuyển), AC-281 (định danh gợi ý từ tên, sửa được); trang chào AC-74, AC-201, AC-303 (`frontend/tests/views/WelcomeView.test.ts`); tổ chức tạm ngừng AC-199, AC-200, AC-201 (thông báo rồi về trang chào). FR-02 (nhiều tổ chức, vai trò riêng ở từng tổ chức), FR-12 (ma trận quyền áp cho mọi thao tác), FR-21 (admin hệ thống tách khỏi tổ chức), FR-37 (cùng thông báo "không tìm thấy"), FR-56 (bốn quyền nền tảng không mở đường tới feedback): phủ ở test backend, không có bước kiểm tra tay.
 - **Vào bằng:** góc trên bên trái, nút bộ chọn tổ chức (`org-switcher-trigger`) → danh sách tổ chức, _Back to welcome page_, _Create organization_ (`org-switcher-create`). Trang chào `/#/welcome` hiện khi đăng nhập mà tài khoản không có đúng một tổ chức đang hoạt động (`TokenIssuer`), hoặc sau khi tổ chức làm việc bị tạm ngừng; ở đó chọn một tổ chức (`welcome-org-<id>`) hoặc _Create a new organization_ (`welcome-create`). Admin hệ thống thấy thêm link _Organizations_ tới `/system/organizations` (`welcome-system-organizations`).
 - **Frontend:**
   - Bộ chọn: `frontend/src/layouts/OrgSwitcher.vue` (popover từ khổ máy tính bảng, `AppSheet` ở khổ điện thoại), `OrgSwitcherPanel.vue`; mục tổ chức dùng chung với trang chào ở `frontend/src/components/OrganizationRows.vue`
