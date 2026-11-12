@@ -2,6 +2,24 @@
 
 Quyết định về cách làm việc (agent, cổng duyệt, review) ghi ở đây, mới nhất ở trên. Tệp này chỉ thêm mục mới, không sửa mục cũ: quyết định sau thay quyết định trước bằng một mục mới. Quy tắc đang áp dụng nằm ở `lifecycle.md`, và tham chiếu `§` không ghi tên tệp trong các mục là mục của tệp đó. Quyết định kỹ thuật theo `AGENTS.md` § Decision Log.
 
+### 2026-11-12 — Bớt chi phí nền và thủ tục tài liệu
+Soi lại quy trình sau khi có hạng kiểm tra, người dùng cho làm tám việc:
+1. `/git-accept` không gọi agent review nữa: `scripts/check-prd-approval.ts` kiểm thứ tự duyệt PRD, phiên chính đọc diff. PR tài liệu là hạng 0, nên một lượt agent mỗi PR tài liệu là thừa.
+2. Nhật ký quyết định chuyển sang tệp này, `serena.md` chỉ nạp khi làm `backend/` hoặc `frontend/`. Đọc quy tắc không còn phải đọc kèm 14 KB lịch sử.
+3. Hạng 2 chỉ còn một lượt review Opus cuối phase: chính `pr-reviewer` chạy Opus. Trước đây review cuối và `pr-reviewer` đọc cùng một diff.
+4. Số đo có thêm token agent, lấy từ báo cáo hoàn thành của từng agent. Retro module 00 bỏ số token vì cho là không đo được; với agent thì đo được.
+5. Mỗi module một PR tài liệu (PRD và tài liệu kỹ thuật), merge một lần. Module 00 có 6 PR tài liệu cho 1 PR code.
+6. Bảng tối chỉ vẽ cho mẫu mới và hệ thống; màu đã lấy từ token nên màn hình theo mẫu cũ không cần bảng tối riêng.
+7. Hook `codegraph prompt-hook` (cấu hình người dùng) không chạy trong repo này, nhờ tệp đánh dấu. Nó chèn khoảng 9 KB mã vào mọi prompt, kể cả prompt không liên quan tới mã.
+8. Khi chạy kế hoạch, phiên chính đề nghị chuyển sang Sonnet và mở phiên mới cho mỗi phase; người dùng quyết.
+
+Với repo này, hạng 1 không có review Opus nào, khác quy tắc chung "final review: opus, once" ở `~/.claude/CLAUDE.md`; đây là lệnh của người dùng. Áp dụng ngoài retro theo lệnh của người dùng.
+
+Phương án loại:
+- Script kiểm đường dẫn cũ trong tài liệu: chưa có lỗi lặp lại nào thuộc loại này (ngưỡng ở §8).
+- Tắt mọi hook (`disableAllHooks`): sẽ mất luôn guard Bash.
+- Bỏ hẳn bảng tối: dark là bảng màu riêng, mẫu mới vẫn cần thiết kế tối.
+
 ### 2026-11-12 — Kiểm tra theo hạng rủi ro, không theo cỡ việc
 Người dùng thấy chạy đủ quy trình quá tốn. Ở module 00, mọi thay đổi đều trả cùng một mức review sau từng task. Thế nhưng 22 commit `fix` thuộc các nhóm lỗi lặp lại tập trung ở auth, token, đồng thời và xác minh email, còn nhóm lỗi giao diện chỉ có 3 commit và test tự động bắt được. Vì vậy:
 - Mỗi thay đổi có một hạng 0/1/2, do `scripts/risk-tier.ts` tính theo đường dẫn và dấu hiệu trong diff (§2 Hạng kiểm tra).

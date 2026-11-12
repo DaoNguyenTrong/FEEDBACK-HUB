@@ -44,6 +44,12 @@ Cỡ quyết định cần những tài liệu nào; hạng quyết định ki�
 
 Danh sách đường dẫn và dấu hiệu của từng hạng chỉ nằm trong `scripts/risk-tier.ts`. Tài liệu kỹ thuật của một module mới nêu những đường dẫn hạng 2 mà module thêm vào, và PR đầu tiên của module thêm chúng vào script.
 
+**Phiên chính khi chạy kế hoạch.** Mỗi lượt gọi tool của phiên chính đọc lại toàn bộ ngữ cảnh, nên model và độ dài phiên của nó là khoản tốn lớn nhất.
+- Khi kế hoạch đã duyệt, phiên chính đề nghị người dùng chuyển sang `/model sonnet` để chạy. Opus để cho brainstorming, lập kế hoạch và review hạng 2.
+- Mỗi phase chạy trong một phiên mới, tiếp tục từ ledger của kế hoạch (`.superpowers/sdd/<kế hoạch>/progress.md`).
+- Người dùng quyết; phiên chính không tự đổi model.
+- Hook `codegraph prompt-hook` của người dùng không chạy trong repo này (tệp đánh dấu `.claude/no-codegraph-prompt-hook`): agent tự gọi `codegraph_explore` khi cần, thay vì nhận ngữ cảnh mã ở mọi prompt.
+
 ## 3. Cổng giữa các giai đoạn
 
 - **Không vào giai đoạn sau khi giai đoạn trước chưa duyệt.** Ngoại lệ đã ghi: module nhạy cảm (PRD02) có thể viết tài liệu kỹ thuật song song với thiết kế giao diện.
