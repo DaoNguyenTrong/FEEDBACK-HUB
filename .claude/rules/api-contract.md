@@ -13,6 +13,8 @@ Read this when changing a backend endpoint, request/response DTO, or header cont
 
 `shared/openapi/openapi.json` is the committed source of truth, exported from `backend/src/FeedbackHub.API`'s OpenAPI document at build time (no running server/DB required). The frontend generates its types and typed request functions from it with `orval` — `frontend/src/api/generated/**` is generated output, never hand-edited, and **gitignored** (same convention as `frontend/src/typings/`): it regenerates automatically via a `postinstall` script on every `bun install`, so it's always freshly derived from whatever `openapi.json` is checked out — no risk of committed-generated-code drifting from its source.
 
+`AuthorizationResponsesOperationTransformer` adds the 401 and 403 responses from endpoint metadata: do not declare `ProducesResponseType` for them on an action it covers. Keep one only on an `[AllowAnonymous]` action that really answers 401, or a 403 the policy metadata does not imply.
+
 ### Regenerating after a backend contract change
 
 `scripts/sync-contract.sh` does both steps below, then `build-only` and `type-check` (so every broken call site shows up), and prints the `openapi.json` diff stat. The raw steps:
