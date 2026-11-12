@@ -40,7 +40,7 @@ Cỡ quyết định cần những tài liệu nào; hạng quyết định ki�
 |---|---|---|
 | **0** | Tài liệu, văn bản quy trình, locale, OpenAPI export và client sinh tự động, thay đổi chỉ trong test | Chỉ CI. Phiên chính tự xem diff, không gọi agent review |
 | **1** | Mọi thay đổi còn lại: hành vi thường ở vùng không nhạy cảm (CRUD, màn hình, danh sách, bộ lọc) | `implementer` Sonnet, gộp task theo màn hình. Không review sau từng task; một lượt review Sonnet cho cả PR của phase (`pr-reviewer`). Không cài lỗi thử test, không Opus |
-| **2** | Đăng nhập, token, cookie, phiên, quyền, đổi tổ chức và cơ chế lọc theo tổ chức, khoá API, khoá dữ liệu và đồng thời, EF migration, cấu hình CI và hook, chính script tính hạng | Đủ quy trình: `appsec` review tài liệu kỹ thuật trước kế hoạch, reviewer Opus sau từng task, khoảng 5 lỗi cài thử test, review Opus cuối phase, người dùng merge (§3 Vùng cần người dùng) |
+| **2** | Đăng nhập, token, cookie, phiên, quyền, đổi tổ chức và cơ chế lọc theo tổ chức, khoá API, khoá dữ liệu và đồng thời, EF migration, cấu hình CI và hook, chính script tính hạng | Đủ quy trình: `appsec` review tài liệu kỹ thuật trước kế hoạch, reviewer Opus sau từng task, khoảng 5 lỗi cài thử test. Review cuối phase chính là `pr-reviewer`, do phiên chính gọi với `model: opus`; không có lượt review cuối riêng. Người dùng merge (§3 Vùng cần người dùng) |
 
 Danh sách đường dẫn và dấu hiệu của từng hạng chỉ nằm trong `scripts/risk-tier.ts`. Tài liệu kỹ thuật của một module mới nêu những đường dẫn hạng 2 mà module thêm vào, và PR đầu tiên của module thêm chúng vào script.
 
@@ -116,7 +116,7 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 1. Phân loại các commit `fix` của module theo nguyên nhân gốc (một agent Sonnet đọc `git log` và `git show` của các nhánh module).
 2. Ghi mỗi nhóm nguyên nhân vào `docs/agent-error-log.md`, và xử lý các ý trong mục *Chờ retro* của tệp đó.
 3. Nhóm gặp từ hai lần trở lên thì biến thành kiểm tra tự động (việc cỡ S cho `implementer`), hoặc ghi lý do không làm được vào mục đó. Mục đã tự động hoá ghi "Đã chuyển thành: …".
-4. Ghi số đo của module vào `progress.md` § Số đo, kèm bảng của `bun scripts/risk-tier.ts --fix-ratio <dải commit của module>`.
+4. Ghi số đo của module vào `progress.md` § Số đo, kèm bảng của `bun scripts/risk-tier.ts --fix-ratio <dải commit của module>` và tổng token agent cộng từ mục `## Verification` của các PR phase.
 5. Gom các thay đổi quy trình của module vào một PR quy trình.
 6. Nếu tỉ lệ `fix` của hạng 1 cao hơn của hạng 2, đưa đường dẫn của các commit `fix` hạng 1 vào danh sách hạng 2 của `scripts/risk-tier.ts`, trong PR quy trình ở bước 5.
 
@@ -130,4 +130,6 @@ Nhật ký quyết định quy trình nằm ở `docs/process/decisions.md`, m�
 
 ## 10. Tiến độ module
 
-Bảng tiến độ nằm ở `docs/process/progress.md`: mỗi module một dòng, mỗi giai đoạn một cột. Phiên chính là người duy nhất cập nhật bảng này: trong PR tài liệu khi PRD hoặc tài liệu kỹ thuật được duyệt, trong PR tính năng cho các cột *Plan* và *Code*, và đánh *Merged* ở PR tài liệu tiếp theo của module, chỉ sau khi retro cuối module (§8) xong. Bảng *Số đo* trong cùng tệp ghi năm số mỗi module: số ngày lịch (từ bản nháp PRD đầu tiên tới khi PR cuối merge), số PR, tỉ lệ commit `fix` (`git log`), tỉ lệ `fix` theo hạng (`bun scripts/risk-tier.ts --fix-ratio`), và số câu hỏi tới người dùng.
+Bảng tiến độ nằm ở `docs/process/progress.md`: mỗi module một dòng, mỗi giai đoạn một cột. Phiên chính là người duy nhất cập nhật bảng này: trong PR tài liệu khi PRD hoặc tài liệu kỹ thuật được duyệt, trong PR tính năng cho các cột *Plan* và *Code*, và đánh *Merged* ở PR tài liệu tiếp theo của module, chỉ sau khi retro cuối module (§8) xong. Bảng *Số đo* trong cùng tệp ghi sáu số mỗi module: số ngày lịch (từ bản nháp PRD đầu tiên tới khi PR cuối merge), số PR, tỉ lệ commit `fix` (`git log`), tỉ lệ `fix` theo hạng (`bun scripts/risk-tier.ts --fix-ratio`), số câu hỏi tới người dùng, và token agent.
+
+**Token agent.** Báo cáo hoàn thành của mỗi agent có số token của agent đó. Cuối mỗi phase, phiên chính ghi tổng theo loại agent và theo hạng vào mục `## Verification` của PR phase, ví dụ `implementer h1: 210k; pr-reviewer h1: 45k`. Token của chính phiên chính không đo được nên không ghi.

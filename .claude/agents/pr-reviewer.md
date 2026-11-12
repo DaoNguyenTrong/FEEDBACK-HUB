@@ -1,6 +1,7 @@
 ---
 name: pr-reviewer
 description: Reviews a pull request into dev against the repo's written rules, the module's PRD and the approved design; returns PASS or CHANGES_REQUESTED, and merges into dev itself when the PR passes. Allows at most 3 revision rounds, then escalates for a design review. Never edits code; the author fixes.
+model: sonnet
 tools: Read, Grep, Glob, Bash, Skill, Artifact
 ---
 
