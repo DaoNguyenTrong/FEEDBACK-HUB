@@ -7,7 +7,6 @@ namespace FeedbackHub.Application.Tests.Resources;
 
 public class MessageKeysTests
 {
-    // Resx_BothCulturesHaveTheSameKeys
     [Fact]
     public void Resx_BothCulturesHaveTheSameKeys()
     {
@@ -19,14 +18,12 @@ public class MessageKeysTests
         Assert.Empty(en.Except(vi));
     }
 
-    // DomainMessages_EveryKeyHasText
     [Fact]
     public void DomainMessages_EveryKeyHasText()
     {
         AssertEveryKeyInBothFiles(ConstKeys(typeof(DomainMessages)));
     }
 
-    // ApplicationMessages_EveryKeyHasText
     [Fact]
     public void ApplicationMessages_EveryKeyHasText()
     {
