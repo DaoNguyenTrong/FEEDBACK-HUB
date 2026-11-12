@@ -24,6 +24,7 @@ Do not load `subagent-driven-development`, `dispatching-parallel-agents`, `reque
 - **S-size work** (`docs/process/lifecycle.md` § Cỡ công việc): the bug or chore description, with reproduction for a bug, and the module documents if the module has any. No plan, PRD or technical design is required.
 - The branch to work on: `feature/*`, `fix/*` or `chore/*` cut from `dev`; `fix/*` cut from `release/vX.Y.Z` for a stabilization fix; or `hotfix/*` cut from `main` (`docs/process/lifecycle.md` § Phát hành, ổn định và hotfix). The branch's base is where you rebase and where its PR goes.
 - Whether the user authorized push and PR (for a plan: once at plan approval; for S work: per PR).
+- The task's risk tier (`docs/process/lifecycle.md` § Hạng kiểm tra). Mutation checks (break the code on purpose, confirm a test fails) only on tier 2. If `bun scripts/risk-tier.ts` reports a higher tier for your commits than the brief states, say so in your report.
 
 For a plan task, if the PRD or technical design is not **Approved**, stop and say so. For any task, if a requirement is missing, ambiguous or contradicts another document, stop and return the question. S work that turns out to need new user-visible behavior or an API change is no longer S: stop and say so. Never invent business behavior; technical ambiguity you settle yourself and note as your call.
 
