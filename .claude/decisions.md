@@ -10,6 +10,10 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ---
 
+### 2026-11-12 — 401 and 403 are documented by an OpenAPI transformer, not per action
+
+Hand-written per-action response attributes for 401 and 403 drifted from the real authorization: a class policy with no attribute on the action left 403 undocumented, so generated clients missed it. A transformer derives both from the endpoint metadata. It emits a `$ref` to the `ProblemDetails` component, because the inline schema added about 7000 lines to the spec. Actions that opt out of authentication keep their own 401. Rejected: per-controller attributes (drift) and a hand-built inline schema.
+
 ### 2026-10-22 — git and gh run without prompts; a command-parsing guard catches accidental never-rule breaks
 
 Confirming every push and merge interrupted agent work, so the prompts were removed. Prefix deny rules miss other spellings, so a PreToolUse guard parses each command: pushes go only to work branches and tags, and unparseable git/gh is denied. It stops accidents, not deliberate obfuscation: variables, interpreters, wrappers, script files, aliases, `gh api`, `gh pr merge` into `main`, and hook or global-config edits pass, and it fails open if `bun` is missing or times out. Rejected: `ask` prompts; prefix rules alone.

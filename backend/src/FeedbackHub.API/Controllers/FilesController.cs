@@ -17,7 +17,6 @@ public sealed class FilesController(IFileService fileService) : ControllerBase
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(FileDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<FileDto>> Upload(
         IFormFile file,
         string? description,
@@ -45,7 +44,6 @@ public sealed class FilesController(IFileService fileService) : ControllerBase
     /// <summary>Returns the metadata of a file by ID.</summary>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(FileDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<FileDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -57,7 +55,6 @@ public sealed class FilesController(IFileService fileService) : ControllerBase
     /// <summary>Returns a paginated list of files for the caller's active organization.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<FileDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<PagedResult<FileDto>>> GetAll(
         [FromQuery] FileListRequest request,
         CancellationToken cancellationToken)
@@ -70,7 +67,6 @@ public sealed class FilesController(IFileService fileService) : ControllerBase
     /// <summary>Downloads the content of a file by ID.</summary>
     [HttpGet("{id:guid}/download")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Download(Guid id, CancellationToken cancellationToken)
     {
@@ -83,8 +79,6 @@ public sealed class FilesController(IFileService fileService) : ControllerBase
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = Permissions.FilesManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {

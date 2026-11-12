@@ -13,7 +13,6 @@ public sealed class PushSubscriptionsController(IPushSubscriptionService pushSub
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Register(
         [FromBody] RegisterPushSubscriptionRequest request, CancellationToken cancellationToken)
     {
@@ -25,7 +24,6 @@ public sealed class PushSubscriptionsController(IPushSubscriptionService pushSub
     [HttpDelete]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Remove([FromQuery] string token, CancellationToken cancellationToken)
     {
         await pushSubscriptionService.RemoveAsync(token, cancellationToken);
@@ -35,7 +33,6 @@ public sealed class PushSubscriptionsController(IPushSubscriptionService pushSub
     /// <summary>Returns whether the current account has at least one active push subscription.</summary>
     [HttpGet("status")]
     [ProducesResponseType(typeof(PushSubscriptionStatusResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<PushSubscriptionStatusResponse>> GetStatus(CancellationToken cancellationToken)
     {
         return Ok(await pushSubscriptionService.GetStatusAsync(cancellationToken));

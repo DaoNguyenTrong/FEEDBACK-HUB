@@ -97,7 +97,7 @@ If the superpowers plugin is installed, its skills yield to this file. Where a s
 
 - Spawn a role by the `name` in `.codex/agents/<name>.toml`. Before acting, that agent reads `.claude/agents/<name>.md` and follows it. Do not copy the prompt into the toml.
 - `.codex/hooks.json` runs `scripts/claude-bash-guard.ts` on `PreToolUse` for `Bash`, the same guard as `.claude/settings.json`. A new or changed hook does nothing until it is trusted with `/hooks`.
-- Repo skills live in `.agents/skills/`: `git-accept` (docs-only merge gate; procedure in `.claude/commands/git-accept.md`) and `clean-architecture-review` (the skill under `.claude/skills/`).
+- Repo skills live in `.agents/skills/`: `git-accept` (docs-only merge gate; procedure in `.claude/commands/git-accept.md`), `clean-architecture-review` and `new-backend-slice` (the skills under `.claude/skills/`).
 - CodeGraph and Serena are the parent session's MCP servers. This repo does not vendor them into `.codex/config.toml`.
 
 Tool names in the Claude agent files:
