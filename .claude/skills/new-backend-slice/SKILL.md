@@ -26,9 +26,11 @@ your names. The route with `-` turned into `_` becomes the table name.
    in `frontend/src/lib/permissions.ts` and `permission-label.ts` plus the `organizations.permission<Plural>Manage` label
    in both locales, or the role editor shows the raw code.
 2. **DI.** In `backend/src/FeedbackHub.Application/DependencyInjection.cs` add the `using` and `services.AddScoped<IWidgetService, WidgetService>()`.
-3. **Messages.** Add `<Name>NameRequired` to `backend/src/FeedbackHub.Domain/Exceptions/DomainMessages.cs` and to both `Messages.resx` and
-   `Messages.en.resx` (`MessageKeysTests` fails otherwise). Not-found uses the generic `EntityNotFound`.
-4. **Migration**, before any API test, because the test host migrates the database: `commands.md` § EF Core Migrations.
+3. **Messages.** Add `<Name>NameRequired` and `<Name>NameTooLong` to
+   `backend/src/FeedbackHub.Domain/Exceptions/DomainMessages.cs` and to both `Messages.resx` and `Messages.en.resx`
+   (`MessageKeysTests` fails otherwise). Not-found uses the generic `EntityNotFound`.
+4. **Migration**, after a build and before any API test, because the test host migrates the database:
+   `commands.md` § EF Core Migrations.
 5. **Contract.** `scripts/sync-contract.sh`, then commit `shared/openapi/openapi.json`. Do not declare 401/403 on the
    controller; the transformer adds them (`api-contract.md`).
 6. **Business fields** beyond `Name`, with their validation in `Update` and their tests.
