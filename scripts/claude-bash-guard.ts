@@ -1,6 +1,6 @@
-// Claude Code PreToolUse hook for Bash (.claude/settings.json): stops an agent's accidental breaks of the git/gh
-// never-rules (AGENTS.md § Commits). Not a defence against deliberate obfuscation; known gaps: .claude/decisions.md.
-// Usage: the hook payload JSON on stdin; prints a deny decision or nothing, always exits 0.
+// Bash PreToolUse guard for Claude and Codex (.claude/settings.json, .codex/hooks.json): stops accidental
+// git/gh never-rule breaks (AGENTS.md § Commits). Not a defence against deliberate obfuscation.
+// Payload JSON on stdin; prints a deny decision or nothing, always exits 0. Gaps: .claude/decisions.md.
 import { isAbsolute, resolve } from 'node:path'
 
 const SUBSTITUTION = '$()'

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file provides guidance to Claude Code when working with this repository.
+This file provides guidance to Claude Code and Codex when working with this repository.
 
 ## Monorepo Layout
 
@@ -11,6 +11,8 @@ This file provides guidance to Claude Code when working with this repository.
 | `shared/`   | `openapi/` (contract exported from `backend`, consumed by `frontend`)     | `api-contract.md`                                                                           |
 
 The backend's OpenAPI export (`shared/openapi/openapi.json`, committed) is the single source of truth for the API; `orval` regenerates `frontend/src/api/generated/**` (gitignored) from it on every `bun install` — workflow in `api-contract.md`.
+
+Claude loads each rule from its `paths:` frontmatter. Codex does not. Before editing a path in the table, read the named files under `.claude/rules/`. A session started inside `backend/`, `frontend/` or `shared/` also receives that directory's `AGENTS.md`, which lists the same files.
 
 ## Software Lifecycle
 
@@ -88,6 +90,34 @@ If the superpowers plugin is installed, its skills yield to this file. Where a s
 - **Requirement gaps stop the run** — subagent-driven development's "rulings, not stalls" covers technical ambiguity only. A missing or conflicting business rule or acceptance criterion means stop and ask; never write a ruling that invents business behavior.
 - **Branch & worktree** — work in the current checkout on one `feature/*` branch cut from `dev`. Don't create a worktree for a skill run: the gitignored config and generated client are missing there. Subagents that build the backend run one at a time (`-m:1`, shared `obj/`).
 - **Finishing** — base is `dev` (`main` only for a hotfix); never merge locally or delete an unmerged branch (merged branches are deleted per § Commits), and don't use `superpowers:finishing-a-development-branch` (its local-merge option conflicts with this rule; merging is `pr-reviewer`'s gate). Without an explicit order to push or open a PR, leave the branch as it is.
+
+## Codex
+
+`.claude/` stays the instruction source. Codex reaches it through a thin project layer, because it does not load Claude's `paths:` rules, agent files, slash commands or `settings.json`.
+
+- Spawn a role by the `name` in `.codex/agents/<name>.toml`. Before acting, that agent reads `.claude/agents/<name>.md` and follows it. Do not copy the prompt into the toml.
+- `.codex/hooks.json` runs `scripts/claude-bash-guard.ts` on `PreToolUse` for `Bash`, the same guard as `.claude/settings.json`. A new or changed hook does nothing until it is trusted with `/hooks`.
+- Repo skills live in `.agents/skills/`: `git-accept` (docs-only merge gate; procedure in `.claude/commands/git-accept.md`) and `clean-architecture-review` (the skill under `.claude/skills/`).
+- CodeGraph and Serena are the parent session's MCP servers. This repo does not vendor them into `.codex/config.toml`.
+
+Tool names in the Claude agent files:
+
+| Claude name | Codex |
+| --- | --- |
+| Read, Grep, Glob, Bash, Edit, Write | the built-in file, search, shell and patch tools |
+| Skill | a skill, using the names below |
+| WebSearch, WebFetch | web search |
+| `mcp__codegraph__codegraph_explore` | `codegraph` MCP tool `codegraph_explore` |
+| `mcp__serena__<tool>` | `serena` MCP tool `<tool>` |
+| Artifact | none — stop and say the design canvas cannot be read |
+
+Skill names in the Claude prompts:
+
+| Written as | Codex |
+| --- | --- |
+| `superpowers:<name>` | skill `<name>` when installed; otherwise the copy under `~/.claude/plugins/cache/claude-plugins-official/superpowers/*/skills/<name>/`. Say so when neither exists. |
+| `release-kit:git-commit`, `git-sync`, `git-mr`, `git-release` | skills `git-commit`, `git-sync`, `git-mr`, `git-release`. They read `.claude/release-kit.json`. |
+| `/git-accept` | skill `git-accept` |
 
 ## Critical Invariants
 

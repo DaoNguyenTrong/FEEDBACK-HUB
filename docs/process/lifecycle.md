@@ -112,6 +112,10 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 
 Quyết định về cách làm việc (agent, cổng duyệt, review) ghi ở đây, mới nhất ở trên; quyết định kỹ thuật theo `AGENTS.md` § Decision Log.
 
+### 2026-11-12 — Codex dùng chung nội dung Claude, không giữ bản prompt thứ hai
+
+Codex không nạp `paths:` của rule, file agent, slash command hay `settings.json` của Claude. Chép prompt sang cấu hình Codex sẽ lệch ngay lần sửa đầu tiên, còn ghi quy tắc git vào `AGENTS.md` thì không chặn được lệnh. Vì vậy `.claude/` vẫn là nguồn nội dung; Codex chỉ có lớp mỏng trỏ về nguồn đó (agent, skill, hook gọi cùng script guard). Phương án loại: duy trì hai bộ prompt, và coi hướng dẫn trong `AGENTS.md` là đủ thay cho hook.
+
 ### 2026-11-12 — Retro module 00: mỗi phase một PR, retro bắt buộc, đóng băng quy trình
 Đánh giá quy trình sau module 00 cho thấy:
 - PR #32 gom cả 8 phase: 607 tệp, +61.779/−10.594 dòng, 100 commit. Không ai review hết được, nên cổng người dùng ở §3 chỉ còn hình thức.
