@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
@@ -23,11 +24,13 @@ namespace FeedbackHub.API.Tests.Architecture;
 /// </summary>
 public static class AuthorizedActionRows
 {
-    private static readonly Lazy<IReadOnlyList<(string Method, string Url, string Action)>> RowsLazy = new(Build);
+    private static readonly Lazy<IReadOnlyList<(string Method, string Url, string Action, bool Multipart)>> RowsLazy =
+        new(Build);
 
-    public static IReadOnlyList<(string Method, string Url, string Action)> Rows => RowsLazy.Value;
+    public static IReadOnlyList<(string Method, string Url, string Action, bool Multipart)> Rows => RowsLazy.Value;
 
-    public static IEnumerable<object[]> Data => Rows.Select(row => new object[] { row.Method, row.Url, row.Action });
+    public static IEnumerable<object[]> Data =>
+        Rows.Select(row => new object[] { row.Method, row.Url, row.Action, row.Multipart });
 
     // Actions with [Authorize] or no access attribute; the latter fall to the fallback policy (needs authentication).
     // Today every action carries [Authorize], so none relies on the fallback; a new unmarked one is covered.
@@ -35,13 +38,13 @@ public static class AuthorizedActionRows
         endpoint.Metadata.GetMetadata<ControllerActionDescriptor>() is not null
         && endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null;
 
-    // The same route table the real host maps, built without Postgres or Hangfire: controllers are discovered
-    // from the API assembly and carry the attributes the predicate reads.
+    // A minimal host maps the controllers without Postgres or Hangfire; EndpointSource_MatchesRealHost pins that
+    // its route table equals the real host's.
     internal static IReadOnlyList<RouteEndpoint> AllControllerEndpoints()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.Services.AddControllers().AddApplicationPart(typeof(Program).Assembly);
-        WebApplication app = builder.Build();
+        using WebApplication app = builder.Build();
         app.MapControllers();
 
         return [.. ((IEndpointRouteBuilder)app).DataSources
@@ -49,9 +52,20 @@ public static class AuthorizedActionRows
             .OfType<RouteEndpoint>()];
     }
 
-    private static List<(string Method, string Url, string Action)> Build()
+    // pattern|methods|allow-anonymous per controller endpoint, sorted, for comparing two hosts' route tables.
+    internal static string[] Signatures(IEnumerable<Endpoint> endpoints) =>
+        [.. endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ControllerActionDescriptor>() is not null)
+            .Select(endpoint =>
+                $"{endpoint.RoutePattern.RawText}|"
+                + string.Join(",", (endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? []).Order())
+                + $"|{endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null}")
+            .Order()];
+
+    private static List<(string Method, string Url, string Action, bool Multipart)> Build()
     {
-        List<(string Method, string Url, string Action)> rows = [];
+        List<(string Method, string Url, string Action, bool Multipart)> rows = [];
 
         foreach (RouteEndpoint endpoint in AllControllerEndpoints().Where(RequiresAuthentication))
         {
@@ -63,9 +77,11 @@ public static class AuthorizedActionRows
             }
 
             string url = BuildUrl(endpoint.RoutePattern);
+            bool multipart = endpoint.Metadata.GetMetadata<ConsumesAttribute>()?.ContentTypes
+                .Any(type => type.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase)) == true;
             foreach (string method in methods)
             {
-                rows.Add((method, url, $"{descriptor.ControllerName}.{descriptor.ActionName}"));
+                rows.Add((method, url, $"{descriptor.ControllerName}.{descriptor.ActionName}", multipart));
             }
         }
 
@@ -124,10 +140,15 @@ public static class AuthorizedActionRows
         };
     }
 
-    internal static HttpRequestMessage CreateRequest(string method, string url)
+    // A multipart action gets an empty multipart body so the request passes the content-type selector (415).
+    internal static HttpRequestMessage CreateRequest(string method, string url, bool multipart)
     {
         HttpRequestMessage request = new(new HttpMethod(method), url);
-        if (method is "POST" or "PUT" or "PATCH")
+        if (multipart)
+        {
+            request.Content = new MultipartFormDataContent();
+        }
+        else if (method is "POST" or "PUT" or "PATCH")
         {
             request.Content = new StringContent("{}", Encoding.UTF8, new MediaTypeHeaderValue("application/json"));
         }
@@ -146,19 +167,33 @@ public sealed class AnonymousAccessTests(ApiFactoryFixture fixture)
         Assert.True(AuthorizedActionRows.Rows.Count >= 40, $"Only {AuthorizedActionRows.Rows.Count} rows were found.");
     }
 
+    // EndpointSource_MatchesRealHost
+    [Fact]
+    public void EndpointSource_MatchesRealHost()
+    {
+        string[] minimal = AuthorizedActionRows.Signatures(AuthorizedActionRows.AllControllerEndpoints());
+        string[] real = AuthorizedActionRows.Signatures(fixture.Services.GetRequiredService<EndpointDataSource>().Endpoints);
+
+        Assert.NotEmpty(minimal);
+        Assert.Equal(real, minimal);
+    }
+
     // AuthorizedAction_AnonymousCaller_Returns401
     [Theory]
     [MemberData(nameof(AuthorizedActionRows.Data), MemberType = typeof(AuthorizedActionRows))]
-    public async Task AuthorizedAction_AnonymousCaller_Returns401(string method, string url, string action)
+    public async Task AuthorizedAction_AnonymousCaller_Returns401(string method, string url, string action, bool multipart)
     {
         HttpClient client = fixture.CreateTestClient();
-        using HttpRequestMessage request = AuthorizedActionRows.CreateRequest(method, url);
+        using HttpRequestMessage request = AuthorizedActionRows.CreateRequest(method, url, multipart);
 
         HttpResponseMessage response = await client.SendAsync(request);
 
         Assert.True(
             response.StatusCode == HttpStatusCode.Unauthorized,
             $"{action}: {method} {url} answered {(int)response.StatusCode} to an anonymous caller.");
+        Assert.True(
+            response.Headers.WwwAuthenticate.Any(challenge => challenge.Scheme == "Bearer"),
+            $"{action}: {method} {url} answered 401 without an authentication challenge (the action, not the policy, rejected it).");
     }
 
     // AuthorizedActions_CarryNoRateLimit
@@ -202,23 +237,32 @@ public sealed class AnonymousAccessTests(ApiFactoryFixture fixture)
         // AuthorizedAction_SignedInCaller_RouteMatches
         [Theory]
         [MemberData(nameof(AuthorizedActionRows.Data), MemberType = typeof(AuthorizedActionRows))]
-        public async Task AuthorizedAction_SignedInCaller_RouteMatches(string method, string url, string action)
+        public async Task AuthorizedAction_SignedInCaller_RouteMatches(
+            string method, string url, string action, bool multipart)
         {
             HttpClient client = await CreateMemberClientAsync();
-            using HttpRequestMessage request = AuthorizedActionRows.CreateRequest(method, url);
+            using HttpRequestMessage request = AuthorizedActionRows.CreateRequest(method, url, multipart);
 
             HttpResponseMessage response = await client.SendAsync(request);
 
             Assert.True(response.StatusCode != HttpStatusCode.TooManyRequests, $"{action}: {method} {url} was rate limited.");
-            if (response.StatusCode == HttpStatusCode.NotFound)
+            Assert.True(response.StatusCode != HttpStatusCode.MethodNotAllowed, $"{action}: {method} {url} answered 405.");
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                // A routing miss has an empty body; a domain not-found carries a ProblemDetails with an error code.
+                Assert.True(
+                    response.Headers.WwwAuthenticate.Count == 0,
+                    $"{action}: {method} {url} answered a bare authentication challenge to a signed-in caller.");
+            }
+
+            if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Unauthorized)
+            {
+                // A routing miss or a challenge has an empty body; an action error carries a ProblemDetails code.
                 string body = await response.Content.ReadAsStringAsync();
-                Assert.False(string.IsNullOrEmpty(body), $"{action}: {method} {url} missed the route table (bare 404).");
+                Assert.False(string.IsNullOrEmpty(body), $"{action}: {method} {url} answered a bare {(int)response.StatusCode}.");
                 using JsonDocument document = JsonDocument.Parse(body);
                 Assert.True(
                     document.RootElement.TryGetProperty("code", out JsonElement code) && code.ValueKind == JsonValueKind.String,
-                    $"{action}: {method} {url} answered 404 without a domain error code.");
+                    $"{action}: {method} {url} answered {(int)response.StatusCode} without an error code.");
             }
         }
     }
