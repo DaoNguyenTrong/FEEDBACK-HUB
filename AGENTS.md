@@ -129,4 +129,4 @@ Decisions live where their scope lives; none needs a separate approval:
 
 - **Module** (its API, data model, authorization) — only in §12 of that module's `docs/tech/` document, approved with it. A code change with a major deviation from it updates the document in the same PR; a minor one is only declared in the PR (`docs/process/lifecycle.md` § Lệch thiết kế khi triển khai).
 - **Platform / cross-cutting** (infrastructure, deployment, shared auth mechanics, build/test tooling, codegen) — `.claude/decisions.md`, written by whoever makes the change, in the same PR. Append-only; rules in that file's header.
-- **Working process** (agents, gates, review) — `docs/process/lifecycle.md`.
+- **Working process** (agents, gates, review) — rules in `docs/process/lifecycle.md`, decisions in `docs/process/decisions.md`.

@@ -25,7 +25,7 @@ Then what bears on the questions:
   - the PRDs in `docs/prd/`, with their §14 decision tables and change logs;
   - approved technical designs in `docs/tech/`;
   - `.claude/decisions.md`;
-  - `docs/process/lifecycle.md` § 9.
+  - `docs/process/decisions.md` (process decisions, newest first).
 - The repo's rules: `.claude/rules/` (architecture, conventions, authentication, API contract, localization, testing) and `docs/feature-map.md`.
 - The approved design system on the canvas named in `.claude/agents/ui-designer.md`, read-only.
 - The code, when a question depends on what the platform already does (`codegraph_explore` first).
