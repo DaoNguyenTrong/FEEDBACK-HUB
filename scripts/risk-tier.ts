@@ -5,28 +5,41 @@
 import { spawnSync } from 'node:child_process'
 
 export type Tier = 0 | 1 | 2
-export type ChangedFile = { path: string; changedLines: string[] }
+// removedLines is optional so callers that only know the changed lines still get a path-and-content tier.
+export type ChangedFile = { path: string; changedLines: string[]; removedLines?: string[] }
 
-const SENSITIVE_WORDS =
-  'Auth|Token|Cookie|Session|Permission|Tenant|ApiKey|Lockout|Role|Organization|Invitation|Member'
+const SENSITIVE_WORDS = [
+  'Auth', 'Token', 'Cookie', 'Session', 'Permission', 'Tenant', 'ApiKey', 'Lockout', 'Role', 'Organization',
+  'Invitation', 'Member', 'Csrf', 'Jwt', 'Cors', 'RateLimit', 'Security', 'Password', 'Secret', 'CurrentUser',
+  'ForwardedHeaders', 'Realtime',
+].join('|')
+// Matched against the file name only: every backend path contains "FeedbackHub".
+const SENSITIVE_FILE_NAME = new RegExp(`(${SENSITIVE_WORDS})[^/]*$|Hub\\.cs$`, 'i')
 
 export const TIER2_PATHS: RegExp[] = [
   /^\.github\//i,
   /^lefthook\.ya?ml$/i,
-  /^scripts\/risk-tier(\.test)?\.ts$/i,
+  /^scripts\/(risk-tier(\.test)?\.ts|test-gate\.sh|claude-bash-guard\.ts)$/i,
+  /^\.claude\/settings(\.local)?\.json$/i,
+  /^\.codex\/(hooks\.json|config\.toml)$/i,
+  /(^|\/)(docker-compose[^/]*\.ya?ml|Dockerfile[^/]*|\.env[^/]*|appsettings[^/]*\.json|launchSettings\.json)$/i,
+  /(^|\/)(package\.json|bun\.lockb?|Directory\.(Build|Packages)\.props)$|\.csproj$/i,
   /\/Migrations\//i,
-  /^backend\/.*\/(Auth|Authorization|ApiKeys|Organizations|Roles|Invitations|Members)\//i,
-  new RegExp(`^backend/.*(${SENSITIVE_WORDS})[^/]*\\.cs$`, 'i'),
+  /^backend\/.*\/(Auth|Authorization|ApiKeys|Organizations|Roles|Invitations|Members|Middleware|Security)\//i,
   /^backend\/src\/FeedbackHub\.API\/Program\.cs$/i,
   /^backend\/src\/FeedbackHub\.Infrastructure\/Persistence\/AppDbContext\.cs$/i,
   /^frontend\/src\/api\/(client|mutator)\.ts$/i,
   /^frontend\/src\/router\//i,
-  /^frontend\/src\/stores\/(auth|organizations|roles)\.ts$/i,
 ]
+
+const SOURCE_FILE = /^(backend|frontend)\/src\/.*\.(cs|ts|vue)$/i
 
 export const TIER2_CONTENT: RegExp[] = [
   /\[(AllowAnonymous|Authorize)\b/,
-  /HasQueryFilter|IgnoreQueryFilters|AddAuthentication|AddAuthorization|ExecuteSqlRaw|FromSqlRaw|withCredentials/,
+  /HasQueryFilter|IgnoreQueryFilters|ExecuteSqlRaw|FromSqlRaw/,
+  /(Add|Use)(Authentication|Authorization)|RequireAuthorization|RequireRole|IsInRole|AddJwtBearer|AddCors/,
+  /\bSameSite\b|\bHttpOnly\b|\bSecure\s*=/,
+  /withCredentials|document\.cookie|credentials:\s*['"]include|(local|session)Storage\.setItem\([^)]*token/i,
 ]
 
 export const TIER0_PATHS: RegExp[] = [
@@ -46,25 +59,29 @@ const CONTENT_CHECKED = /\.(cs|ts|vue)$/i
 
 const matches = (patterns: RegExp[], text: string) => patterns.some((p) => p.test(text))
 
-// A test under a sensitive path stays tier 1: deleting its assertions weakens a tier-2 guard.
-const isSensitiveTestPath = (path: string) =>
-  matches(TIER2_PATHS, path) || new RegExp(`(${SENSITIVE_WORDS})`, 'i').test(path)
+const isSensitivePath = (path: string) =>
+  matches(TIER2_PATHS, path) || (SOURCE_FILE.test(path) && SENSITIVE_FILE_NAME.test(path))
 
 export function tierOf(path: string): Tier {
-  if (matches(TEST_PATHS, path)) return isSensitiveTestPath(path) ? 1 : 0
-  if (matches(TIER2_PATHS, path)) return 2
+  // A test under a sensitive path stays tier 1: deleting its assertions weakens a tier-2 guard.
+  if (matches(TEST_PATHS, path)) {
+    return matches(TIER2_PATHS, path) || new RegExp(`(${SENSITIVE_WORDS})`, 'i').test(path) ? 1 : 0
+  }
+  if (isSensitivePath(path)) return 2
   if (matches(TIER0_PATHS, path)) return 0
   return 1
 }
 
-function fileTier({ path, changedLines }: ChangedFile): { tier: Tier; why: string } {
+function fileTier({ path, changedLines, removedLines }: ChangedFile): { tier: Tier; why: string } {
   const tier = tierOf(path)
   if (tier === 2) return { tier, why: 'sensitive path' }
-  if (tier === 1 && !matches(TEST_PATHS, path) && CONTENT_CHECKED.test(path)) {
+  const isTest = matches(TEST_PATHS, path)
+  if (tier === 1 && !isTest && CONTENT_CHECKED.test(path)) {
     const line = changedLines.find((l) => matches(TIER2_CONTENT, l))
     if (line !== undefined) return { tier: 2, why: `changes "${line.trim()}"` }
   }
-  return { tier, why: tier === 0 ? 'docs, generated or test' : 'ordinary code' }
+  if (tier === 0 && isTest && (removedLines?.length ?? 0) > 0) return { tier: 1, why: 'removes test lines' }
+  return { tier, why: tier === 0 ? 'docs, generated or added tests' : 'ordinary code' }
 }
 
 export function tierOfChange(files: ChangedFile[]): { tier: Tier; reasons: string[] } {
@@ -101,30 +118,42 @@ export function formatFixRatio(ratio: Ratio): string {
   return ['| Hạng | fix | Tổng | Tỉ lệ |', '|---|---|---|---|', ...rows].join('\n')
 }
 
-// Fails closed: an unreadable diff must never print a tier, because tier 0 would drop every check.
-function git(args: string[]): string {
-  const r = spawnSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  if (r.status !== 0) {
-    process.stderr.write(`risk-tier: cannot run git ${args.join(' ')}\n${r.stderr ?? ''}`)
-    process.exit(2)
+// Content lines of a unified diff, without their +/- marker; file headers before the first hunk are skipped.
+export function contentLines(diff: string): { changed: string[]; removed: string[] } {
+  const changed: string[] = []
+  const removed: string[] = []
+  let inHunk = false
+  for (const line of diff.split('\n')) {
+    if (line.startsWith('diff --git ')) inHunk = false
+    else if (line.startsWith('@@')) inHunk = true
+    else if (inHunk && (line.startsWith('+') || line.startsWith('-'))) {
+      changed.push(line.slice(1))
+      if (line.startsWith('-')) removed.push(line.slice(1))
+    }
   }
+  return { changed, removed }
+}
+
+export const splitNul = (s: string): string[] => s.split('\0').filter(Boolean)
+
+// Fails closed: an unreadable diff must never print a tier, because tier 0 would drop every check.
+function fail(message: string): never {
+  process.stderr.write(`risk-tier: ${message}\n`)
+  process.exit(2)
+}
+
+function git(args: string[]): string {
+  const r = spawnSync('git', ['-c', 'core.quotepath=false', ...args], { encoding: 'utf8', maxBuffer: 256 << 20 })
+  if (r.status !== 0) fail(`cannot run git ${args.join(' ')}\n${r.stderr ?? ''}`)
   return r.stdout
 }
 
-export function changedFiles(range: string): ChangedFile[] {
-  const paths = git(['diff', '--no-renames', '--name-only', range]).split('\n').filter(Boolean)
-  return paths.map((path) => ({
-    path,
-    changedLines: git(['diff', '--no-renames', '-U0', range, '--', path])
-      .split('\n')
-      .filter((l) => /^[+-](?![+-]{2} )/.test(l))
-      .map((l) => l.slice(1)),
-  }))
-}
-
-function argValue(args: string[], flag: string): string | undefined {
-  const i = args.indexOf(flag)
-  return i >= 0 ? args[i + 1] : undefined
+// `what` is ['diff', '<range>'] or ['show', '--format=', '<sha>'] (show also works for a root commit).
+function changedFiles(what: string[]): ChangedFile[] {
+  return splitNul(git([...what, '--no-renames', '--name-only', '-z'])).map((path) => {
+    const { changed, removed } = contentLines(git([...what, '--no-renames', '-U0', '--', path]))
+    return { path, changedLines: changed, removedLines: removed }
+  })
 }
 
 function commitsIn(range: string): CommitInfo[] {
@@ -133,8 +162,16 @@ function commitsIn(range: string): CommitInfo[] {
     .filter(Boolean)
     .map((line) => {
       const [sha, ...subject] = line.split('\t')
-      return { subject: subject.join('\t'), files: changedFiles(`${sha}^..${sha}`) }
+      return { subject: subject.join('\t'), files: changedFiles(['show', '--format=', sha]) }
     })
+}
+
+function argValue(args: string[], flag: string): string | undefined {
+  const i = args.indexOf(flag)
+  if (i < 0) return undefined
+  const value = args[i + 1]
+  if (value === undefined || value.startsWith('--')) fail(`${flag} needs a value`)
+  return value
 }
 
 if (import.meta.main) {
@@ -146,7 +183,7 @@ if (import.meta.main) {
   }
   const base = argValue(args, '--base') ?? 'origin/dev'
   const head = argValue(args, '--head') ?? 'HEAD'
-  const { tier, reasons } = tierOfChange(changedFiles(`${base}...${head}`))
+  const { tier, reasons } = tierOfChange(changedFiles(['diff', `${base}...${head}`]))
   console.log(`Risk tier: ${tier}`)
   for (const reason of reasons) console.log(`- ${reason}`)
 }

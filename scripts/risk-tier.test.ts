@@ -1,5 +1,14 @@
 import { expect, test } from 'bun:test'
-import { fixRatioByTier, formatFixRatio, tierOf, tierOfChange, type CommitInfo, type Tier } from './risk-tier'
+import {
+  contentLines,
+  fixRatioByTier,
+  formatFixRatio,
+  splitNul,
+  tierOf,
+  tierOfChange,
+  type CommitInfo,
+  type Tier,
+} from './risk-tier'
 
 test.each<[string, Tier]>([
   ['docs/process/lifecycle.md', 0],
@@ -100,3 +109,71 @@ test('formatFixRatio_printsOneRowPerTierWithWholePercentOrDash', () =>
       '\n',
     ),
   ))
+
+// Final review: security files whose names carry no auth keyword.
+test.each<[string, Tier]>([
+  ['backend/src/FeedbackHub.API/Middleware/CsrfProtectionMiddleware.cs', 2],
+  ['backend/src/FeedbackHub.Application/Common/Settings/JwtSettings.cs', 2],
+  ['backend/src/FeedbackHub.Infrastructure/Services/Security/DataProtectionSecretProtector.cs', 2],
+  ['backend/src/FeedbackHub.Infrastructure/Services/Notifications/NotificationHub.cs', 2],
+  ['backend/src/FeedbackHub.Application/Common/Settings/CorsSettings.cs', 2],
+  ['backend/src/FeedbackHub.Application/Common/Settings/RateLimiterSettings.cs', 2],
+  ['backend/src/FeedbackHub.Application/Common/Settings/ForwardedHeadersSettings.cs', 2],
+  ['backend/src/FeedbackHub.Application/Common/PasswordPolicy.cs', 2],
+  ['backend/src/FeedbackHub.Application/Common/Interfaces/ICurrentUserService.cs', 2],
+  ['frontend/src/lib/permissions.ts', 2],
+  ['frontend/src/lib/auth-session.ts', 2],
+  ['frontend/src/composables/use-organization-switch.ts', 2],
+  ['.claude/settings.json', 2],
+  ['.codex/hooks.json', 2],
+  ['docker-compose.yml', 2],
+  ['backend/Dockerfile', 2],
+  ['backend/src/FeedbackHub.API/Properties/launchSettings.json', 2],
+  ['scripts/test-gate.sh', 2],
+  ['scripts/claude-bash-guard.ts', 2],
+  ['frontend/package.json', 2],
+  ['frontend/bun.lock', 2],
+  ['backend/src/FeedbackHub.API/FeedbackHub.API.csproj', 2],
+  ['backend/src/FeedbackHub.Application/DependencyInjection.cs', 1],
+  ['backend/src/FeedbackHub.Infrastructure/Persistence/FeedbackHubDbContextFactory.cs', 1],
+])('tierOf_securityFileWithoutAuthWord(%s) = %d', (path, tier) => expect(tierOf(path)).toBe(tier))
+
+test.each([
+  '        .RequireAuthorization();',
+  '    app.UseAuthorization();',
+  '    [Authorize(Roles = "Admin")]',
+  '    if (User.IsInRole("Admin"))',
+  '        .AddJwtBearer(options => {})',
+  '        SameSite = SameSiteMode.None,',
+  '        HttpOnly = false,',
+  '        Secure = false,',
+  '    services.AddCors();',
+  "  localStorage.setItem('access_token', token)",
+  '  document.cookie = value',
+  "  fetch(url, { credentials: 'include' })",
+])('tierOfChange_securityMarker(%s)_isTier2', (line) =>
+  expect(tierOfChange([{ path: 'backend/src/FeedbackHub.API/Controllers/ProductsController.cs', changedLines: [line] }]).tier).toBe(2))
+
+test('tierOfChange_testWithRemovedLines_isTier1', () =>
+  expect(
+    tierOfChange([
+      { path: 'backend/tests/FeedbackHub.API.Tests/ProductsControllerTests.cs', changedLines: ['Assert.Equal(403, s)'], removedLines: ['Assert.Equal(403, s)'] },
+    ]).tier,
+  ).toBe(1))
+
+test('tierOfChange_testWithOnlyAddedLines_staysTier0', () =>
+  expect(
+    tierOfChange([
+      { path: 'backend/tests/FeedbackHub.API.Tests/ProductsControllerTests.cs', changedLines: ['Assert.True(x)'], removedLines: [] },
+    ]).tier,
+  ).toBe(0))
+
+test('contentLines_keepsDashedContentAndDropsHeaders', () =>
+  expect(
+    contentLines(
+      ['diff --git a/x.sql b/x.sql', '--- a/x.sql', '+++ b/x.sql', '@@ -1 +1 @@', '--- old note', '+++ new note', '-a', '+b'].join('\n'),
+    ),
+  ).toEqual({ changed: ['-- old note', '++ new note', 'a', 'b'], removed: ['-- old note', 'a'] }))
+
+test('splitNul_keepsNonAsciiPathsUnquoted', () =>
+  expect(splitNul('backend/src/Auth/Quản.cs\0docs/a.md\0')).toEqual(['backend/src/Auth/Quản.cs', 'docs/a.md']))
