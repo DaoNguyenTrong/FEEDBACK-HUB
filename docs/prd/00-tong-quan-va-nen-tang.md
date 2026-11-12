@@ -3,12 +3,12 @@
 | Mục | Giá trị |
 |---|---|
 | Mã | `PRD00` (tiền tố cho mọi mã trong tài liệu này) |
-| Trạng thái | In review |
+| Trạng thái | Approved |
 | Phiên bản | 1.6 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-11-12 |
 | Phụ thuộc | Không có (mọi PRD khác phụ thuộc PRD này) |
-| Thiết kế | https://claude.ai/artifact/21QUWu78AZFfwSxcaWmjQn — người dùng duyệt 2026-10-23. Hệ thiết kế: bảng *System* và *Components* (Light/Dark). Màn hình module 00, mỗi nhóm một bảng sáng và một bảng tối, ở máy tính, máy tính bảng và điện thoại: *AppShell* (khung ứng dụng), *OrgContext* (trang chào và ngữ cảnh tổ chức), *Members* (thành viên và lời mời), *InviteAccept* (nhận lời mời), *Roles* (vai trò tự tạo), *OrgSettings* (phần Quản lý tổ chức), *SysOrgs* (admin hệ thống). Thêm ở v1.4, người dùng duyệt 2026-10-23: *ProfileEmail* (hồ sơ dạng bảng bên, đổi email kèm mật khẩu hiện tại), *AuditLog* (nhật ký kiểm toán); mẫu lỗi chung "Không tìm thấy"/"Không đủ quyền" trên *OrgContext*; mẫu nút sao chép trên *Components* |
+| Thiết kế | https://claude.ai/artifact/21QUWu78AZFfwSxcaWmjQn — người dùng duyệt 2026-10-23. Hệ thiết kế: bảng *System* và *Components* (Light/Dark). Màn hình module 00, mỗi nhóm một bảng sáng và một bảng tối, ở máy tính, máy tính bảng và điện thoại: *AppShell* (khung ứng dụng), *OrgContext* (trang chào và ngữ cảnh tổ chức), *Members* (thành viên và lời mời), *InviteAccept* (nhận lời mời), *Roles* (vai trò tự tạo), *OrgSettings* (phần Quản lý tổ chức), *SysOrgs* (admin hệ thống). Thêm ở v1.4, người dùng duyệt 2026-10-23: *ProfileEmail* (hồ sơ dạng bảng bên, đổi email kèm mật khẩu hiện tại), *AuditLog* (nhật ký kiểm toán); mẫu lỗi chung "Không tìm thấy"/"Không đủ quyền" trên *OrgContext*; mẫu nút sao chép trên *Components*. Thêm ở v1.6, người dùng duyệt 2026-11-12: *ProfileEmailNoPw* (đổi email của tài khoản không có mật khẩu, xác nhận ở email hiện tại) |
 | Kế hoạch | Chưa có |
 
 Tài liệu này là **nơi duy nhất** định nghĩa thuật ngữ (§3.1), vai trò (§3.2), ma trận quyền (§3.3) và vòng đời trạng thái feedback (§3.4), cùng tổ chức và thành viên. Các PRD khác dẫn chiếu, ví dụ `xem PRD-00 §3.2 Vai trò`, và chỉ bổ sung phần riêng của module. Cách một thao tác diễn ra (bình luận, trùng lặp, xoá feedback, email, chỉ số, khảo sát…) thuộc PRD sở hữu module đó; các quyết định đã có cho những phần này ghi ở §12 *Chuyển cho PRD khác*.
@@ -930,6 +930,7 @@ Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả
 | 2026-11-12 | 1.5 | Người dùng duyệt v1.5 cùng bảng *Mặc định đề xuất* (D21–D26). Chuyển *Approved* | Người dùng |
 | 2026-11-12 | 1.6 | **Siết một quy tắc đã duyệt ở v1.5, người dùng cần xem khi duyệt lại.** Tech-lead (TECH00 v1.2 P9) chỉ ra D24 / BR-85 điểm 12 không an toàn: tài khoản không có mật khẩu mà email hiện tại chưa xác minh đi thẳng tới link ở email mới, mở link đặt email mới thành đã xác minh, nên kẻ chiếm phiên đặt email do mình kiểm soát rồi đăng nhập Google hoặc Microsoft bằng email đó và tự liên kết vào tài khoản; tài khoản như vậy có thật. Quyết định mới: tài khoản không có mật khẩu mà email hiện tại chưa xác minh không đổi được email, yêu cầu bị từ chối, dòng lỗi thường, không thư, không hộp thoại hay nút mới; chỉ đăng nhập lại bằng Google hoặc Microsoft với đúng email đó mới xác minh được. Sửa FR-69, BR-85 điểm 1 và 12, D24 (viết lại), AC-398 (nay là từ chối), §10, §11; thêm AC-400 (đăng nhập lại xong thì đổi theo FR-69), AC-401 (link ở email cũ hết hạn mà chưa *Huỷ*: dòng chờ còn *Gửi lại* và *Huỷ*). D26 trỏ tới TECH00 QĐ-40. Chuyển In review, phiên bản 1.6. | SA (thay người dùng); tech-lead TECH00 v1.2 P9 |
 | 2026-11-12 | 1.6 | BA review v1.6 và appsec review TECH00 v1.3 (đều đã SA chấp nhận). Câu 121 đánh dấu một phần thay bởi v1.6; FR-67 trỏ tới FR-69 và BR-85 điểm 12; BR-85 điểm 12: lần lưu kèm trường khác cũng bị từ chối cả lần, ghi hành vi hiện có (đăng nhập nhà cung cấp xác minh email trùng thì email được đánh dấu đã xác minh), thêm vào mục thuật ngữ *Tài khoản không có mật khẩu*; BR-85 điểm 4, 9, D22: trạng thái chờ kéo dài tới *Huỷ* hoặc yêu cầu đổi mới dù link hết hạn; BR-85 điểm 3: link ở email cũ không xác nhận khi mở, trang hiển thị email mới và nút "Xác nhận", chỉ bấm nút mới xác nhận (AC-377 sửa, §12 PRD05 ghi nội dung thư); AC-398 sửa; AC-401 chuyển về đúng thứ tự số; thêm AC-402, AC-403, AC-404. | SA (thay người dùng); BA review; appsec review |
+| 2026-11-12 | 1.6 | Người dùng duyệt v1.6 cùng TECH00 v1.4 và bảng *ProfileEmailNoPw* (sáng, tối). Chuyển *Approved* | Người dùng |
 
 ### Quyết định của người dùng
 
