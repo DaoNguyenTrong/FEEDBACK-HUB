@@ -86,12 +86,51 @@ public sealed class AuthorizationResponsesOperationTransformerTests
         Assert.True(operation.Responses is null || operation.Responses.Count == 0);
     }
 
-    private async Task Run(OpenApiOperation operation, params object[] metadata)
+    [Fact]
+    public async Task Transform_DocumentWithoutProblemDetails_AddsComponentOnceAndReferencesIt()
+    {
+        OpenApiDocument document = new();
+        OpenApiOperation operation = new();
+
+        await Run(operation, document, new AuthorizeAttribute { Policy = Permissions.FilesManage });
+
+        Assert.Single(document.Components!.Schemas!, entry => entry.Key == "ProblemDetails");
+        foreach (string code in new[] { "401", "403" })
+        {
+            OpenApiResponse response = Assert.IsType<OpenApiResponse>(operation.Responses![code]);
+            foreach (string mediaType in new[] { "text/plain", "application/json", "text/json" })
+            {
+                OpenApiSchemaReference reference = Assert.IsType<OpenApiSchemaReference>(response.Content![mediaType].Schema);
+                Assert.Equal("ProblemDetails", reference.Reference.Id);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Transform_DocumentWithProblemDetails_KeepsTheExistingComponent()
+    {
+        OpenApiSchema existing = new() { Description = "already registered" };
+        OpenApiDocument document = new()
+        {
+            Components = new OpenApiComponents { Schemas = new Dictionary<string, IOpenApiSchema> { ["ProblemDetails"] = existing } }
+        };
+        OpenApiOperation operation = new();
+
+        await Run(operation, document, new AuthorizeAttribute());
+
+        Assert.Same(existing, document.Components.Schemas["ProblemDetails"]);
+        Assert.Single(document.Components.Schemas);
+        Assert.IsType<OpenApiSchemaReference>(operation.Responses!["401"].Content!["application/json"].Schema);
+    }
+
+    private Task Run(OpenApiOperation operation, params object[] metadata) => Run(operation, null, metadata);
+
+    private async Task Run(OpenApiOperation operation, OpenApiDocument? document, params object[] metadata)
     {
         ServiceCollection services = new();
         services.AddLogging();
         services.AddOpenApi(DocumentName);
-        ServiceProvider provider = services.BuildServiceProvider();
+        await using ServiceProvider provider = services.BuildServiceProvider();
 
         ApiDescription description = new()
         {
@@ -101,7 +140,8 @@ public sealed class AuthorizationResponsesOperationTransformerTests
         {
             DocumentName = DocumentName,
             Description = description,
-            ApplicationServices = provider
+            ApplicationServices = provider,
+            Document = document
         };
 
         await _transformer.TransformAsync(operation, context, CancellationToken.None);
