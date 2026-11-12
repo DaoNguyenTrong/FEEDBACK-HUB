@@ -177,3 +177,12 @@ test('contentLines_keepsDashedContentAndDropsHeaders', () =>
 
 test('splitNul_keepsNonAsciiPathsUnquoted', () =>
   expect(splitNul('backend/src/Auth/Quản.cs\0docs/a.md\0')).toEqual(['backend/src/Auth/Quản.cs', 'docs/a.md']))
+
+test.each<[string, Tier]>([
+  ['backend/tests/FeedbackHub.API.Tests/Architecture/AnonymousAccessTests.cs', 1],
+  ['backend/tests/FeedbackHub.API.Tests/Architecture/ArchitectureTests.cs', 1],
+  ['backend/templates/feedbackhub-entity/src/FeedbackHub.Application/Services/Samples/SampleService.cs', 2],
+  ['backend/templates/feedbackhub-entity/src/FeedbackHub.API/Controllers/SamplesController.cs', 2],
+  ['backend/templates/feedbackhub-entity/.template.config/template.json', 2],
+])('tierOf(%s) = %d (guards and templates that multiply into every slice)', (path, tier) =>
+  expect(tierOf(path)).toBe(tier))

@@ -12,7 +12,7 @@ Write only the **why** — the reasoning and rejected alternative. Never "what w
 
 ### 2026-11-12 — 401 and 403 are documented by an OpenAPI transformer, not per action
 
-Hand-written `ProducesResponseType(401/403)` drifted from the real authorization: a class policy with no attribute on the action left 403 undocumented, so generated clients missed it. A transformer derives both from the endpoint metadata. It emits a `$ref` to the `ProblemDetails` component, because the inline schema from `GetOrCreateSchemaAsync` added about 7000 lines to the spec. Actions that opt out of authentication keep their own 401. Rejected: per-controller attributes (drift) and a hand-built inline schema.
+Hand-written per-action response attributes for 401 and 403 drifted from the real authorization: a class policy with no attribute on the action left 403 undocumented, so generated clients missed it. A transformer derives both from the endpoint metadata. It emits a `$ref` to the `ProblemDetails` component, because the inline schema added about 7000 lines to the spec. Actions that opt out of authentication keep their own 401. Rejected: per-controller attributes (drift) and a hand-built inline schema.
 
 ### 2026-10-22 — git and gh run without prompts; a command-parsing guard catches accidental never-rule breaks
 

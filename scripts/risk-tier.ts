@@ -11,7 +11,7 @@ export type ChangedFile = { path: string; changedLines: string[]; removedLines?:
 const SENSITIVE_WORDS = [
   'Auth', 'Token', 'Cookie', 'Session', 'Permission', 'Tenant', 'ApiKey', 'Lockout', 'Role', 'Organization',
   'Invitation', 'Member', 'Csrf', 'Jwt', 'Cors', 'RateLimit', 'Security', 'Password', 'Secret', 'CurrentUser',
-  'ForwardedHeaders', 'Realtime',
+  'ForwardedHeaders', 'Realtime', 'Anonymous',
 ].join('|')
 // Matched against the file name only: every backend path contains "FeedbackHub".
 const SENSITIVE_FILE_NAME = new RegExp(`(${SENSITIVE_WORDS})[^/]*$|Hub\\.cs$`, 'i')
@@ -26,6 +26,7 @@ export const TIER2_PATHS: RegExp[] = [
   /(^|\/)(package\.json|bun\.lockb?|Directory\.(Build|Packages)\.props)$|\.csproj$/i,
   /\/Migrations\//i,
   /^backend\/.*\/(Auth|Authorization|ApiKeys|Organizations|Roles|Invitations|Members|Middleware|Security)\//i,
+  /^backend\/templates\/[^/]+\/(src|\.template\.config)\//i,
   /^backend\/src\/FeedbackHub\.API\/Program\.cs$/i,
   /^backend\/src\/FeedbackHub\.Infrastructure\/Persistence\/AppDbContext\.cs$/i,
   /^frontend\/src\/api\/(client|mutator)\.ts$/i,
@@ -55,6 +56,9 @@ export const TIER0_PATHS: RegExp[] = [
 
 export const TEST_PATHS: RegExp[] = [/^backend\/tests\//i, /^frontend\/tests\//i, /\.test\.ts$/i]
 
+// Tests that guard every endpoint: loosening one weakens a tier-2 control, so they are never tier 0.
+const ARCHITECTURE_TESTS = /\/Architecture\//i
+
 const CONTENT_CHECKED = /\.(cs|ts|vue)$/i
 
 const matches = (patterns: RegExp[], text: string) => patterns.some((p) => p.test(text))
@@ -65,7 +69,7 @@ const isSensitivePath = (path: string) =>
 export function tierOf(path: string): Tier {
   // A test under a sensitive path stays tier 1: deleting its assertions weakens a tier-2 guard.
   if (matches(TEST_PATHS, path)) {
-    return matches(TIER2_PATHS, path) || new RegExp(`(${SENSITIVE_WORDS})`, 'i').test(path) ? 1 : 0
+    return matches(TIER2_PATHS, path) || ARCHITECTURE_TESTS.test(path) || new RegExp(`(${SENSITIVE_WORDS})`, 'i').test(path) ? 1 : 0
   }
   if (isSensitivePath(path)) return 2
   if (matches(TIER0_PATHS, path)) return 0
