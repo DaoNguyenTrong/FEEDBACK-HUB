@@ -74,6 +74,10 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.PendingEmail)
             .HasMaxLength(200);
 
+        builder.Property(account => account.PendingEmailStage)
+            .HasConversion<string>()
+            .HasMaxLength(30);
+
         builder.Property(account => account.FailedEmailChangeCount)
             .HasDefaultValue(0)
             .IsRequired()

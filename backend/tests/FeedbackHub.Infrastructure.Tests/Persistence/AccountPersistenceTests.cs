@@ -53,4 +53,23 @@ public sealed class AccountPersistenceTests(PostgresContainerFixture fixture) : 
         Account stored = await context.Accounts.AsNoTracking().SingleAsync(a => a.Id == account.Id);
         Assert.True(stored.Status);
     }
+
+    [Fact]
+    public async Task PendingEmailStage_RoundTripsAsText()
+    {
+        Account account = Account.Create(new AccountParams("Stage", "stage-user", "stage@example.com"));
+        account.ConfirmEmail();
+        account.RequestEmailChange("stage-new@example.com");
+        context.Accounts.Add(account);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        Account stored = await context.Accounts.AsNoTracking().SingleAsync(a => a.Id == account.Id);
+        string? raw = await context.Database
+            .SqlQuery<string>($"""SELECT "PendingEmailStage" AS "Value" FROM accounts WHERE "Id" = {account.Id}""")
+            .SingleAsync();
+
+        Assert.Equal(EmailChangeStage.AwaitingCurrentEmail, stored.PendingEmailStage);
+        Assert.Equal("AwaitingCurrentEmail", raw);
+    }
 }

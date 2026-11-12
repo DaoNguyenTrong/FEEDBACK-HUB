@@ -68,6 +68,7 @@ public sealed class AuditExcludedPropertiesTests(PostgresContainerFixture fixtur
         Assert.Contains("\"PendingEmail\"", added.NewValues);
         AuditLog modified = logs.Single(log => log.Action == nameof(EntityState.Modified));
         Assert.Contains("\"PendingEmail\"", modified.NewValues);
+        Assert.Contains("\"PendingEmailStage\"", modified.NewValues);
         AuditLog deleted = logs.Single(log => log.Action == nameof(EntityState.Deleted));
         Assert.Contains("\"Email\"", deleted.OldValues);
     }

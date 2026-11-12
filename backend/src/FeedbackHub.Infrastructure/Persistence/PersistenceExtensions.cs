@@ -43,6 +43,7 @@ internal static class PersistenceExtensions
         services.AddScoped<IAuditTrail, AuditTrail>();
         services.AddScoped<ISystemOrganizationQueries, SystemOrganizationQueries>();
         services.AddScoped<IOrganizationLock, OrganizationLock>();
+        services.AddScoped<IAccountLock, AccountLock>();
         services.AddScoped<IRoleGrantReader, RoleGrantReader>();
         services.AddScoped<IRoleQueries, RoleQueries>();
         services.AddScoped<IOrganizationMemberQueries, OrganizationMemberQueries>();
