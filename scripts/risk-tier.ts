@@ -1,5 +1,6 @@
 // Computes a change's risk tier; the rule each tier triggers is docs/process/lifecycle.md § Hạng kiểm tra.
 // Usage: bun scripts/risk-tier.ts [--base <ref>] [--head <ref>]   (default origin/dev...HEAD)
+//        bun scripts/risk-tier.ts --fix-ratio <range>             (retro: fix commits per tier)
 
 import { spawnSync } from 'node:child_process'
 
@@ -76,6 +77,30 @@ export function tierOfChange(files: ChangedFile[]): { tier: Tier; reasons: strin
   return { tier, reasons }
 }
 
+export type CommitInfo = { subject: string; files: ChangedFile[] }
+type Ratio = Record<Tier, { fix: number; total: number }>
+
+const FIX_SUBJECT = /^fix(\(|!|:)/
+
+export function fixRatioByTier(commits: CommitInfo[]): Ratio {
+  const ratio: Ratio = { 0: { fix: 0, total: 0 }, 1: { fix: 0, total: 0 }, 2: { fix: 0, total: 0 } }
+  for (const c of commits) {
+    if (c.files.length === 0) continue
+    const row = ratio[tierOfChange(c.files).tier]
+    row.total++
+    if (FIX_SUBJECT.test(c.subject)) row.fix++
+  }
+  return ratio
+}
+
+export function formatFixRatio(ratio: Ratio): string {
+  const rows = ([0, 1, 2] as const).map((t) => {
+    const { fix, total } = ratio[t]
+    return `| ${t} | ${fix} | ${total} | ${total === 0 ? '—' : `${Math.round((fix / total) * 100)}%`} |`
+  })
+  return ['| Hạng | fix | Tổng | Tỉ lệ |', '|---|---|---|---|', ...rows].join('\n')
+}
+
 // Fails closed: an unreadable diff must never print a tier, because tier 0 would drop every check.
 function git(args: string[]): string {
   const r = spawnSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
@@ -102,8 +127,23 @@ function argValue(args: string[], flag: string): string | undefined {
   return i >= 0 ? args[i + 1] : undefined
 }
 
+function commitsIn(range: string): CommitInfo[] {
+  return git(['log', '--no-merges', '--format=%H%x09%s', range])
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [sha, ...subject] = line.split('\t')
+      return { subject: subject.join('\t'), files: changedFiles(`${sha}^..${sha}`) }
+    })
+}
+
 if (import.meta.main) {
   const args = process.argv.slice(2)
+  const fixRange = argValue(args, '--fix-ratio')
+  if (fixRange !== undefined) {
+    console.log(formatFixRatio(fixRatioByTier(commitsIn(fixRange))))
+    process.exit(0)
+  }
   const base = argValue(args, '--base') ?? 'origin/dev'
   const head = argValue(args, '--head') ?? 'HEAD'
   const { tier, reasons } = tierOfChange(changedFiles(`${base}...${head}`))

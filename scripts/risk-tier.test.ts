@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { tierOf, tierOfChange, type Tier } from './risk-tier'
+import { fixRatioByTier, formatFixRatio, tierOf, tierOfChange, type CommitInfo, type Tier } from './risk-tier'
 
 test.each<[string, Tier]>([
   ['docs/process/lifecycle.md', 0],
@@ -68,3 +68,35 @@ test('tierOfChange_reasonsCappedAtFive', () => {
   const files = Array.from({ length: 8 }, (_, i) => ({ path: `frontend/src/router/r${i}.ts`, changedLines: [] }))
   expect(tierOfChange(files).reasons).toHaveLength(5)
 })
+
+const commit = (subject: string, ...paths: string[]): CommitInfo => ({
+  subject,
+  files: paths.map((path) => ({ path, changedLines: [] })),
+})
+
+test('fixRatioByTier_countsFixSubjectsPerTier', () =>
+  expect(
+    fixRatioByTier([
+      commit('fix(auth): keep remember-me on refresh', 'frontend/src/api/client.ts'),
+      commit('feat(auth): add switch', 'frontend/src/router/index.ts'),
+      commit('feat(products): list', 'frontend/src/views/products/List.vue'),
+    ]),
+  ).toEqual({ 0: { fix: 0, total: 0 }, 1: { fix: 0, total: 1 }, 2: { fix: 1, total: 2 } }))
+
+test('fixRatioByTier_fixPatternIsStrict', () => {
+  const vue = 'frontend/src/views/A.vue'
+  const r = fixRatioByTier(
+    ['fix: a', 'fix(x): a', 'fix!: a', 'fixture: a', 'Revert "fix: a"'].map((s) => commit(s, vue)),
+  )
+  expect(r[1]).toEqual({ fix: 3, total: 5 })
+})
+
+test('fixRatioByTier_skipsCommitsWithNoFiles', () =>
+  expect(fixRatioByTier([commit('fix: empty')])[0]).toEqual({ fix: 0, total: 0 }))
+
+test('formatFixRatio_printsOneRowPerTierWithWholePercentOrDash', () =>
+  expect(formatFixRatio({ 0: { fix: 0, total: 0 }, 1: { fix: 1, total: 3 }, 2: { fix: 2, total: 4 } })).toBe(
+    ['| Hạng | fix | Tổng | Tỉ lệ |', '|---|---|---|---|', '| 0 | 0 | 0 | — |', '| 1 | 1 | 3 | 33% |', '| 2 | 2 | 4 | 50% |'].join(
+      '\n',
+    ),
+  ))
