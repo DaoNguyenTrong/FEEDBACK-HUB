@@ -17,8 +17,8 @@ Trạng thái chi tiết của PRD nằm ở `docs/prd/README.md` và của tài
 
 ## Số đo
 
-Ghi ở retro cuối module (`lifecycle.md` § Lỗi lặp và retro cuối module). Số ngày tính từ bản nháp PRD đầu tiên tới khi PR cuối của module merge; tỉ lệ `fix` là số commit `fix` trên tổng commit của các nhánh module.
+Ghi ở retro cuối module (`lifecycle.md` § Lỗi lặp và retro cuối module). Số ngày tính từ bản nháp PRD đầu tiên tới khi PR cuối của module merge; tỉ lệ `fix` là số commit `fix` trên tổng commit của các nhánh module; cột theo hạng lấy từ `bun scripts/risk-tier.ts --fix-ratio`.
 
-| Module | Số ngày | Số PR | Tỉ lệ commit `fix` | Câu hỏi tới người dùng | Ghi chú |
-|---|---|---|---|---|---|
-| 00 Nền tảng | 6 (22–27/10, tới lúc code xong) | 1 code (#32) + 6 tài liệu (#16, #20, #25, #27, #28, #29) | 42/158 (27%) | hơn 80, trước khi có SA | Số tạm, chốt khi #32 merge |
+| Module | Số ngày | Số PR | Tỉ lệ commit `fix` | `fix` theo hạng (0/1/2) | Câu hỏi tới người dùng | Ghi chú |
+|---|---|---|---|---|---|---|
+| 00 Nền tảng | 6 (22–27/10, tới lúc code xong) | 1 code (#32) + 6 tài liệu (#16, #20, #25, #27, #28, #29) | 42/158 (27%) | — | hơn 80, trước khi có SA | Số tạm, chốt khi #32 merge |

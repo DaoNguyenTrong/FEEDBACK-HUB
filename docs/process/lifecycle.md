@@ -8,15 +8,17 @@ Tài liệu này mô tả đường đi từ ý tưởng đến phát hành, ai 
 |---|---|---|---|---|---|
 | 0 | Ý tưởng và tầm nhìn | Tầm nhìn, danh sách module, thứ tự ưu tiên | Phiên chính (`superpowers:brainstorming`) cùng người dùng | Người dùng | Danh mục module trong `docs/prd/README.md` được chốt |
 | 1 | Yêu cầu | PRD trong `docs/prd/` | `product-manager`, review bởi `business-analyst` | Người dùng | PRD ở trạng thái *Approved* |
-| 2 | Thiết kế giao diện | Bảng thiết kế trên canvas, gắn mã yêu cầu | `ui-designer` | Người dùng | Mọi FR có giao diện đều có bảng; người dùng duyệt |
+| 2 | Thiết kế giao diện | Bảng thiết kế trên canvas, gắn mã yêu cầu | `ui-designer` | Người dùng | Mọi FR có màn hình mới hoặc mẫu tương tác mới đều có bảng; màn hình theo mẫu có sẵn chỉ ghi tên mẫu; người dùng duyệt |
 | 3 | Thiết kế kỹ thuật | Tài liệu trong `docs/tech/` | `tech-lead` (`appsec` trước với module nhạy cảm) | Người dùng | Tài liệu *Approved*, mọi FR/AC có mục thiết kế |
 | 4 | Kế hoạch | Kế hoạch trong `docs/superpowers/plans/` | Phiên chính (`superpowers:writing-plans`) | Người dùng | Người dùng duyệt kế hoạch; đồng thời quyết định có cấp quyền push và PR không |
-| 5 | Triển khai | Code, test, mục `docs/feature-map.md` | `implementer`, mỗi lần một task | `code-reviewer` giữa các task | Mọi task của phase xong, `scripts/test-gate.sh` đạt |
+| 5 | Triển khai | Code, test, mục `docs/feature-map.md` | `implementer`, mỗi lần một task | Theo hạng (§2 Hạng kiểm tra) | Mọi task của phase xong, `scripts/test-gate.sh` đạt |
 | 6 | Review và merge | PR được merge vào `dev` | `pr-reviewer` (PR chỉ có tài liệu: `/git-accept`) | Tự động, trừ vùng cần người dùng | PR vào `dev`; sau PR cuối của module, phiên chính chạy retro (§8) |
 | 7 | Phát hành | Bản phát hành, changelog | Skill `release-kit:git-release` | Người dùng | Tag và merge vào `main` |
 | 8 | Vận hành và phản hồi | Feedback thật từ chính FeedbackHub | Người dùng | — | Quay lại giai đoạn 0, 1 hoặc 5 theo cỡ việc |
 
 Phiên chính là người điều phối: gửi mọi câu hỏi cho `solution-architect` trả lời thay người dùng, chỉ hỏi người dùng những câu agent đó chuyển lên, chuyển câu trả lời cho agent, gọi agent theo thứ tự, và không tự làm thay công việc của agent. Subagent không hỏi được người dùng và không gọi được agent khác.
+
+Để bớt lượt gọi, phiên chính gom câu hỏi của một giai đoạn vào một lượt gọi `solution-architect`. Câu hỏi thuần kỹ thuật đã có mặc định hợp lý thì phiên chính tự quyết và ghi lại trong kế hoạch, không gửi đi.
 
 ## 2. Cỡ công việc
 
@@ -24,11 +26,23 @@ Phiên chính chốt cỡ ở đầu mỗi việc và nói rõ cho người dùn
 
 | Cỡ | Khi nào | Đường đi |
 |---|---|---|
-| **S** | Sửa lỗi, việc vặt, đổi nhỏ không thay đổi hành vi hay hợp đồng | Bỏ giai đoạn 0–4. Lỗi: test thất bại trước. `implementer` → `code-reviewer` → `pr-reviewer` |
+| **S** | Sửa lỗi, việc vặt, đổi nhỏ không thay đổi hành vi hay hợp đồng | Bỏ giai đoạn 0–4. Lỗi: test thất bại trước. `implementer`, rồi review theo hạng |
 | **M** | Đổi hoặc thêm hành vi trong module đã có | Sửa PRD (tăng phiên bản, về *In review* rồi duyệt lại), thiết kế và tài liệu kỹ thuật chỉ phần bị ảnh hưởng, kế hoạch ngắn, rồi giai đoạn 5–6 |
 | **L** | Module mới, hoặc thay đổi chạm quyền, phiên, định danh | Đủ giai đoạn 0–6, `appsec` nếu nhạy cảm |
 
 Cỡ S không được thêm hành vi người dùng nhìn thấy hay đổi API. Nếu việc S hóa ra cần đổi hành vi, dừng và nâng lên M.
+
+### Hạng kiểm tra
+
+Cỡ quyết định cần những tài liệu nào; hạng quyết định kiểm tra kỹ đến đâu. Hạng của một thay đổi là hạng cao nhất trong các tệp của nó, do `bun scripts/risk-tier.ts --base origin/dev` tính, không do ai tự đánh giá. Người làm được nâng hạng, không được hạ.
+
+| Hạng | Thay đổi nào | Kiểm tra |
+|---|---|---|
+| **0** | Tài liệu, văn bản quy trình, locale, OpenAPI export và client sinh tự động, thay đổi chỉ trong test | Chỉ CI. Phiên chính tự xem diff, không gọi agent review |
+| **1** | Mọi thay đổi còn lại: hành vi thường ở vùng không nhạy cảm (CRUD, màn hình, danh sách, bộ lọc) | `implementer` Sonnet, gộp task theo màn hình. Không review sau từng task; một lượt review Sonnet cho cả PR của phase (`pr-reviewer`). Không cài lỗi thử test, không Opus |
+| **2** | Đăng nhập, token, cookie, phiên, quyền, đổi tổ chức và cơ chế lọc theo tổ chức, khoá API, khoá dữ liệu và đồng thời, EF migration, cấu hình CI và hook, chính script tính hạng | Đủ quy trình: `appsec` review tài liệu kỹ thuật trước kế hoạch, reviewer Opus sau từng task, khoảng 5 lỗi cài thử test, review Opus cuối phase, người dùng merge (§3 Vùng cần người dùng) |
+
+Danh sách đường dẫn và dấu hiệu của từng hạng chỉ nằm trong `scripts/risk-tier.ts`. Tài liệu kỹ thuật của một module mới nêu những đường dẫn hạng 2 mà module thêm vào, và PR đầu tiên của module thêm chúng vào script.
 
 ## 3. Cổng giữa các giai đoạn
 
@@ -61,6 +75,7 @@ Không chắc thì coi là lớn. Để lệch lớn lộ ra sớm, kế hoạch
 
 - **Kế hoạch** mô tả cho từng task: giao diện (chữ ký public, DTO, endpoint), danh sách tệp, ca kiểm thử và tiêu chí nghiệm thu. Chỉ chép đoạn mã ngắn khi chữ ký hoặc thuật toán khó tả bằng lời. Không viết sẵn mã hoàn chỉnh: `implementer` viết lại nó, và bản trong kế hoạch sẽ lệch khỏi mã thật.
 - **PRD** của một module thường nhắm khoảng 500 dòng. Đây là giới hạn mềm: module lớn được vượt nếu ghi lý do ở đầu PRD. Không cắt phạm vi để giữ số dòng, vì cắt phạm vi là quyết định của người dùng.
+- **Tài liệu kỹ thuật dạng ngắn** cho module ghi `không cần` ở cột *appsec* của `progress.md`. Bắt buộc có §1, §3, §4, §5, §11, §12 và §13 của mẫu. Các mục còn lại được để một dòng "Không áp dụng: <lý do>". Nhắm khoảng 200 dòng. Với các module này, `business-analyst` review PRD một lượt; lượt thứ hai chỉ khi lượt đầu có phát hiện `blocking`.
 
 ## 6. Quyền push và mở PR
 
@@ -101,8 +116,9 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 1. Phân loại các commit `fix` của module theo nguyên nhân gốc (một agent Sonnet đọc `git log` và `git show` của các nhánh module).
 2. Ghi mỗi nhóm nguyên nhân vào `docs/agent-error-log.md`, và xử lý các ý trong mục *Chờ retro* của tệp đó.
 3. Nhóm gặp từ hai lần trở lên thì biến thành kiểm tra tự động (việc cỡ S cho `implementer`), hoặc ghi lý do không làm được vào mục đó. Mục đã tự động hoá ghi "Đã chuyển thành: …".
-4. Ghi số đo của module vào `progress.md` § Số đo.
+4. Ghi số đo của module vào `progress.md` § Số đo, kèm bảng của `bun scripts/risk-tier.ts --fix-ratio <dải commit của module>`.
 5. Gom các thay đổi quy trình của module vào một PR quy trình.
+6. Nếu tỉ lệ `fix` của hạng 1 cao hơn của hạng 2, đưa đường dẫn của các commit `fix` hạng 1 vào danh sách hạng 2 của `scripts/risk-tier.ts`, trong PR quy trình ở bước 5.
 
 **Đóng băng quy trình giữa module.** Thay đổi quy trình (tài liệu này, `AGENTS.md`, `.claude/agents/`, `.claude/rules/`) chỉ áp dụng ở retro. Giữa module chỉ sửa lỗi quy trình đang chặn việc, kèm lý do trong một mục ở §9. Ý cải tiến phát sinh giữa module được ghi vào mục *Chờ retro* của `docs/agent-error-log.md`.
 
@@ -111,6 +127,21 @@ Cùng một góp ý xuất hiện hai lần thì không thêm quy tắc văn b�
 ## 9. Quyết định quy trình
 
 Quyết định về cách làm việc (agent, cổng duyệt, review) ghi ở đây, mới nhất ở trên; quyết định kỹ thuật theo `AGENTS.md` § Decision Log.
+
+### 2026-11-12 — Kiểm tra theo hạng rủi ro, không theo cỡ việc
+Người dùng thấy chạy đủ quy trình quá tốn. Ở module 00, mọi thay đổi đều trả cùng một mức review sau từng task. Thế nhưng 22 commit `fix` thuộc các nhóm lỗi lặp lại tập trung ở auth, token, đồng thời và xác minh email, còn nhóm lỗi giao diện chỉ có 3 commit và test tự động bắt được. Vì vậy:
+- Mỗi thay đổi có một hạng 0/1/2, do `scripts/risk-tier.ts` tính theo đường dẫn và dấu hiệu trong diff (§2 Hạng kiểm tra).
+- Hạng 1 bỏ review sau từng task, chỉ còn một lượt review cho cả PR.
+- Module không nhạy cảm dùng tài liệu kỹ thuật dạng ngắn (§5b). Bảng thiết kế chỉ vẽ cho màn hình hoặc mẫu tương tác mới (§1).
+- Câu hỏi gửi SA được gom một lượt mỗi giai đoạn (§1).
+- Retro đo tỉ lệ `fix` theo hạng (§8).
+
+Quyết định này áp dụng ngoài retro, theo lệnh của người dùng (ngoại lệ của đóng băng quy trình ở §8).
+
+Phương án loại:
+- Gộp PRD và tài liệu kỹ thuật thành một spec: phải sửa ba agent và chuỗi truy vết, trong khi dạng ngắn đạt phần lớn mức tiết kiệm.
+- Job CI gắn nhãn hạng cho PR: cần quyền ghi trong CI, trong khi test của script đã chạy ở `test / comments`.
+- Để người làm tự đánh hạng: một lần đánh giá sai là mất hết lớp kiểm tra.
 
 ### 2026-11-12 — Codex dùng chung nội dung Claude, không giữ bản prompt thứ hai
 
@@ -201,4 +232,4 @@ Quyết định module nằm ở §12 tài liệu kỹ thuật, được duyệt
 
 ## 10. Tiến độ module
 
-Bảng tiến độ nằm ở `docs/process/progress.md`: mỗi module một dòng, mỗi giai đoạn một cột. Phiên chính là người duy nhất cập nhật bảng này: trong PR tài liệu khi PRD hoặc tài liệu kỹ thuật được duyệt, trong PR tính năng cho các cột *Plan* và *Code*, và đánh *Merged* ở PR tài liệu tiếp theo của module, chỉ sau khi retro cuối module (§8) xong. Bảng *Số đo* trong cùng tệp ghi bốn số mỗi module: số ngày lịch (từ bản nháp PRD đầu tiên tới khi PR cuối merge), số PR, tỉ lệ commit `fix` (`git log`), và số câu hỏi tới người dùng.
+Bảng tiến độ nằm ở `docs/process/progress.md`: mỗi module một dòng, mỗi giai đoạn một cột. Phiên chính là người duy nhất cập nhật bảng này: trong PR tài liệu khi PRD hoặc tài liệu kỹ thuật được duyệt, trong PR tính năng cho các cột *Plan* và *Code*, và đánh *Merged* ở PR tài liệu tiếp theo của module, chỉ sau khi retro cuối module (§8) xong. Bảng *Số đo* trong cùng tệp ghi năm số mỗi module: số ngày lịch (từ bản nháp PRD đầu tiên tới khi PR cuối merge), số PR, tỉ lệ commit `fix` (`git log`), tỉ lệ `fix` theo hạng (`bun scripts/risk-tier.ts --fix-ratio`), và số câu hỏi tới người dùng.
