@@ -8,7 +8,7 @@ Tài liệu này mô tả đường đi từ ý tưởng đến phát hành, ai 
 |---|---|---|---|---|---|
 | 0 | Ý tưởng và tầm nhìn | Tầm nhìn, danh sách module, thứ tự ưu tiên | Phiên chính (`superpowers:brainstorming`) cùng người dùng | Người dùng | Danh mục module trong `docs/prd/README.md` được chốt |
 | 1 | Yêu cầu | PRD trong `docs/prd/` | `product-manager`, review bởi `business-analyst` | Người dùng | PRD ở trạng thái *Approved* |
-| 2 | Thiết kế giao diện | Bảng thiết kế trên canvas, gắn mã yêu cầu | `ui-designer` | Người dùng | Mọi FR có màn hình mới hoặc mẫu tương tác mới đều có bảng; màn hình theo mẫu có sẵn chỉ ghi tên mẫu; người dùng duyệt |
+| 2 | Thiết kế giao diện | Bảng thiết kế trên canvas, gắn mã yêu cầu | `ui-designer` | Người dùng | Mọi FR có màn hình mới hoặc mẫu tương tác mới đều có bảng; màn hình theo mẫu có sẵn chỉ ghi tên mẫu; bảng tối chỉ cho mẫu mới (`ui-designer.md` quy tắc 1); người dùng duyệt |
 | 3 | Thiết kế kỹ thuật | Tài liệu trong `docs/tech/` | `tech-lead` (`appsec` trước với module nhạy cảm) | Người dùng | Tài liệu *Approved*, mọi FR/AC có mục thiết kế |
 | 4 | Kế hoạch | Kế hoạch trong `docs/superpowers/plans/` | Phiên chính (`superpowers:writing-plans`) | Người dùng | Người dùng duyệt kế hoạch; đồng thời quyết định có cấp quyền push và PR không |
 | 5 | Triển khai | Code, test, mục `docs/feature-map.md` | `implementer`, mỗi lần một task | Theo hạng (§2 Hạng kiểm tra) | Mọi task của phase xong, `scripts/test-gate.sh` đạt |
@@ -65,7 +65,10 @@ Không chắc thì coi là lớn. Để lệch lớn lộ ra sớm, kế hoạch
 
 ## 5. Commit tài liệu
 
-- **PRD và tài liệu kỹ thuật** nằm trên nhánh `chore/*` riêng cắt từ `dev` ngay từ bản nháp đầu: phiên chính commit mỗi phiên bản lên nhánh đó và mở một **PR nháp** chỉ chứa tài liệu, để lịch sử các phiên bản và báo cáo review (comment trên PR) không mất giữa các phiên làm việc. Bắt đầu soạn một tài liệu là lệnh push và mở PR nháp cho nó. PR nháp không được merge; khi người dùng duyệt (trạng thái *Approved*), phiên chính commit bản duyệt, chuyển PR sang sẵn sàng và merge qua `/git-accept`.
+- **PRD và tài liệu kỹ thuật của một module** nằm chung một nhánh `chore/<module>-docs` cắt từ `dev` ngay từ bản nháp đầu, với **một PR nháp** cho cả module. Phiên chính commit mỗi phiên bản lên nhánh đó, để lịch sử các phiên bản và báo cáo review (comment trên PR) không mất giữa các phiên làm việc. Bắt đầu soạn PRD của module là lệnh push và mở PR nháp đó.
+  - Mỗi lần người dùng duyệt một tài liệu (PRD trước, tài liệu kỹ thuật sau), phiên chính commit bản duyệt lên nhánh. Link bảng thiết kế ghi ở dòng *Thiết kế* của PRD.
+  - Các agent ở giai đoạn sau (`ui-designer`, `tech-lead`, `writing-plans`) đọc tài liệu từ nhánh này.
+  - PR được merge **một lần** qua `/git-accept`, khi mọi tài liệu của module đã *Approved*. Nếu thiết kế hay tài liệu kỹ thuật bị chặn lâu, người dùng có thể cho merge riêng PRD đã duyệt.
 - **Kế hoạch** được phiên chính commit trên nhánh `feature/*` của nó, đi chung PR với code.
 - **Mọi PR**, kể cả PR chỉ có tài liệu, có mục `## Changelog` theo định dạng của `release-kit:git-mr` (`- Added: …`, `- Fixed: …`, hoặc chỉ `none` cho thay đổi nội bộ), và luôn có một mục `## ` khác theo sau: `git-release` đọc mục này tới heading `## ` kế tiếp, nên dòng chữ tự do ở cuối (dòng ghi nguồn) sẽ làm nó hỏng. `git-release` dựng CHANGELOG của bản phát hành từ các mục này; không sửa `CHANGELOG.md` bằng tay.
 - **Sửa tài liệu do lệch lớn** được phiên chính commit trên nhánh đang làm, đi chung PR với code; vì vậy `pr-reviewer` luôn đối chiếu code với đúng phiên bản tài liệu.

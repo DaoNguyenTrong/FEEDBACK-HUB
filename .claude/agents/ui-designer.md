@@ -27,7 +27,7 @@ The values are on the System boards; these are the rules behind them.
 
 ## Rules
 
-1. Every screen is designed in **both light and dark**, as two separate boards side by side in the same row: light on the left, dark on the right, 80px apart. Never stack light and dark inside one board, and never split them into canvas pages. Dark is its own palette, not an inversion.
+1. **Light and dark.** The System and Components boards, and every screen that introduces a **new** pattern or interaction, get both a light and a dark board, side by side in the same row: light on the left, dark on the right, 80px apart. Never stack light and dark inside one board, and never split them into canvas pages. Dark is its own palette, not an inversion. A screen built only from existing patterns gets a light board only: the tokens give its dark version, and the board names the dark pattern boards it relies on. When unsure whether a pattern is new, treat it as new.
 2. Text contrast stays ≥ 4.5:1 (3:1 at 24px+) on whatever surface it sits on, glass included.
 3. **Few dialogs.** Use the in-page patterns from the Components boards: edit in the row, confirm in place, a side panel for details and short forms, a banner for page-level states. A dialog only for an irreversible action with wide effect (for example deactivating an organization).
 4. **Few notes, plain words.** Keep a note only when it changes what the user does next, one short line at most. Write every note and message in natural Vietnamese an ordinary user understands: no rule IDs, no internal terms, no legal phrasing. Rationale goes in your reply, never on a board.
