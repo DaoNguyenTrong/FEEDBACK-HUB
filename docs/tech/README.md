@@ -37,7 +37,7 @@ Quy tắc hiện có trong `.claude/rules/` viết cho ứng dụng nội bộ d
 
 | Mã | Module | PRD | Trạng thái | Phiên bản | appsec |
 |---|---|---|---|---|---|
-| TECH00 | Nền tảng: mô hình sản phẩm, quyền theo sản phẩm, đa tổ chức, chuyển design system mới vào frontend (`00-nen-tang.md`) | PRD00 v1.6 | In review | 1.3 | Đạt v0.9; v1.2–v1.3 cần review lại (đổi email không mật khẩu, API-34, từ chối khi email chưa xác minh) |
+| TECH00 | Nền tảng: mô hình sản phẩm, quyền theo sản phẩm, đa tổ chức, chuyển design system mới vào frontend (`00-nen-tang.md`) | PRD00 v1.6 | In review | 1.4 | Đạt có điều kiện v1.3; điều kiện đã áp ở v1.4 |
 | TECH01 | Quản lý sản phẩm | PRD01 | Chưa bắt đầu | — | — |
 | TECH02 | Thu thập feedback (widget web), định danh, chế độ khách | PRD02 | Chưa bắt đầu | — | Bắt buộc |
 | TECH03 | Xử lý feedback | PRD03 | Chưa bắt đầu | — | — |
