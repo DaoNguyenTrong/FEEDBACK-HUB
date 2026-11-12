@@ -157,7 +157,6 @@ public sealed class AuthController(
     [Authorize]
     [HttpPost("logout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Logout(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenRequest? request,
         CancellationToken cancellationToken)
@@ -179,14 +178,12 @@ public sealed class AuthController(
     [Authorize(Policy = AuthorizationPolicies.SignedInUser)]
     [HttpGet("check")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public IActionResult Check() => NoContent();
 
     /// <summary>Lists the active sessions (refresh tokens) for the currently authenticated account.</summary>
     [Authorize]
     [HttpGet("sessions")]
     [ProducesResponseType(typeof(IReadOnlyList<SessionDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IReadOnlyList<SessionDto>>> GetSessions(CancellationToken cancellationToken)
     {
         string? currentRefreshToken = Request.Cookies[AuthCookies.RefreshTokenName];
@@ -201,7 +198,6 @@ public sealed class AuthController(
     [Authorize]
     [HttpDelete("sessions/{id:long}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RevokeSession(long id, CancellationToken cancellationToken)
     {
@@ -215,7 +211,6 @@ public sealed class AuthController(
     [HttpPost("sessions/revoke-others")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RevokeOtherSessions(CancellationToken cancellationToken)
     {
         string? currentRefreshToken = Request.Cookies[AuthCookies.RefreshTokenName];
@@ -231,7 +226,6 @@ public sealed class AuthController(
     [Authorize]
     [HttpPost("switch-organization")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<LoginResponse>> SwitchOrganization(
         SwitchOrganizationRequest request,

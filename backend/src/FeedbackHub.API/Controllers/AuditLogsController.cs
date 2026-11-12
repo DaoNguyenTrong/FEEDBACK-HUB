@@ -19,8 +19,6 @@ public sealed class AuditLogsController(IAuditLogService auditLogService) : Cont
     /// <param name="cancellationToken"></param>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<AuditLogDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PagedResult<AuditLogDto>>> GetAll(
         [FromQuery] PaginationRequest request,
         [FromQuery] Guid? userId,
@@ -35,8 +33,6 @@ public sealed class AuditLogsController(IAuditLogService auditLogService) : Cont
     /// <summary>Returns the details of an audit log by ID.</summary>
     [HttpGet("{id:long}")]
     [ProducesResponseType(typeof(AuditLogDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AuditLogDto>> GetById(long id, CancellationToken cancellationToken)
     {

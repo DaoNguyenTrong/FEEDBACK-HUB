@@ -15,7 +15,6 @@ public sealed class NotificationsController(INotificationService notificationSer
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<NotificationDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<PagedResult<NotificationDto>>> GetAll(
         [FromQuery] NotificationListQuery query,
         CancellationToken cancellationToken)
@@ -26,7 +25,6 @@ public sealed class NotificationsController(INotificationService notificationSer
     /// <summary>Returns the unread notification count for the current account.</summary>
     [HttpGet("unread-count")]
     [ProducesResponseType(typeof(UnreadCountDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<UnreadCountDto>> GetUnreadCount(CancellationToken cancellationToken)
     {
         return Ok(new UnreadCountDto(await notificationService.GetUnreadCountAsync(cancellationToken)));
@@ -35,7 +33,6 @@ public sealed class NotificationsController(INotificationService notificationSer
     /// <summary>Marks a single notification as read. 404 if it doesn't belong to the current account.</summary>
     [HttpPatch("{id:guid}/read")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken cancellationToken)
     {
@@ -46,7 +43,6 @@ public sealed class NotificationsController(INotificationService notificationSer
     /// <summary>Marks every unread notification for the current account as read.</summary>
     [HttpPatch("read-all")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAllAsRead(CancellationToken cancellationToken)
     {
         await notificationService.MarkAllAsReadAsync(cancellationToken);

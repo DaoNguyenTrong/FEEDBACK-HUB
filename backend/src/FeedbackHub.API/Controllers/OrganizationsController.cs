@@ -18,7 +18,6 @@ public sealed class OrganizationsController(
     [HttpPost]
     [ProducesResponseType(typeof(OrganizationDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<OrganizationDto>> Create(
         CreateOrganizationRequest request,
         CancellationToken cancellationToken)
@@ -31,7 +30,6 @@ public sealed class OrganizationsController(
     /// <summary>Returns the organizations the current account is an active member of.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<OrganizationDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IReadOnlyList<OrganizationDto>>> GetMine(CancellationToken cancellationToken)
     {
         IReadOnlyList<OrganizationDto> organizations = await organizationService.ListMineAsync(cancellationToken);
@@ -43,8 +41,6 @@ public sealed class OrganizationsController(
     [HttpGet("{id:guid}/members")]
     [Authorize(Policy = AuthorizationPolicies.OrganizationMember)]
     [ProducesResponseType(typeof(IReadOnlyList<OrganizationMemberDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyList<OrganizationMemberDto>>> GetMembers(
         Guid id,
         CancellationToken cancellationToken)
@@ -59,8 +55,6 @@ public sealed class OrganizationsController(
     [Authorize(Policy = Permissions.OrganizationMembersManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> AddMember(
@@ -77,8 +71,6 @@ public sealed class OrganizationsController(
     [HttpPatch("{id:guid}/members/{accountId:guid}")]
     [Authorize(Policy = Permissions.OrganizationMembersManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateMemberRoles(
@@ -96,8 +88,6 @@ public sealed class OrganizationsController(
     [HttpDelete("{id:guid}/members/{accountId:guid}")]
     [Authorize(Policy = Permissions.OrganizationMembersManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RemoveMember(
@@ -115,8 +105,6 @@ public sealed class OrganizationsController(
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = Permissions.OrganizationManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken cancellationToken)
     {
@@ -129,8 +117,6 @@ public sealed class OrganizationsController(
     [HttpGet("{id:guid}/roles")]
     [Authorize(Policy = AuthorizationPolicies.OrganizationMember)]
     [ProducesResponseType(typeof(IReadOnlyList<RoleDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyList<RoleDto>>> GetRoles(Guid id, CancellationToken cancellationToken)
     {
         IReadOnlyList<RoleDto> roles = await roleService.ListAsync(id, cancellationToken);
@@ -143,8 +129,6 @@ public sealed class OrganizationsController(
     [Authorize(Policy = Permissions.OrganizationRolesManage)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<RoleDto>> CreateRole(
         Guid id, CreateRoleRequest request, CancellationToken cancellationToken)
@@ -159,8 +143,6 @@ public sealed class OrganizationsController(
     [Authorize(Policy = Permissions.OrganizationRolesManage)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<RoleDto>> UpdateRole(
@@ -175,8 +157,6 @@ public sealed class OrganizationsController(
     [HttpDelete("{id:guid}/roles/{roleId:guid}")]
     [Authorize(Policy = Permissions.OrganizationRolesManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteRole(Guid id, Guid roleId, CancellationToken cancellationToken)
     {

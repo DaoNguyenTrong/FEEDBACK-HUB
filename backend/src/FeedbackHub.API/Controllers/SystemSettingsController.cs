@@ -14,8 +14,6 @@ public sealed class SystemSettingsController(ISystemSettingsService systemSettin
     /// <summary>Returns all dynamic system settings as key/value pairs.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyDictionary<string, string?>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyDictionary<string, string?>>> GetAll(CancellationToken cancellationToken)
     {
         IReadOnlyDictionary<string, string?> settings = await systemSettingsService.GetAllAsync(cancellationToken);
@@ -26,8 +24,6 @@ public sealed class SystemSettingsController(ISystemSettingsService systemSettin
     /// <summary>Updates the settings under the given key prefix.</summary>
     [HttpPut("{keyPrefix}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdateSection(
         string keyPrefix,
         Dictionary<string, string?> values,

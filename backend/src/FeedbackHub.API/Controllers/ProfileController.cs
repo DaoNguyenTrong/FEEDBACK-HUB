@@ -12,7 +12,6 @@ public sealed class ProfileController(IAccountService accountService) : Controll
     /// <summary>Returns the profile of the currently authenticated user.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(ProfileDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProfileDto>> Get(CancellationToken cancellationToken)
     {
         ProfileDto profile = await accountService.GetCurrentProfileAsync(cancellationToken);
@@ -24,7 +23,6 @@ public sealed class ProfileController(IAccountService accountService) : Controll
     [HttpPut]
     [ProducesResponseType(typeof(ProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProfileDto>> Update(
         UpdateProfileRequest request,
         CancellationToken cancellationToken)
@@ -41,7 +39,6 @@ public sealed class ProfileController(IAccountService accountService) : Controll
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProfileDto>> UploadAvatar(
         IFormFile avatar,
         CancellationToken cancellationToken)
@@ -58,7 +55,6 @@ public sealed class ProfileController(IAccountService accountService) : Controll
     /// <summary>Removes the avatar of the currently authenticated user, if any.</summary>
     [HttpDelete("avatar")]
     [ProducesResponseType(typeof(ProfileDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProfileDto>> DeleteAvatar(CancellationToken cancellationToken)
     {
         ProfileDto profile = await accountService.DeleteAvatarAsync(cancellationToken);
@@ -70,7 +66,6 @@ public sealed class ProfileController(IAccountService accountService) : Controll
     [HttpPut("password")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ChangePassword(
         ChangePasswordRequest request,
         CancellationToken cancellationToken)
