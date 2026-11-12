@@ -18,6 +18,7 @@ public sealed partial class OrganizationInvitation : BaseEntity<Guid>, IHasOrgan
     {
     }
 
+    // Immutable after creation, so there is no Update: re-inviting replaces the row with a new one.
     public static OrganizationInvitation Create(OrganizationInvitationParams p)
     {
         if (p.OrganizationId == Guid.Empty)
