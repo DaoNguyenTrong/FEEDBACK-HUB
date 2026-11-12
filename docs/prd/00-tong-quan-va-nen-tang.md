@@ -3,7 +3,7 @@
 | Mục | Giá trị |
 |---|---|
 | Mã | `PRD00` (tiền tố cho mọi mã trong tài liệu này) |
-| Trạng thái | In review |
+| Trạng thái | Approved |
 | Phiên bản | 1.5 |
 | Người duyệt | Người dùng (chủ sản phẩm FeedbackHub) |
 | Cập nhật | 2026-11-12 |
@@ -922,6 +922,7 @@ Các điểm `product-manager` đã viết vào PRD theo đề xuất, kể cả
 | 2026-10-23 | 1.4 | Người dùng duyệt PRD cùng các mặc định D18–D20, câu 118 và các câu trả lời của SA thay người dùng (119, 119 tiếp nối, 119 tiếp nối 2), cùng các bảng thiết kế *ProfileEmail* và *AuditLog* | Quyết định của người dùng |
 | 2026-11-12 | 1.5 | Áp dụng câu 120 (appsec review PR #32: tài khoản không có mật khẩu đổi email mà không phải xác thực lại; kẻ chiếm phiên đặt email do mình kiểm soát, xác nhận, rồi đăng nhập Google/Microsoft với địa chỉ đó thì tự liên kết vào tài khoản nạn nhân, truy cập còn sau khi thu hồi phiên): tài khoản không có mật khẩu phải xác nhận trước bằng link gửi tới email hiện tại, sau đó mới tiếp tục như cũ (link tới email mới, rồi đổi có hiệu lực); tài khoản có mật khẩu giữ nguyên. Thêm FR-69, BR-85, AC-376–390, D21, D22; FR-67, BR-82 (điểm 1, 7), AC-354, §8, §9, §10, §11 (ghi chú rủi ro còn lại viết lại), §12 PRD05 *Thư xác nhận đổi email* sửa theo. Chuyển trạng thái về In review, phiên bản 1.5. | Quyết định của người dùng; appsec review |
 | 2026-11-12 | 1.5 | Áp dụng review BA và câu 121. BA: tách AC-379 thành AC-379, AC-391, AC-392; thêm AC-393–397 (đổi sang email thứ ba ở bước hai, link email mới hết hạn, đặt mật khẩu khi đang chờ, *Huỷ* và *Gửi lại* ở bước hai); BR-82, BR-51 thêm FR-69; US-26, §2 (BR-85), thuật ngữ *Tài khoản không có mật khẩu*. SA (thay người dùng): BR-85 điểm 10 (đặt mật khẩu phải chứng minh sở hữu hộp thư), điểm 11 (tự liên kết chỉ bằng email đã xác minh và trùng email hiện hành), điểm 12 (email chưa xác minh đi luồng BR-82, AC-398, AC-399), điểm 13 (xác nhận ở email cũ còn giá trị); D21 sửa, D23–D26; §8, §11. Vẫn v1.5, In review | BA review; SA (thay người dùng) |
+| 2026-11-12 | 1.5 | Người dùng duyệt v1.5 cùng bảng *Mặc định đề xuất* (D21–D26). Chuyển *Approved* | Người dùng |
 
 ### Quyết định của người dùng
 

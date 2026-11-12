@@ -5,7 +5,7 @@
 | Mã | `TECH00` |
 | PRD | `PRD00` v1.4 (Approved 2026-10-23), `docs/prd/00-tong-quan-va-nen-tang.md` (gồm câu 118, D18, AC-352–AC-358: xác thực lại khi đổi email; câu 119, US-27, FR-68 (Must), BR-83, BR-84, D19, AC-359–AC-375: màn hình nhật ký kiểm toán) |
 | Thiết kế giao diện | https://claude.ai/artifact/21QUWu78AZFfwSxcaWmjQn — hệ thiết kế: *SystemLight/Dark*, *ComponentsLight/Dark*; module 00: *AppShell*, *OrgContext*, *Members*, *InviteAccept*, *Roles*, *OrgSettings*, *SysOrgs* (sáng, tối; 1280, 834, 390 px). Thêm ở PRD-00 v1.4, người dùng duyệt 2026-10-23: *ProfileEmail* (bảng hồ sơ, đổi email kèm mật khẩu hiện tại), *AuditLog* (nhật ký kiểm toán), mẫu lỗi chung "Không tìm thấy"/"Không đủ quyền" trên *OrgContext*, mẫu nút sao chép trên *Components* |
-| Trạng thái | In review |
+| Trạng thái | Approved |
 | Phiên bản | 1.1 |
 | Cần appsec review | Có (định danh, token lời mời, phiên, quyền, đường mở lời mời ẩn danh, admin hệ thống). Đạt v0.9 (appsec kiểm lại nhật ký kiểm toán; C1–C3 không chặn, đã áp) |
 | Người duyệt | Người dùng (sau review của `appsec`); duyệt 2026-10-23 cùng PRD-00 v1.4 và thiết kế module 01 |
@@ -855,6 +855,7 @@ Phần thiết kế không có yêu cầu PRD trực tiếp, giữ vì quy tắc
 
 | Ngày | Phiên bản | Thay đổi | Nguồn |
 |---|---|---|---|
+| 2026-11-12 | 1.1 | Người dùng duyệt v1.1. Chuyển *Approved* | Người dùng |
 | 2026-11-12 | 1.1 | Hai lệch khi triển khai (pr-reviewer vòng 1, PR #32): (1) API-12 thêm lỗi 409 `InvitationEmailAlreadyMember`, ghi rõ 503 `InvitationEmailDeliveryFailed` (§4.2); (2) §4.6 ghi thứ tự vai trò trên dòng thành viên: Owner, Admin, Member, vai trò tự tạo theo tên ICU, rồi `Id`. Chuyển *In review* | Quyết định của người dùng, 2026-11-12 (mục 1); SA (thay người dùng) (mục 2) |
 | 2026-10-23 | 1.0 | Người dùng duyệt TECH00 cùng PRD-00 v1.4; QĐ-12 đổi chữ "khớp theo `oid`" sang "khớp theo `sub`", ý định không đổi | Quyết định của người dùng |
 | 2026-10-23 | 0.9 (sửa 3) | C3 thay theo quyết định mới: `ActorKind` chọn theo tư cách người làm lúc thao tác (admin hệ thống không là thành viên X mới ghi nhãn, kể cả từ API-25/26), chốt vào mục; một phép tra `SystemAdministratorActor.ResolveAsync` dùng chung cho nhật ký và `DeactivatedBySystemAdministrator` (§3.1, §3.7, §11, §12 QĐ-36, §13, §14 P8; AC-375). Không cần `appsec` xem lại. Giữ phiên bản 0.9 | SA (thay người dùng), 2026-10-23 |
