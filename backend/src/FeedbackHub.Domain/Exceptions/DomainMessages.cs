@@ -7,6 +7,7 @@ public static class DomainMessages
     public const string AccountEmailRequired = nameof(AccountEmailRequired);
     public const string EmailChangeSameAsCurrent = nameof(EmailChangeSameAsCurrent);
     public const string EmailChangeNotPending = nameof(EmailChangeNotPending);
+    public const string EmailNotConfirmed = nameof(EmailNotConfirmed);
     public const string PasswordHashRequired = nameof(PasswordHashRequired);
     public const string AccountIdRequired = nameof(AccountIdRequired);
     public const string RefreshTokenRequired = nameof(RefreshTokenRequired);

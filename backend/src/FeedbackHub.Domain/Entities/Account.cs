@@ -74,7 +74,14 @@ public sealed class Account : BaseEntity<Guid>
     /// <summary>End of the temporary email-change lock, or <c>null</c> when it is not locked.</summary>
     public DateTime? EmailChangeLockedUntil { get; private set; }
 
-    public void RequestEmailChange(string email)
+    /// <summary>The step a pending change waits for; <c>null</c> exactly when <see cref="PendingEmail"/> is.</summary>
+    public EmailChangeStage? PendingEmailStage { get; private set; }
+
+    /// <summary>
+    /// Starts (or restarts) an email change and returns the stage it begins at. The stage is chosen here
+    /// only: a password-less account confirms at its current address first.
+    /// </summary>
+    public EmailChangeStage RequestEmailChange(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
         {
@@ -87,20 +94,47 @@ public sealed class Account : BaseEntity<Guid>
             throw new DomainException(DomainMessages.EmailChangeSameAsCurrent);
         }
 
+        bool hasPassword = !string.IsNullOrEmpty(PasswordHash);
+        if (!hasPassword && !EmailConfirmed)
+        {
+            throw new DomainException(DomainMessages.EmailNotConfirmed);
+        }
+
+        EmailChangeStage stage = hasPassword
+            ? EmailChangeStage.AwaitingNewEmail
+            : EmailChangeStage.AwaitingCurrentEmail;
         PendingEmail = normalized;
+        PendingEmailStage = stage;
+        return stage;
     }
 
-    public void CancelEmailChange() => PendingEmail = null;
+    /// <summary>The current address was confirmed: moves from stage one to stage two.</summary>
+    public void ConfirmCurrentEmail()
+    {
+        if (PendingEmailStage != EmailChangeStage.AwaitingCurrentEmail)
+        {
+            throw new DomainException(DomainMessages.EmailChangeNotPending);
+        }
+
+        PendingEmailStage = EmailChangeStage.AwaitingNewEmail;
+    }
+
+    public void CancelEmailChange()
+    {
+        PendingEmail = null;
+        PendingEmailStage = null;
+    }
 
     public void ApplyEmailChange()
     {
-        if (PendingEmail is null)
+        if (PendingEmail is null || PendingEmailStage != EmailChangeStage.AwaitingNewEmail)
         {
             throw new DomainException(DomainMessages.EmailChangeNotPending);
         }
 
         Email = PendingEmail;
         PendingEmail = null;
+        PendingEmailStage = null;
         ConfirmEmail();
     }
 

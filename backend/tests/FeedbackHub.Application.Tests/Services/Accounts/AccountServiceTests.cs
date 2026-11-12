@@ -210,6 +210,12 @@ public class AccountServiceTests
     {
         Fixture f = CreateFixture();
         account = CreateAccount(email: email, passwordHash: passwordHash);
+        if (passwordHash is null)
+        {
+            // A password-less account can only change its email once the current one is verified.
+            account.ConfirmEmail();
+        }
+
         if (pending is not null)
         {
             account.RequestEmailChange(pending);

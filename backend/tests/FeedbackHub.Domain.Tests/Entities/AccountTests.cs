@@ -278,48 +278,144 @@ public class AccountTests
         Assert.Null(account.AvatarPath);
     }
 
-    [Fact]
-    public void RequestEmailChange_NewAddress_SetsNormalizedPendingAndKeepsEmail()
+    private static Account AccountWith(bool hasPassword, bool confirmed)
     {
         Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+        if (hasPassword)
+        {
+            account.SetPasswordHash("hash");
+        }
 
-        account.RequestEmailChange(" B@X.com ");
+        if (confirmed)
+        {
+            account.ConfirmEmail();
+        }
 
+        return account;
+    }
+
+    private static void AssertInvariant(Account account) =>
+        Assert.Equal(account.PendingEmail is null, account.PendingEmailStage is null);
+
+    // RequestEmailChange
+
+    [Theory]
+    [InlineData(false, true, EmailChangeStage.AwaitingCurrentEmail)]
+    [InlineData(true, true, EmailChangeStage.AwaitingNewEmail)]
+    [InlineData(true, false, EmailChangeStage.AwaitingNewEmail)]
+    public void RequestEmailChange_StageByPasswordAndConfirmation_ReturnsExpectedStage(
+        bool hasPassword, bool confirmed, EmailChangeStage expected)
+    {
+        Account account = AccountWith(hasPassword, confirmed);
+
+        EmailChangeStage stage = account.RequestEmailChange(" B@X.com ");
+
+        Assert.Equal(expected, stage);
+        Assert.Equal(expected, account.PendingEmailStage);
         Assert.Equal("b@x.com", account.PendingEmail);
         Assert.Equal("a@x.com", account.Email);
-        Assert.False(account.EmailConfirmed);
+        AssertInvariant(account);
+    }
+
+    [Fact]
+    public void RequestEmailChange_NoPasswordUnconfirmed_ThrowsEmailNotConfirmed()
+    {
+        Account account = AccountWith(hasPassword: false, confirmed: false);
+
+        DomainAssert.ThrowsWithMessage(
+            DomainMessages.EmailNotConfirmed, () => account.RequestEmailChange("b@x.com"));
+
+        Assert.Null(account.PendingEmail);
+        Assert.Null(account.PendingEmailStage);
     }
 
     [Fact]
     public void RequestEmailChange_SameAsCurrentIgnoringCase_Throws()
     {
-        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+        Account account = AccountWith(hasPassword: true, confirmed: true);
 
         DomainAssert.ThrowsWithMessage(
             DomainMessages.EmailChangeSameAsCurrent, () => account.RequestEmailChange("A@X.COM"));
+        AssertInvariant(account);
     }
 
     [Fact]
-    public void CancelEmailChange_ClearsPending()
+    public void RequestEmailChange_OnPendingAccount_MovesToStageChosenNow()
     {
-        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+        Account account = AccountWith(hasPassword: false, confirmed: true);
+        account.RequestEmailChange("b@x.com");
+        account.ConfirmCurrentEmail();
+        Assert.Equal(EmailChangeStage.AwaitingNewEmail, account.PendingEmailStage);
+
+        EmailChangeStage stage = account.RequestEmailChange("c@x.com");
+
+        Assert.Equal(EmailChangeStage.AwaitingCurrentEmail, stage);
+        Assert.Equal(EmailChangeStage.AwaitingCurrentEmail, account.PendingEmailStage);
+        Assert.Equal("c@x.com", account.PendingEmail);
+        AssertInvariant(account);
+    }
+
+    // ConfirmCurrentEmail
+
+    [Fact]
+    public void ConfirmCurrentEmail_AtStageOne_MovesToStageTwo()
+    {
+        Account account = AccountWith(hasPassword: false, confirmed: true);
         account.RequestEmailChange("b@x.com");
 
-        account.CancelEmailChange();
+        account.ConfirmCurrentEmail();
 
-        Assert.Null(account.PendingEmail);
+        Assert.Equal(EmailChangeStage.AwaitingNewEmail, account.PendingEmailStage);
+        Assert.Equal("b@x.com", account.PendingEmail);
+        Assert.Equal("a@x.com", account.Email);
+        AssertInvariant(account);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ConfirmCurrentEmail_AtStageTwoOrNothingPending_ThrowsEmailChangeNotPending(bool atStageTwo)
+    {
+        Account account = AccountWith(hasPassword: true, confirmed: true);
+        if (atStageTwo)
+        {
+            account.RequestEmailChange("b@x.com");
+        }
+
+        DomainAssert.ThrowsWithMessage(
+            DomainMessages.EmailChangeNotPending, () => account.ConfirmCurrentEmail());
+
+        Assert.Equal(atStageTwo ? "b@x.com" : null, account.PendingEmail);
+        AssertInvariant(account);
+    }
+
+    // ApplyEmailChange
+
+    [Fact]
+    public void ApplyEmailChange_AtStageOne_ThrowsEmailChangeNotPending()
+    {
+        Account account = AccountWith(hasPassword: false, confirmed: true);
+        account.RequestEmailChange("b@x.com");
+
+        DomainAssert.ThrowsWithMessage(
+            DomainMessages.EmailChangeNotPending, () => account.ApplyEmailChange());
+
+        Assert.Equal("a@x.com", account.Email);
+        Assert.Equal("b@x.com", account.PendingEmail);
+        Assert.Equal(EmailChangeStage.AwaitingCurrentEmail, account.PendingEmailStage);
     }
 
     [Fact]
-    public void ApplyEmailChange_MovesPendingToEmailAndConfirms()
+    public void ApplyEmailChange_AtStageTwo_SetsEmailConfirmsAndClearsBoth()
     {
-        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+        Account account = AccountWith(hasPassword: true, confirmed: false);
         account.RequestEmailChange("b@x.com");
 
         account.ApplyEmailChange();
 
         Assert.Equal("b@x.com", account.Email);
         Assert.Null(account.PendingEmail);
+        Assert.Null(account.PendingEmailStage);
         Assert.True(account.EmailConfirmed);
     }
 
@@ -330,12 +426,29 @@ public class AccountTests
 
         DomainAssert.ThrowsWithMessage(
             DomainMessages.EmailChangeNotPending, () => account.ApplyEmailChange());
+        AssertInvariant(account);
+    }
+
+    // CancelEmailChange
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CancelEmailChange_AnyStage_ClearsPendingEmailAndStage(bool hasPassword)
+    {
+        Account account = AccountWith(hasPassword, confirmed: true);
+        account.RequestEmailChange("b@x.com");
+
+        account.CancelEmailChange();
+
+        Assert.Null(account.PendingEmail);
+        Assert.Null(account.PendingEmailStage);
     }
 
     [Fact]
     public void Update_DoesNotTouchPendingEmail()
     {
-        Account account = Account.Create(ValidParams() with { Email = "a@x.com" });
+        Account account = AccountWith(hasPassword: true, confirmed: true);
         account.RequestEmailChange("b@x.com");
 
         account.Update(ValidParams() with { Email = "a@x.com", Name = "Other" });

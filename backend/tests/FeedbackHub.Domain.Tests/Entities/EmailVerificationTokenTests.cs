@@ -30,6 +30,17 @@ public class EmailVerificationTokenTests
     }
 
     [Fact]
+    public void Create_WithConfirmOldEmailPurpose_KeepsPurposeAndNormalizedEmail()
+    {
+        EmailVerificationTokenParams p = ValidParams() with { Purpose = EmailVerificationPurpose.ConfirmOldEmail };
+
+        EmailVerificationToken token = EmailVerificationToken.Create(p);
+
+        Assert.Equal(EmailVerificationPurpose.ConfirmOldEmail, token.Purpose);
+        Assert.Equal("a@x.com", token.Email);
+    }
+
+    [Fact]
     public void Create_WithEmptyAccountId_ThrowsDomainException()
     {
         EmailVerificationTokenParams p = ValidParams() with { AccountId = Guid.Empty };
