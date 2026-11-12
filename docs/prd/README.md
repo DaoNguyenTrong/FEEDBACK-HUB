@@ -27,4 +27,6 @@ Mọi thay đổi trên PRD đã duyệt đưa PRD về *In review*.
 | PRD06 | Tổng quan và chỉ số: số liệu theo sản phẩm, chỉ số thành công, danh sách cần chú ý | Chưa bắt đầu | — | 03 | — |
 | PRD07 | Khảo sát: đợt khảo sát, trả lời, ẩn danh, kết quả | Chưa bắt đầu | — | 00 | — |
 
+Thứ tự làm theo mã PRD. PRD02 làm ngay sau PRD01, trước PRD03–07, để FeedbackHub sớm thu được feedback về chính nó (người dùng quyết, 2026-11-12).
+
 Để sau: SDK Flutter, connector (Plane, GitHub, GitLab), AI phân loại.
