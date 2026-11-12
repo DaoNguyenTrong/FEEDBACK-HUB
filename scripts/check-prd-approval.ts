@@ -6,36 +6,71 @@ import { readFileSync } from 'node:fs'
 
 type Row = { version: string; change: string; source: string }
 
-const cells = (line: string) => line.split('|').slice(1, -1).map((c) => c.trim())
+const STATUSES = ['Draft', 'In review', 'Approved'] as const
+const VERSION = /^\d+\.\d+$/
+const DATE_ROW = /^\|\s*\d{4}-\d{2}-\d{2}\s*\|/
+
+// `\|` is a literal pipe inside a cell, never a column break.
+const cells = (line: string) =>
+  line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/(?<!\\)\|$/, '')
+    .split(/(?<!\\)\|/)
+    .map((c) => c.trim())
+
+const plain = (cell: string) => cell.replace(/\*/g, '').trim()
 
 function headerValue(markdown: string, key: string): string | undefined {
   for (const line of markdown.split('\n')) {
+    if (!line.startsWith('|') || DATE_ROW.test(line)) continue
     const c = cells(line)
-    if (c.length === 2 && c[0] === key) return c[1]
+    if (c.length >= 2 && plain(c[0]) === key) return plain(c[1])
   }
   return undefined
 }
 
-function historyRows(markdown: string): Row[] {
-  return markdown
-    .split('\n')
-    .filter((l) => /^\|\s*\d{4}-\d{2}-\d{2}\s*\|/.test(l))
-    .map(cells)
-    .filter((c) => c.length >= 4)
-    .map(([, version, change, source]) => ({ version, change, source }))
+function status(markdown: string): (typeof STATUSES)[number] | undefined {
+  const value = headerValue(markdown, 'Trạng thái') ?? ''
+  return STATUSES.find((s) => new RegExp(`^${s}\\b`, 'i').test(value))
 }
 
+const sources = (r: Row) => r.source.split(';').map((s) => s.trim())
+const hasBaReview = (r: Row) => sources(r).some((s) => /^BA review\b/.test(s))
 const isApproval = (r: Row) => r.change.startsWith('Người dùng duyệt') && r.source.includes('Quyết định của người dùng')
 
+function compareVersions(a: string, b: string): number {
+  const [aMajor, aMinor] = a.split('.').map(Number)
+  const [bMajor, bMinor] = b.split('.').map(Number)
+  return aMajor - bMajor || aMinor - bMinor
+}
+
 export function checkPrdApproval(markdown: string): string[] {
-  if (headerValue(markdown, 'Trạng thái') !== 'Approved') return []
+  const current = status(markdown)
+  if (current === undefined) return [`no recognised Trạng thái (${STATUSES.join(', ')})`]
+  if (current !== 'Approved') return []
+
   const version = headerValue(markdown, 'Phiên bản') ?? ''
-  const rows = historyRows(markdown).filter((r) => r.version === version)
+  if (!VERSION.test(version)) return [`header Phiên bản is not N.N: ${version}`]
+
+  const findings: string[] = []
+  const all: Row[] = []
+  for (const line of markdown.split('\n').filter((l) => DATE_ROW.test(l))) {
+    const c = cells(line)
+    if (c.length !== 4) findings.push(`change-log row is not | date | version | change | source |: ${line.trim()}`)
+    else if (!VERSION.test(c[1])) findings.push(`change-log version is not N.N: ${c[1]}`)
+    else all.push({ version: c[1], change: c[2], source: c[3] })
+  }
+  for (const r of all.filter((r) => compareVersions(r.version, version) > 0)) {
+    findings.push(`row for v${r.version} is newer than the header version v${version}`)
+  }
+  if (findings.length > 0) return findings
+
+  const rows = all.filter((r) => r.version === version)
   const approvalAt = rows.findLastIndex(isApproval)
   if (approvalAt < 0) return [`no user-approval row for v${version}`]
 
-  const findings: string[] = []
-  if (!rows.slice(0, approvalAt).some((r) => r.source.includes('BA review'))) {
+  if (!rows.slice(0, approvalAt).some(hasBaReview)) {
     findings.push(`no BA review before the approval of v${version}`)
   }
   for (const r of rows.slice(approvalAt + 1)) {

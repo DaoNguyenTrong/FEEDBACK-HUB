@@ -60,3 +60,53 @@ test('lastApprovalRowIsTheOneChecked', () =>
       prd('Approved', '1.1', [approve('1.1'), ba('1.1'), '| 2026-10-23 | 1.1 | Người dùng duyệt lại | Quyết định của người dùng |']),
     ),
   ).toEqual([]))
+
+// Final review: inputs that must not pass silently.
+const withHeader = (statusCell: string, rows: string[]) =>
+  prd('Approved', '1.0', rows).replace('| Trạng thái | Approved |', statusCell)
+
+test.each(['| Trạng thái | **Approved** |', '| Trạng thái | *Approved* |', '| Trạng thái | Approved (2026-10-22) |', '| Trạng thái | Approved | ghi chú |'])(
+  'decoratedApprovedStatus(%s)_isStillChecked',
+  (cell) => expect(checkPrdApproval(withHeader(cell, [draft, approve('1.0')]))).toEqual(['no BA review before the approval of v1.0']),
+)
+
+test('missingStatus_fails', () =>
+  expect(checkPrdApproval(withHeader('| Mã | PRD99 |', [draft]))).toEqual(['no recognised Trạng thái (Draft, In review, Approved)']))
+
+test('unknownStatus_fails', () =>
+  expect(checkPrdApproval(withHeader('| Trạng thái | Xong |', [draft]))).toEqual(['no recognised Trạng thái (Draft, In review, Approved)']))
+
+test('rowNewerThanHeaderVersion_fails', () =>
+  expect(
+    checkPrdApproval(prd('Approved', '1.0', [draft, ba('1.0'), approve('1.0'), '| 2026-10-23 | 1.1 | Thêm FR mới | Quyết định của người dùng |'])),
+  ).toEqual(['row for v1.1 is newer than the header version v1.0']))
+
+test('negatedBaReview_doesNotCount', () =>
+  expect(
+    checkPrdApproval(prd('Approved', '1.0', [draft, '| 2026-10-21 | 1.0 | x | Không có BA review |', approve('1.0')])),
+  ).toEqual(['no BA review before the approval of v1.0']))
+
+test('escapedPipeCannotForgeMetadata', () =>
+  expect(
+    checkPrdApproval(prd('Approved', '1.0', [draft, ba('1.0'), approve('1.0'), '| 2026-10-23 | 1.0 | Thêm BR-99 \\| metadata | Quyết định của người dùng |'])),
+  ).toEqual(['content change after the approval of v1.0: Thêm BR-99 \\| metadata']))
+
+test('escapedPipeInChangeText_keepsSourceColumn', () =>
+  expect(
+    checkPrdApproval(prd('Approved', '1.0', [draft, ba('1.0'), approve('1.0'), '| 2026-10-23 | 1.0 | sửa `a \\| b` | metadata |'])),
+  ).toEqual([]))
+
+test('rowWithWrongCellCount_fails', () =>
+  expect(checkPrdApproval(prd('Approved', '1.0', [draft, ba('1.0'), approve('1.0'), '| 2026-10-23 | 1.0 | x |']))).toEqual([
+    'change-log row is not | date | version | change | source |: | 2026-10-23 | 1.0 | x |',
+  ]))
+
+test('versionCellWithExtraText_fails', () =>
+  expect(
+    checkPrdApproval(prd('Approved', '1.0', [draft, ba('1.0'), approve('1.0'), '| 2026-10-23 | 1.0 (sửa) | Thêm AC | SA |'])),
+  ).toEqual(['change-log version is not N.N: 1.0 (sửa)']))
+
+test('baReviewAsOneOfSeveralSources_counts', () =>
+  expect(
+    checkPrdApproval(prd('Approved', '1.0', [draft, '| 2026-10-21 | 1.0 | Sửa | SA (thay người dùng); BA review |', approve('1.0')])),
+  ).toEqual([]))
