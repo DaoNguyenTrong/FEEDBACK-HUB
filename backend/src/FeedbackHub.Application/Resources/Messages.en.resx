@@ -30,6 +30,9 @@
   <data name="EmailChangeLinkNoLongerValid" xml:space="preserve">
     <value>This email change link is no longer valid.</value>
   </data>
+  <data name="EmailChangeTooManyRequests" xml:space="preserve">
+    <value>You have sent too many email change requests. Try again in an hour.</value>
+  </data>
   <data name="PasswordHashRequired" xml:space="preserve">
     <value>Password hash is required.</value>
   </data>

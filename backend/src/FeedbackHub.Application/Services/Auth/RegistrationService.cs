@@ -153,7 +153,7 @@ public sealed class RegistrationService(
         accountRepository.Update(account);
 
         // Consumes this link too: it is one of the account's active tokens.
-        await emailChangeLink.ConsumeAllAsync(account.Id, purpose: null, cancellationToken);
+        await emailChangeLink.ConsumeAllAsync(account.Id, purposes: null, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }

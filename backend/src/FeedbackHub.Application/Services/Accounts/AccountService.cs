@@ -110,7 +110,8 @@ public sealed class AccountService(
         Account account = await GetCurrentAccountAsync(cancellationToken);
 
         account.CancelEmailChange();
-        await emailChangeLink.ConsumeAllAsync(account.Id, EmailVerificationPurpose.ChangeEmail, cancellationToken);
+        await emailChangeLink.ConsumeAllAsync(
+            account.Id, [EmailVerificationPurpose.ChangeEmail, EmailVerificationPurpose.ConfirmOldEmail], cancellationToken);
         unitOfWork.Repository<Account, Guid>().Update(account);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }

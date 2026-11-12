@@ -430,7 +430,9 @@ public class AccountServiceTests
         await f.PasswordAttempts.DidNotReceiveWithAnyArgs().ReserveAttemptAsync(
             default, default, default, default, default);
         Assert.Equal("b@x.com", account.PendingEmail);
-        await f.EmailSender.Received(1).SendAsync("b@x.com", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        // Stage one (TECH00 6.7): the first mail goes to the current address, not the pending one.
+        await f.EmailSender.Received(1).SendAsync("a@x.com", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await f.EmailSender.DidNotReceive().SendAsync("b@x.com", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

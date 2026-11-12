@@ -9,6 +9,7 @@ public static class ApplicationMessages
     public const string EmailChangeTemporarilyLocked = nameof(EmailChangeTemporarilyLocked);
     public const string EmailChangeNotPending = nameof(EmailChangeNotPending);
     public const string EmailChangeLinkNoLongerValid = nameof(EmailChangeLinkNoLongerValid);
+    public const string EmailChangeTooManyRequests = nameof(EmailChangeTooManyRequests);
     public const string RefreshTokenRequired = nameof(RefreshTokenRequired);
     public const string InvalidRefreshToken = nameof(InvalidRefreshToken);
     public const string AccountUsernameAlreadyExists = nameof(AccountUsernameAlreadyExists);

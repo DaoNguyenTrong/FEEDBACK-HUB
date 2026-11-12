@@ -30,6 +30,9 @@
   <data name="EmailChangeLinkNoLongerValid" xml:space="preserve">
     <value>Liên kết đổi email không còn hiệu lực.</value>
   </data>
+  <data name="EmailChangeTooManyRequests" xml:space="preserve">
+    <value>Bạn đã gửi quá nhiều yêu cầu đổi email. Hãy thử lại sau một giờ.</value>
+  </data>
   <data name="PasswordHashRequired" xml:space="preserve">
     <value>Mã băm mật khẩu là bắt buộc.</value>
   </data>

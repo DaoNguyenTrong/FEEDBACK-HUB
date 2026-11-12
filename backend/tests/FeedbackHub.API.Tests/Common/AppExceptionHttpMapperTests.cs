@@ -17,6 +17,7 @@ public class AppExceptionHttpMapperTests
     [InlineData("Map_DomainException_ReturnsBadRequest", typeof(DomainException), StatusCodes.Status400BadRequest, "Bad Request")]
     [InlineData("Map_FormattedDomainException_ReturnsBadRequest", typeof(FormattedDomainException), StatusCodes.Status400BadRequest, "Bad Request")]
     [InlineData("Map_ServiceUnavailableException_ReturnsServiceUnavailable", typeof(ServiceUnavailableException), StatusCodes.Status503ServiceUnavailable, "Service Unavailable")]
+    [InlineData("Map_TooManyRequestsException_ReturnsTooManyRequests", typeof(TooManyRequestsException), StatusCodes.Status429TooManyRequests, "Too Many Requests")]
     [InlineData("Map_UnmappedAppExceptionSubtype_ReturnsInternalServerError", typeof(OtherAppException), StatusCodes.Status500InternalServerError, "Internal Server Error")]
     public void Map_ReturnsTheStatusAndTitleOfTheExceptionType(
         string caseName,
