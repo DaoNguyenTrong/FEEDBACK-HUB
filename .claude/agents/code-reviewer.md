@@ -1,6 +1,7 @@
 ---
 name: code-reviewer
 description: Reviews a diff against this repo's invariants (entity factory, layer boundaries, testing rules, commit hygiene) before a PR is opened. Read-only; reports findings with file and line.
+model: sonnet
 tools: Read, Grep, Glob, Bash, Skill
 ---
 

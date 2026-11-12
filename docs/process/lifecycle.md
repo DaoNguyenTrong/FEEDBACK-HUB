@@ -132,6 +132,26 @@ Người dùng yêu cầu áp dụng các cải tiến; SA (thay người dùng)
 
 Phương án loại: tách PR #32 thành 8 PR xếp chồng (rebase theo phase dễ hỏng, phải chạy lại CI từng phần); kiểm tra CI cho mọi tham chiếu `§` ngay bây giờ (chưa có bằng chứng tham chiếu hỏng lặp lại); giới hạn cứng 400 dòng cho PRD (dễ thành cắt phạm vi).
 
+### 2026-10-26 — Tăng tốc chạy kế hoạch trong một bản checkout
+Người dùng thấy chạy kế hoạch còn chậm, nhưng muốn giữ nguyên quy tắc dự án. Quy tắc chung (gộp task nhỏ, cho review chạy chồng lên task kế tiếp, brief mang đủ phán quyết, nhịp chạy test) nằm trong `~/.claude/CLAUDE.md` § Subagent-driven execution pacing. Ở dự án này còn thêm:
+- Mỗi lúc chỉ một agent build backend, vì các agent dùng chung `obj/` (`-m:1`). Hai task backend chạy nối tiếp nhau. Một task backend và một task frontend được chạy song song.
+- Trong lúc làm, agent chỉ chạy project test bị ảnh hưởng. Trước khi commit, agent chạy `backend/scripts/test.sh` hoặc `bun run --cwd frontend test:run` một lần.
+- Chỉ phiên chính chạy `scripts/test-gate.sh`, ở cuối phase và sau lượt sửa cuối.
+
+Phương án loại: hai luồng song song bằng git worktree. Mỗi luồng phải cài và build lại từ đầu, các tệp dùng chung (`locales`, `router`, `feature-map.md`) phải gộp tay, và cách này trái với `AGENTS.md` § Branch & worktree. Chỉ dùng khi người dùng duyệt riêng.
+
+### 2026-10-26 — Chọn model theo việc, mặc định Sonnet
+Người dùng thấy các agent chạy ổn nhưng tốn kém. Ở module 00, gần như mọi implementer và reviewer chạy Opus, mỗi agent tốn 120–290 nghìn token. Vì vậy `implementer` và `code-reviewer` khai `model: sonnet` trong frontmatter, để một lượt gọi không ghi model cũng không thành Opus. Phiên chính chỉ đặt Opus qua tham số `model` cho:
+- reviewer của task đụng tới đăng nhập, token, cookie, khoá tổ chức, kiểm quyền hoặc lọc theo tổ chức; implementer của các task này vẫn chạy Sonnet;
+- review cuối mỗi phase.
+
+Ngoài ra:
+- Vòng sửa giao cho một implementer Sonnet mới, không gọi lại agent cũ, vì agent được gọi lại giữ model của nó. Chỉ khi sửa lần thứ hai vẫn chưa đạt mới chuyển sang Opus.
+- Task cơ học (export contract, feature map, tài liệu, sửa chỉ trong test) không có review riêng; phiên chính tự xem diff.
+- Chỉ task bảo mật mới cài lỗi để thử test, khoảng 5 lỗi.
+
+Phương án loại: chỉ nhắc phiên chính chọn model mỗi lần gọi. Một lần quên thì agent đó chạy Opus.
+
 ### 2026-10-23 — `solution-architect` trả lời câu hỏi thay người dùng
 Người dùng thấy bị hỏi quá nhiều: PRD-00 và thiết kế module 00 đã có hơn 80 câu hỏi, phần lớn được chấp nhận theo đề xuất. Từ nay mọi câu hỏi của agent đi tới `solution-architect` trước. Agent này đóng vai một SA dày dặn kinh nghiệm, chuyên Vue 3 và dashboard, ưu tiên cách đơn giản nhất thật sự cần, SOLID và Clean Architecture, giao diện tối giản và cân đối. Nó trả lời thay người dùng và chỉ chuyển lên những câu thuộc danh sách người dùng phải quyết:
 - duyệt tài liệu và kế hoạch;
